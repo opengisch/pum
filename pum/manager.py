@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+
 import argparse
-import yaml
 import os
+
 import psycopg2
 import psycopg2.extras
-
-from pum.dumper import Dumper
-from pum.upgrader import Upgrader, UpgradesTableNotFoundError
+import yaml
 from pum.checker import Checker
+from pum.upgrader import Upgrader, UpgradesTableNotFoundError
+
+from pum.core.dumper import Dumper
 
 
 class Manager():

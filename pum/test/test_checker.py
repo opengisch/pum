@@ -1,7 +1,10 @@
 from unittest import TestCase
+
 import psycopg2
 import psycopg2.extras
-from pum.checker import Checker
+
+from pum.core.checker import Checker
+
 
 class TestChecker(TestCase):
     """Test the class Checker.

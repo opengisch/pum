@@ -1,10 +1,12 @@
-from unittest import TestCase
-import psycopg2
-import psycopg2.extras
 import os
 import shutil
+from unittest import TestCase
 
-from pum.dumper import Dumper
+import psycopg2
+import psycopg2.extras
+
+from pum.core.dumper import Dumper
+
 
 class TestDumper(TestCase):
     """Test the class Dumper.
