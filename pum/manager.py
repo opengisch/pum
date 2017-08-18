@@ -116,7 +116,7 @@ class Manager():
 
         # From http://code.activestate.com/recipes/541096-prompt-the-user-for-confirmation/
     def __confirm(self, prompt=None, resp=False):
-        """Prompt for yes or no response from the user.
+        """Prompt for a yes or no response from the user.
 
             Parameters
             ----------
@@ -188,23 +188,3 @@ class Bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-
-if __name__ == "__main__":
-    """
-    Main process
-    """
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-pp', '--pg_service_prod', help='Name of the pg_service related to production db', required=True)
-    parser.add_argument('-pt', '--pg_service_test', help='Name of the pg_service related to a test db used to test the '
-                        'migration', required=True)
-    parser.add_argument('-pc', '--pg_service_comp', help='Name of the pg_service related to a db used to compare the '
-                                                  'updated db test with the last version of the db', required=True)
-
-    args = parser.parse_args()
-
-    #TODO add an option to set config file
-    manager = Manager(args.pg_service_prod, args.pg_service_test, args.pg_service_comp)
-    manager.run()
-        

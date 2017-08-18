@@ -3,77 +3,210 @@
 from __future__ import print_function
 
 import argparse
+
 import yaml
 
+import utils.utils
 from core.checker import Checker
 from core.dumper import Dumper
 from core.upgrader import Upgrader
+from utils.exceptions import PgDumpError, PgRestoreError
+from utils.utils import ask_for_confirmation, Bcolors
 
 
-class Pum():
+class Pum:
     def __init__(self, config_file=None):
-        if config_file:
-            self.__load_config_file()
+        print(config_file)
 
-    def __load_config_file(self):
+        self.upgrades_table = None
+        self.delta_dir = None
+        self.backup_file = None
+        self.ignore_list = None
+        self.pg_dump_exe = None
+        self.pg_restore_exe = None
+
+        if config_file:
+            self.__load_config_file(config_file)
+
+    def __load_config_file(self, config_file):
         """Load the configurations from yaml configuration file and store it
         to instance variables."""
-        config = yaml.safe_load(open(self.config_file))
-
-        # TODO which variables to load?
-
-        self.upgrades_table = config['upgrades_table']
-        self.delta_dir = config['delta_dir']
-        self.backup_file = config['backup_file']
-        self.ignore_list = config['ignore_elements']
+        configs = yaml.safe_load(open(config_file))
+        self.set_configs(configs)
 
     def set_configs(self, configs):
-        # TODO receive a dict of configs, used when is called from a python
-        # program and not from command line
-        pass
+        # TODO docstring
 
-    def run_check(
-            self, pg_service1, pg_service2, ignore_list=None):
+        self.upgrades_table = configs['upgrades_table']
+        self.delta_dir = configs['delta_dir']
+        self.backup_file = configs['backup_file']
+        self.ignore_list = configs['ignore_elements']
+        self.pg_dump_exe = configs['pg_dump_exe']
+        self.pg_restore_exe = configs['pg_restore_exe']
+
+    def run_check(self, pg_service1, pg_service2, ignore_list=None):
+
+        self.__out('Check...')
 
         if not ignore_list:
             ignore_list = []
         try:
-            db_checker = Checker(
+            checker = Checker(
                 pg_service1, pg_service2, ignore_list)
-            result, differences = db_checker.run_checks()
+            result, differences = checker.run_checks()
 
-            print('result: {}'.format(result))
-            print('differences: {}'.format(differences))
+            # print('result: {}'.format(result))
+            # print('differences: {}'.format(differences))
 
-        # TODO exceptions raised by checker
+            if result:
+                self.__out('OK', 'OKGREEN')
+            else:
+                self.__out('DIFFERECES FOUND', 'WARNING')
+
+            return result
+
+        # TODO exceptions
+        except Exception:
+            self.__out('ERROR', 'FAIL')
+            return False
+
+
+    def run_dump(self, pg_service, file):
+
+        self.__out('Dump...')
+
+        try:
+            dumper = Dumper(pg_service, file)
+            if self.pg_dump_exe:
+                dumper.pg_backup(self.pg_dump_exe)
+            else:
+                dumper.pg_backup()
+        except PgDumpError as e:
+            self.__out('ERROR', 'FAIL')
+            self.__out(e.args[0])
+            return
+        except Exception as e:
+            self.__out('ERROR', 'FAIL')
+            self.__out(e.args[0])
+            return
+        self.__out('OK', 'OKGREEN')
+
+    def run_restore(self, pg_service, file):
+
+        self.__out('Restore...')
+
+        try:
+            dumper = Dumper(pg_service, file)
+            dumper.pg_restore(self.pg_restore_exe)
+
+        except PgRestoreError as e:
+            self.__out('ERROR', 'FAIL')
+            self.__out(e.args[0])
+            return
+        except Exception as e:
+            self.__out('ERROR', 'FAIL')
+            self.__out(e.args[0])
+            return
+        self.__out('OK', 'OKGREEN')
+
+    def run_baseline(self, pg_service, table, delta_dir, baseline):
+        try:
+            upgrader = Upgrader(pg_service, table, delta_dir)
+            upgrader.create_upgrades_table()
+            upgrader.set_baseline(baseline)
+
+        # TODO exceptions
         except Exception:
             raise Exception
-            pass
             # print message error and return or exit ?
         # print message ok
 
-    def run_dump(self):
-        pass
+    def run_info(self, pg_service, table, delta_dir):
+        try:
+            upgrader = Upgrader(pg_service, table, delta_dir)
+            upgrader.show_info()
 
-    def run_restore(self):
-        pass
+            # TODO exceptions
+        except Exception:
+            raise Exception
+            # print message error and return or exit ?
+            # print message ok
 
-    def run_baseline(self):
-        pass
+    def run_upgrade(self, pg_service, table, delta_dir):
+        try:
+            upgrader = Upgrader(pg_service, table, delta_dir)
+            upgrader.run()
 
-    def run_info(self):
-        pass
+            # TODO exceptions
+        except Exception:
+            raise Exception
+            # print message error and return or exit ?
+            # print message ok
 
-    def out(self, message, type):
+    def run_test_and_upgrade(self, pg_service_prod, pg_service_test,
+                             pg_service_comp, file, table, delta_dir, ignore):
+        # TODO docstring
+
+        # Backup of db prod
+        self.run_dump(pg_service_prod, file)
+
+        # Restore db dump on db test
+        self.run_restore(pg_service_test, file)
+
+        # Apply deltas on db test
+        self.run_upgrade(pg_service_test, table, delta_dir)
+
+        # TODO db comp must be created in qwat
+
+        # Compare db test with db comp
+        check_result = self.run_check(pg_service_test, pg_service_comp, ignore)
+
+        if check_result:
+            if  ask_for_confirmation(prompt='Apply deltas to {}?'.format(
+                    pg_service_prod)):
+                self.run_upgrade(pg_service_prod, table, delta_dir)
+        else:
+            # print error
+            pass
+
+    def test(self):
+        self.__out('proba', 'HEADER')
+        self.__out('proba', 'OKBLUE')
+        self.__out('proba', 'OKGREEN')
+        self.__out('proba', 'WARNING')
+        self.__out('proba', 'FAIL')
+        self.__out('proba', 'BOLD')
+        self.__out('proba', 'UNDERLINE')
+        self.__out('proba', '')
+
+        ask_for_confirmation(prompt='aa')
+
+    def __out(self, message, type='DEFAULT'):
         # print output of the commands
-        pass
+        if type == 'HEADER':
+            print(Bcolors.HEADER + message + Bcolors.ENDC)
+        elif type == 'OKBLUE':
+            print(Bcolors.OKBLUE + message + Bcolors.ENDC)
+        elif type == 'OKGREEN':
+            print(Bcolors.OKGREEN + message + Bcolors.ENDC)
+        elif type == 'WARNING':
+            print(Bcolors.WARNING + message + Bcolors.ENDC)
+        elif type == 'FAIL':
+            print(Bcolors.FAIL + message + Bcolors.ENDC)
+        elif type == 'BOLD':
+            print(Bcolors.BOLD + message + Bcolors.ENDC)
+        elif type == 'UNDERLINE':
+            print(Bcolors.UNDERLINE + message + Bcolors.ENDC)
+        else:
+            print(message)
+
 
 if __name__ == "__main__":
     """
     Main process
     """
 
-    # TODO refactor and set p1 and p2 as positional args, an uniform args
+    # TODO refactor and set p1 and p2 as positional args, and uniform args
 
     # create the top-level parser
     parser = argparse.ArgumentParser()
@@ -134,7 +267,9 @@ if __name__ == "__main__":
     parser_baseline.add_argument(
         '-t', '--table', help='Upgrades information table', required=True)
     parser_baseline.add_argument(
-        '-d', '--dir', help='Set delta directory', required=True)
+        '-d', '--dir', help='Delta directory', required=True)
+    parser_baseline.add_argument(
+        '-b', '--baseline', help='Set baseline', required=True)
 
     # create the parser for the "info" command
     parser_info = subparsers.add_parser('info', help='show info about upgrades')
@@ -145,6 +280,51 @@ if __name__ == "__main__":
         '-t', '--table', help='Upgrades information table', required=True)
     parser_info.add_argument(
         '-d', '--dir', help='Set delta directory', required=True)
+
+    # create the parser for the "upgrade" command
+    parser_upgrade = subparsers.add_parser('upgrade', help='upgrade db')
+    parser_upgrade.add_argument(
+        '-p', '--pg_service', help='Name of the postgres service',
+        required=True)
+    parser_upgrade.add_argument(
+        '-t', '--table', help='Upgrades information table', required=True)
+    parser_upgrade.add_argument(
+        '-d', '--dir', help='Set delta directory', required=True)
+
+    # create the parser for the "test-and-upgrade" command
+    parser_test_and_upgrade = subparsers.add_parser(
+        'test-and-upgrade',
+        help='try the upgrade on a test db and if ok, do upgrade prod db')
+    parser_test_and_upgrade.add_argument(
+        '-pp', '--pg_service_prod',
+        help='Name of the pg_service related to production db')
+    parser_test_and_upgrade.add_argument(
+        '-pt', '--pg_service_test',
+        help='Name of the pg_service related to a test db used to test the '
+             'migration')
+    parser_test_and_upgrade.add_argument(
+        '-pc', '--pg_service_comp',
+        help='Name of the pg_service related to a db used to compare the '
+             'updated db test with the last version of the db')
+    parser_test_and_upgrade.add_argument(
+        '-t', '--table', help='Upgrades information table')
+    parser_test_and_upgrade.add_argument(
+        '-d', '--dir', help='Set delta directory')
+    parser_test_and_upgrade.add_argument('-f', '--file', help='The backup file')
+    parser_test_and_upgrade.add_argument(
+        '-i', '--ignore', help='Elements to be ignored', nargs='+',
+        choices=['tables',
+                 'columns',
+                 'constraints',
+                 'views',
+                 'sequences',
+                 'indexes',
+                 'triggers',
+                 'functions',
+                 'rules'])
+
+    # TODO remove test command
+    parser_test = subparsers.add_parser('test', help='test test test')
 
     args = parser.parse_args()
 
@@ -162,5 +342,19 @@ if __name__ == "__main__":
 
     if args.command == 'check':
         pum.run_check(args.pg_service1, args.pg_service2, args.ignore)
-
-
+    elif args.command == 'dump':
+        pum.run_dump(args.pg_service, args.file)
+    elif args.command == 'restore':
+        pum.run_restore(args.pg_service, args.file)
+    elif args.command == 'baseline':
+        pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
+    elif args.command == 'info':
+        pum.run_info(args.pg_service, args.table, args.dir)
+    elif args.command == 'upgrade':
+        pum.run_upgrade(args.pg_service, args.table, args.dir)
+    elif args.command == 'test-and-upgrade':
+        pum.run_test_and_upgrade(
+            args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
+            args.table, args.dir, args.ignore)
+    elif args.command == 'test':
+        pum.test()

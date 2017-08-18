@@ -1,3 +1,4 @@
+#TODO comments
 upgrades_table: qwat_sys.upgrades
 delta_dir: ../update/delta/
 backup_file: /tmp/backup.dump
@@ -10,3 +11,9 @@ ignore_elements:
   - triggers
   - functions
   - rules
+
+# pg_dump_exe = 'C:\\Program Files\\PostgreSQL\\9.3\\bin\\pg_dump.exe'
+pg_dump_exe: pg_dump
+
+#  pg_restore_exe = 'C:\\Program Files\\PostgreSQL\\9.3\\bin\\pg_restore.exe'
+pg_restore_exe: pg_restore

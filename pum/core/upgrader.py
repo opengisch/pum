@@ -268,7 +268,7 @@ class Upgrader():
         
     def set_baseline(self, version):
         #TODO docstring
-        #TODO test if version in < of existing version
+        #TODO test if version is < of existing version
         query = """
                 INSERT INTO {} (
                     version,
@@ -373,36 +373,6 @@ class Delta():
     def get_file(self):
         return self.file
 
-class UpgradesTableNotFoundError(LookupError):
+class UpgradesTableNotFoundError(Exception):
     '''raise this when Upgrades table is not present'''
 
-if __name__ == "__main__":
-    """
-    Main process
-    """
-    #TODO add option to create upgrades table
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--pg_service', help='Name of the postgres service', required=True)
-    parser.add_argument('-t', '--table', help='Version table', required=True)
-    parser.add_argument('-d', '--dir', help='Delta directory', required=True)
-    parser.add_argument('-i', '--info', help='Show only info', action='store_true')
-    parser.add_argument('-b', '--baseline', help='Create baseline')
-    args = parser.parse_args()
-
-    db_upgrader = Upgrader(args.pg_service, args.table, args.dir)
-
-
-    if args.info:
-        db_upgrader.show_info()
-    elif args.baseline:
-        db_upgrader.create_upgrades_table()
-        db_upgrader.set_baseline(args.baseline)
-        print('Created table upgrades with baseline')
-    else:
-        if not db_upgrader.exists_table_upgrades():
-            print('Table upgrades don\'t exists. Run upgrader.py -b BASELINE to create')
-        else:
-            print('Running upgrader')
-            db_upgrader.run(verbose=True)
-            print('Upgrader done')
