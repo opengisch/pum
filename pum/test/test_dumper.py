@@ -45,7 +45,7 @@ class TestDumper(TestCase):
 
         try:
             shutil.rmtree('/tmp/test_dumper')
-        except:
+        except shutil.Error:
             pass
 
         os.mkdir('/tmp/test_dumper/')
@@ -58,5 +58,6 @@ class TestDumper(TestCase):
         dumper.pg_restore()
 
         # postgres > 9.4
-        self.cur2.execute("SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
+        self.cur2.execute(
+            "SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
         self.assertIsNotNone(self.cur2.fetchone()[0])

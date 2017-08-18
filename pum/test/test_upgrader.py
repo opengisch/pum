@@ -51,24 +51,31 @@ class TestUpgrader(TestCase):
 
         file = open('/tmp/test_upgrader/delta_0.0.1.sql', 'w+')
         file.write('DROP TABLE IF EXISTS test_upgrader.bar;')
-        file.write('CREATE TABLE test_upgrader.bar (id smallint, value integer, name varchar(100));')
+        file.write(
+            'CREATE TABLE test_upgrader.bar '
+            '(id smallint, value integer, name varchar(100));')
         file.close()
 
-        self.upgrader = Upgrader(pg_service1, self.upgrades_table, '/tmp/test_upgrader/')
+        self.upgrader = Upgrader(
+            pg_service1, self.upgrades_table, '/tmp/test_upgrader/')
         self.upgrader.set_baseline('0.0.1')
 
     def test_upgrader_run(self):
         self.upgrader.run()
         #postgres > 9.4
-        self.cur1.execute("SELECT to_regclass('{}');".format(self.upgrades_table))
+        self.cur1.execute(
+            "SELECT to_regclass('{}');".format(self.upgrades_table))
         self.assertIsNotNone(self.cur1.fetchone()[0])
 
     def test_delta_valid_name(self):
         self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0_17072017.sql'))
-        self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0_17072017.sql.pre'))
-        self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0_17072017.sql.post'))
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.sql.pre'))
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.sql.post'))
         self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0.sql'))
-        self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0_blahblah_foo_bar.sql'))
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_blahblah_foo_bar.sql'))
 
         self.assertFalse(Delta.is_valid_delta_name('1.1.0_17072017.sql'))
         self.assertFalse(Delta.is_valid_delta_name('Delta_1.1.0_17072017.sql'))
@@ -107,10 +114,12 @@ class TestUpgrader(TestCase):
     def test_delta_get_checksum(self):
         file = open('/tmp/foo.bar', 'w+')
         delta = Delta('/tmp/foo.bar')
-        self.assertEqual(delta.get_checksum(), 'd41d8cd98f00b204e9800998ecf8427e')
+        self.assertEqual(
+            delta.get_checksum(), 'd41d8cd98f00b204e9800998ecf8427e')
         file.write('The quick brown fox jumps over the lazy dog')
         file.close()
-        self.assertEqual(delta.get_checksum(), '9e107d9d372bb6826bd81d3542a419d6')
+        self.assertEqual(
+            delta.get_checksum(), '9e107d9d372bb6826bd81d3542a419d6')
 
     def test_delta_get_type(self):
         delta = Delta('delta_0.0.0_17072017.sql')

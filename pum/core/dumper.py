@@ -7,7 +7,7 @@ import subprocess
 import psycopg2
 import psycopg2.extras
 
-from utils.exceptions import PgDumpError, DbConnectionError
+from utils.exceptions import PgDumpError, PgRestoreError, DbConnectionError
 
 
 class Dumper:
@@ -38,8 +38,8 @@ class Dumper:
                        ', now()::text as query_time '
                        )
         result = cursor.fetchone()
-        print(result)
-        print(self.connection.get_dsn_parameters())
+        # print(result)
+        # print(self.connection.get_dsn_parameters())
         cursor.close()
 
     def pg_backup(self, pg_dump_exe='pg_dump'):
@@ -62,6 +62,5 @@ class Dumper:
 
         try:
             subprocess.check_output(command, stderr=subprocess.STDOUT)
-
         except subprocess.CalledProcessError as e:
-            raise pum.PgRestoreError(e.output)
+            raise PgRestoreError(e.output)

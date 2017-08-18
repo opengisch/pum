@@ -97,8 +97,10 @@ class Pum:
 
         try:
             dumper = Dumper(pg_service, file)
-            dumper.pg_restore(self.pg_restore_exe)
-
+            if self.pg_restore_exe:
+                dumper.pg_restore(self.pg_restore_exe)
+            else:
+                dumper.pg_restore()
         except PgRestoreError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0])
