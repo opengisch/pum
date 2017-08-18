@@ -1,10 +1,11 @@
-from unittest import TestCase
-import psycopg2
-import psycopg2.extras
 import os
 import shutil
+from unittest import TestCase
 
-from pum.upgrader import Upgrader, Delta
+import psycopg2
+import psycopg2.extras
+
+from pum.core.upgrader import Upgrader, Delta
 
 
 class TestUpgrader(TestCase):
