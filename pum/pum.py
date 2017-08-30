@@ -5,18 +5,17 @@ from __future__ import print_function
 import argparse
 
 import yaml
+import psycopg2
+import subprocess
 
-import utils.utils
 from core.checker import Checker
 from core.dumper import Dumper
 from core.upgrader import Upgrader
-from utils.exceptions import PgDumpError, PgRestoreError
 from utils.utils import ask_for_confirmation, Bcolors
 
 
 class Pum:
     def __init__(self, config_file=None):
-        print(config_file)
 
         self.upgrades_table = None
         self.delta_dir = None
@@ -30,12 +29,24 @@ class Pum:
 
     def __load_config_file(self, config_file):
         """Load the configurations from yaml configuration file and store it
-        to instance variables."""
+        to instance variables.
+
+        Parameters
+        ----------
+        config_file: string
+            The path of the config file
+        """
         configs = yaml.safe_load(open(config_file))
         self.set_configs(configs)
 
     def set_configs(self, configs):
-        # TODO docstring
+        """Save the configuration values into the instance variables.
+
+        Parameters
+        ----------
+        configs: dict
+            Dictionary of configurations
+            """
 
         self.upgrades_table = configs['upgrades_table']
         self.delta_dir = configs['delta_dir']
@@ -45,8 +56,25 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list=None):
+        """Run the check command
 
-        self.__out('Check...')
+        Parameters
+        ----------
+        pg_service1: string
+            The name of the postgres service (defined in pg_service.conf)
+            related to the first db to be compared
+        pg_service2: sting
+            The name of the postgres service (defined in pg_service.conf)
+            related to the first db to be compared
+        ignore_list: list of strings
+            List of elements to be ignored in check (ex. tables, columns,
+            views, ...)
+
+        Returns
+        -------
+        True if no differences are found, False otherwise.
+        """
+        self.__out('Check...', type='WAITING')
 
         if not ignore_list:
             ignore_list = []
@@ -55,9 +83,6 @@ class Pum:
                 pg_service1, pg_service2, ignore_list)
             result, differences = checker.run_checks()
 
-            # print('result: {}'.format(result))
-            # print('differences: {}'.format(differences))
-
             if result:
                 self.__out('OK', 'OKGREEN')
             else:
@@ -65,15 +90,30 @@ class Pum:
 
             return result
 
-        # TODO exceptions
-        except Exception:
+        except psycopg2.Error as e:
             self.__out('ERROR', 'FAIL')
+            self.__out(e.args[0], 'FAIL')
             return False
 
+        except Exception as e:
+            self.__out('ERROR', 'FAIL')
+            self.__out(e.args[0])
+            return False
 
     def run_dump(self, pg_service, file):
+        """
+        Run the dump command
 
-        self.__out('Dump...')
+        Parameters
+        ----------
+        pg_service: string
+            The name of the postgres service (defined in
+            pg_service.conf) related to the first db to be compared
+        file: string
+            The path of the desired backup file
+        """
+
+        self.__out('Dump...', type='WAITING')
 
         try:
             dumper = Dumper(pg_service, file)
@@ -81,9 +121,9 @@ class Pum:
                 dumper.pg_backup(self.pg_dump_exe)
             else:
                 dumper.pg_backup()
-        except PgDumpError as e:
+        except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
-            self.__out(e.args[0])
+            self.__out(e.output)
             return
         except Exception as e:
             self.__out('ERROR', 'FAIL')
@@ -92,8 +132,19 @@ class Pum:
         self.__out('OK', 'OKGREEN')
 
     def run_restore(self, pg_service, file):
+        """
+        Run the dump command
 
-        self.__out('Restore...')
+        Parameters
+        ----------
+        pg_service: string
+            The name of the postgres service (defined in
+            pg_service.conf) related to the first db to be compared
+        file: string
+            The path of the desired backup file
+        """
+
+        self.__out('Restore...', type='WAITING')
 
         try:
             dumper = Dumper(pg_service, file)
@@ -101,9 +152,9 @@ class Pum:
                 dumper.pg_restore(self.pg_restore_exe)
             else:
                 dumper.pg_restore()
-        except PgRestoreError as e:
+        except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
-            self.__out(e.args[0])
+            self.__out(e.output)
             return
         except Exception as e:
             self.__out('ERROR', 'FAIL')
@@ -158,13 +209,11 @@ class Pum:
         # Apply deltas on db test
         self.run_upgrade(pg_service_test, table, delta_dir)
 
-        # TODO db comp must be created in qwat
-
         # Compare db test with db comp
         check_result = self.run_check(pg_service_test, pg_service_comp, ignore)
 
         if check_result:
-            if  ask_for_confirmation(prompt='Apply deltas to {}?'.format(
+            if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
                     pg_service_prod)):
                 self.run_upgrade(pg_service_prod, table, delta_dir)
         else:
@@ -185,10 +234,8 @@ class Pum:
 
     def __out(self, message, type='DEFAULT'):
         # print output of the commands
-        if type == 'HEADER':
-            print(Bcolors.HEADER + message + Bcolors.ENDC)
-        elif type == 'OKBLUE':
-            print(Bcolors.OKBLUE + message + Bcolors.ENDC)
+        if type == 'WAITING':
+            print(Bcolors.WAITING + message + Bcolors.ENDC, end='')
         elif type == 'OKGREEN':
             print(Bcolors.OKGREEN + message + Bcolors.ENDC)
         elif type == 'WARNING':
@@ -230,8 +277,6 @@ if __name__ == "__main__":
     parser_check.add_argument(
         '-p2', '--pg_service2', help='Name of the second postgres service',
         required=True)
-    parser_check.add_argument(
-        '-s', '--silent', help='Don\'t print lines with differences')
     parser_check.add_argument(
         '-i', '--ignore', help='Elements to be ignored', nargs='+',
         choices=['tables',
@@ -296,7 +341,8 @@ if __name__ == "__main__":
     # create the parser for the "test-and-upgrade" command
     parser_test_and_upgrade = subparsers.add_parser(
         'test-and-upgrade',
-        help='try the upgrade on a test db and if ok, do upgrade prod db')
+        help='try the upgrade on a test db and if all it\'s ok, do upgrade '
+             'the production db')
     parser_test_and_upgrade.add_argument(
         '-pp', '--pg_service_prod',
         help='Name of the pg_service related to production db')
@@ -357,6 +403,6 @@ if __name__ == "__main__":
     elif args.command == 'test-and-upgrade':
         pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
-            args.table, args.dir, args.ignore)
+            args.file, args.table, args.dir, args.ignore)
     elif args.command == 'test':
         pum.test()
