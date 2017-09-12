@@ -86,8 +86,10 @@ class Pum:
             if result:
                 self.__out('OK', 'OKGREEN')
             else:
-                self.__out('DIFFERECES FOUND', 'WARNING')
+                self.__out('DIFFERENCES FOUND', 'WARNING')
 
+            # TODO
+            print(differences)
             return result
 
         except psycopg2.Error as e:
