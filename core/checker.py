@@ -11,7 +11,7 @@ class Checker:
     differences."""
 
     def __init__(
-            self, pg_service1, pg_service2, ignore_list=None):
+            self, pg_service1, pg_service2, ignore_list=None, verbose_level=1):
         """Constructor
         
         Parameters
@@ -25,6 +25,9 @@ class Checker:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
+        verbose_level: int
+            verbose level, 0 -> nothing, 1 -> print name of elements with
+            differences, 2 -> print all the difference details
         """
 
         self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
@@ -34,6 +37,8 @@ class Checker:
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list
+
+        self.verbose_level = verbose_level
 
     def run_checks(self):
         """Run all the checks functions.
@@ -79,6 +84,9 @@ class Checker:
         if 'rules' not in self.ignore_list:
             tmp_result, differences_dict['rules'] = self.check_rules()
             result = False if not tmp_result else result
+
+        if self.verbose_level == 0:
+            differences_dict = None
 
         return result, differences_dict
 
@@ -378,6 +386,9 @@ class Checker:
         for line in d.compare(records1, records2):
             if line[0] in ('-', '+'):
                 result = False
-                differences.append(line)
+                if self.verbose_level == 1:
+                    differences.append(line[0:79])
+                elif self.verbose_level == 2:
+                    differences.append(line)
 
         return result, differences

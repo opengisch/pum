@@ -55,7 +55,8 @@ class Pum:
         self.pg_dump_exe = configs['pg_dump_exe']
         self.pg_restore_exe = configs['pg_restore_exe']
 
-    def run_check(self, pg_service1, pg_service2, ignore_list=None):
+    def run_check(self, pg_service1, pg_service2, ignore_list=None,
+                  verbose_level=0):
         """Run the check command
 
         Parameters
@@ -69,7 +70,10 @@ class Pum:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
-
+        verbose_level: int
+            verbose level, 0 -> nothing, 1 -> print name of elements with
+            differences, 2 -> print all the difference details
+            
         Returns
         -------
         True if no differences are found, False otherwise.
@@ -80,7 +84,7 @@ class Pum:
             ignore_list = []
         try:
             checker = Checker(
-                pg_service1, pg_service2, ignore_list)
+                pg_service1, pg_service2, ignore_list, verbose_level)
             result, differences = checker.run_checks()
 
             if result:
@@ -88,8 +92,9 @@ class Pum:
             else:
                 self.__out('DIFFERENCES FOUND', 'WARNING')
 
-            # TODO
-            print(differences)
+            if differences:
+                print(yaml.dump(differences, default_flow_style=False))
+
             return result
 
         except psycopg2.Error as e:
