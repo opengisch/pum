@@ -2,7 +2,6 @@ from unittest import TestCase
 
 import psycopg2
 import psycopg2.extras
-
 from pum.core.checker import Checker
 
 
