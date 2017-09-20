@@ -76,6 +76,8 @@ optional arguments:
                         Don't print lines with differences
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}, --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
+  -v VERBOSE_LEVEL, --verbose_level VERBOSE_LEVEL
+                        Verbose level (0, 1 or 2)
 ```
 
 For example if we want to check if a database connected to the postgres service `pg_service1` is equal to the 

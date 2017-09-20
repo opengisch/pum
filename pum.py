@@ -71,15 +71,14 @@ class Pum:
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
         verbose_level: int
-            verbose level, 0 -> nothing, 1 -> print name of elements with
-            differences, 2 -> print all the difference details
+            verbose level, 0 -> nothing, 1 -> print first 80 char of each
+            difference, 2 -> print all the difference details
             
         Returns
         -------
         True if no differences are found, False otherwise.
         """
         self.__out('Check...', type='WAITING')
-
         if not ignore_list:
             ignore_list = []
         try:
@@ -295,6 +294,8 @@ if __name__ == "__main__":
                  'triggers',
                  'functions',
                  'rules'])
+    parser_check.add_argument(
+        '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
 
     # create the parser for the "dump" command
     parser_dump = subparsers.add_parser('dump', help='dump a Postgres database')
@@ -396,7 +397,8 @@ if __name__ == "__main__":
     pum = Pum(args.config_file)
 
     if args.command == 'check':
-        pum.run_check(args.pg_service1, args.pg_service2, args.ignore)
+        pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
+                      args.verbose_level)
     elif args.command == 'dump':
         pum.run_dump(args.pg_service, args.file)
     elif args.command == 'restore':

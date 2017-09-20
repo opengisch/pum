@@ -26,8 +26,8 @@ class Checker:
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
         verbose_level: int
-            verbose level, 0 -> nothing, 1 -> print name of elements with
-            differences, 2 -> print all the difference details
+            verbose level, 0 -> nothing, 1 -> print first 80 char of each
+            difference, 2 -> print all the difference details
         """
 
         self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
@@ -87,7 +87,6 @@ class Checker:
 
         if self.verbose_level == 0:
             differences_dict = None
-
         return result, differences_dict
 
     def check_tables(self):
