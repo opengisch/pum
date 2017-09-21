@@ -484,5 +484,3 @@ if __name__ == "__main__":
         pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
             args.file, args.table, args.dir, args.ignore)
-    elif args.command == 'test':
-        pum.test()
