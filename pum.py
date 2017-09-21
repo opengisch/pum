@@ -231,8 +231,7 @@ class Pum:
         Parameters
         -----------
         pg_service: str
-            The name of the postgres service (defined in
-            pg_service.conf)
+            The name of the postgres service (defined in pg_service.conf)
         table: str
             The name of the upgrades information table in the format
             schema.table
@@ -251,9 +250,41 @@ class Pum:
 
         self.__out('OK', 'OKGREEN')
 
-    def run_test_and_upgrade(self, pg_service_prod, pg_service_test,
-                             pg_service_comp, file, table, delta_dir, ignore):
-        # TODO docstring
+    def run_test_and_upgrade(
+            self, pg_service_prod, pg_service_test, pg_service_comp, file,
+            table, delta_dir, ignore_list):
+        """
+        Do the following steps:
+            - creates a dump of the production db
+            - restores the db dump into a test db
+            - applies the delta files found in the delta directory to the test
+                db.
+            - checks if there are differences between the test db and a
+                comparison db
+            - if no significant differences are found, after confirmation,
+            applies the delta files to the production dbD.
+
+
+        pg_service_prod: str
+            The name of the postgres service (defined in pg_service.conf)
+            related to the production database
+        pg_service_test:
+            The name of the postgres service (defined in pg_service.conf)
+            related to the test database
+        pg_service_comp:
+            The name of the postgres service (defined in pg_service.conf)
+            related to the comparison database
+        file:
+            The path of the desired backup file
+        table: str
+            The name of the upgrades information table in the format
+            schema.table
+        delta_dir: str
+            The path of the delta directory
+        ignore_list: list of strings
+            List of elements to be ignored in check (ex. tables, columns,
+            views, ...)
+        """
 
         self.__out('Test and upgrade...', type='WAITING')
 
@@ -267,7 +298,8 @@ class Pum:
         self.run_upgrade(pg_service_test, table, delta_dir)
 
         # Compare db test with db comp
-        check_result = self.run_check(pg_service_test, pg_service_comp, ignore)
+        check_result = self.run_check(
+            pg_service_test, pg_service_comp, ignore_list)
 
         if check_result:
             if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
@@ -278,18 +310,6 @@ class Pum:
             pass
 
         self.__out('OK', 'OKGREEN')
-
-    def test(self):
-        self.__out('proba', 'HEADER')
-        self.__out('proba', 'OKBLUE')
-        self.__out('proba', 'OKGREEN')
-        self.__out('proba', 'WARNING')
-        self.__out('proba', 'FAIL')
-        self.__out('proba', 'BOLD')
-        self.__out('proba', 'UNDERLINE')
-        self.__out('proba', '')
-
-        ask_for_confirmation(prompt='aa')
 
     def __out(self, message, type='DEFAULT'):
         # print output of the commands
@@ -432,9 +452,6 @@ if __name__ == "__main__":
                  'triggers',
                  'functions',
                  'rules'])
-
-    # TODO remove test command
-    parser_test = subparsers.add_parser('test', help='test test test')
 
     args = parser.parse_args()
 
