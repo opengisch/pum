@@ -173,11 +173,11 @@ class Pum:
         Run the baseline command. Set the current database version
         (baseline) into the specified table.
 
-         Parameters
-         ----------
+        Parameters
+        -----------
         pg_service: str
             The name of the postgres service (defined in
-            pg_service.conf) related to the first db to be compared
+            pg_service.conf)
         table: str
             The name of the upgrades information table in the format
             schema.table
@@ -204,30 +204,58 @@ class Pum:
         self.__out('OK', 'OKGREEN')
 
     def run_info(self, pg_service, table, delta_dir):
+        """Print info about delta file and about already made upgrade
+
+        Parameters
+        -----------
+        pg_service: str
+            The name of the postgres service (defined in
+            pg_service.conf)
+        table: str
+            The name of the upgrades information table in the format
+            schema.table
+        delta_dir: str
+            The path of the delta directory
+        """
+
         try:
             upgrader = Upgrader(pg_service, table, delta_dir)
             upgrader.show_info()
 
-            # TODO exceptions
-        except Exception:
-            raise Exception
-            # print message error and return or exit ?
-            # print message ok
+        except Exception as e:
+            print(e)
 
     def run_upgrade(self, pg_service, table, delta_dir):
+        """Apply the delta files to upgrade the database
+
+        Parameters
+        -----------
+        pg_service: str
+            The name of the postgres service (defined in
+            pg_service.conf)
+        table: str
+            The name of the upgrades information table in the format
+            schema.table
+        delta_dir: str
+            The path of the delta directory
+        """
+
+        self.__out('Upgrade...', type='WAITING')
+
         try:
             upgrader = Upgrader(pg_service, table, delta_dir)
             upgrader.run()
 
-            # TODO exceptions
-        except Exception:
-            raise Exception
-            # print message error and return or exit ?
-            # print message ok
+        except Exception as e:
+            print(e)
+
+        self.__out('OK', 'OKGREEN')
 
     def run_test_and_upgrade(self, pg_service_prod, pg_service_test,
                              pg_service_comp, file, table, delta_dir, ignore):
         # TODO docstring
+
+        self.__out('Test and upgrade...', type='WAITING')
 
         # Backup of db prod
         self.run_dump(pg_service_prod, file)
@@ -248,6 +276,8 @@ class Pum:
         else:
             # print error
             pass
+
+        self.__out('OK', 'OKGREEN')
 
     def test(self):
         self.__out('proba', 'HEADER')
