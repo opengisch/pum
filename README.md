@@ -184,8 +184,11 @@ optional arguments:
                         Upgrades information table
   -d DIR, --dir DIR     Delta directory
   -b BASELINE, --baseline BASELINE
-                        Set baseline
+                        Set baseline  in the format x.x.x
 ```
+
+The baseline argument receives a the version number to be set in the upgrades information table. The version must match 
+with the `^\d+\.\d+\.\d+$` regular expression, i.e. must be in the format x.x.x
 
 ### test-and-upgrade
 

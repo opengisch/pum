@@ -169,16 +169,39 @@ class Pum:
         self.__out('OK', 'OKGREEN')
 
     def run_baseline(self, pg_service, table, delta_dir, baseline):
+        """
+        Run the baseline command. Set the current database version
+        (baseline) into the specified table.
+
+         Parameters
+         ----------
+        pg_service: str
+            The name of the postgres service (defined in
+            pg_service.conf) related to the first db to be compared
+        table: str
+            The name of the upgrades information table in the format
+            schema.table
+        delta_dir: str
+            The path of the delta directory
+        baseline: str
+            The version of the current database to set in the information
+            table. The baseline must be in the format x.x.x where x are numbers.
+
+        """
+
+        self.__out('Set baseline...', type='WAITING')
+
         try:
             upgrader = Upgrader(pg_service, table, delta_dir)
             upgrader.create_upgrades_table()
             upgrader.set_baseline(baseline)
 
-        # TODO exceptions
-        except Exception:
-            raise Exception
-            # print message error and return or exit ?
-        # print message ok
+        except ValueError as e:
+            self.__out('ERROR', 'FAIL')
+            self.__out(e)
+            return
+
+        self.__out('OK', 'OKGREEN')
 
     def run_info(self, pg_service, table, delta_dir):
         try:
@@ -324,7 +347,8 @@ if __name__ == "__main__":
     parser_baseline.add_argument(
         '-d', '--dir', help='Delta directory', required=True)
     parser_baseline.add_argument(
-        '-b', '--baseline', help='Set baseline', required=True)
+        '-b', '--baseline', help='Set baseline in the format x.x.x',
+        required=True)
 
     # create the parser for the "info" command
     parser_info = subparsers.add_parser('info', help='show info about upgrades')

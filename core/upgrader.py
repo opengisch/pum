@@ -248,7 +248,8 @@ class Upgrader():
         self.connection.commit()
 
     def create_upgrades_table(self):
-        #TODO docstring
+        """Create the upgrades information table"""
+
         query = """CREATE TABLE IF NOT EXISTS {}
                 (
                 id serial NOT NULL,
@@ -261,7 +262,7 @@ class Upgrader():
                 installed_on timestamp without time zone NOT NULL DEFAULT now(),
                 execution_time integer NOT NULL,
                 success boolean NOT NULL,
-                CONSTRAINT upgrades_pk PRIMARY KEY (id)
+                PRIMARY KEY (id)
                 )
         """.format(self.upgrades_table)
 
@@ -269,8 +270,16 @@ class Upgrader():
         self.connection.commit()
         
     def set_baseline(self, version):
-        #TODO docstring
-        #TODO test if version is < of existing version
+        """Set the baseline into the creation information table
+
+        version: str
+            The version of the current database to set in the information
+            table. The baseline must be in the format x.x.x where x are numbers.
+        """
+        pattern = re.compile(r"^\d+\.\d+\.\d+$")
+        if not re.match(pattern, version):
+            raise ValueError('Wrong version format')
+
         query = """
                 INSERT INTO {} (
                     version,
