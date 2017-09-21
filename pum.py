@@ -56,9 +56,9 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  verbose_level=0):
+                  verbose_level=1):
         """Run the check command
-
+        
         Parameters
         ----------
         pg_service1: string
@@ -78,7 +78,10 @@ class Pum:
         -------
         True if no differences are found, False otherwise.
         """
+
         self.__out('Check...', type='WAITING')
+        if not verbose_level:
+            verbose_level = 1
         if not ignore_list:
             ignore_list = []
         try:
