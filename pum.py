@@ -102,12 +102,12 @@ class Pum:
         except psycopg2.Error as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0], 'FAIL')
-            return False
+            exit(1)
 
         except Exception as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0])
-            return False
+            exit(1)
 
     def run_dump(self, pg_service, file):
         """
@@ -133,11 +133,11 @@ class Pum:
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
-            return
+            exit(1)
         except Exception as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0])
-            return
+            exit(1)
         self.__out('OK', 'OKGREEN')
 
     def run_restore(self, pg_service, file):
@@ -164,11 +164,11 @@ class Pum:
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
-            return
+            exit(1)
         except Exception as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0])
-            return
+            exit(1)
         self.__out('OK', 'OKGREEN')
 
     def run_baseline(self, pg_service, table, delta_dir, baseline):
@@ -202,7 +202,7 @@ class Pum:
         except ValueError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e)
-            return
+            exit(1)
 
         self.__out('OK', 'OKGREEN')
 
@@ -227,6 +227,7 @@ class Pum:
 
         except Exception as e:
             print(e)
+            exit(1)
 
     def run_upgrade(self, pg_service, table, delta_dir):
         """Apply the delta files to upgrade the database
@@ -250,6 +251,7 @@ class Pum:
 
         except Exception as e:
             print(e)
+            exit(1)
 
         self.__out('OK', 'OKGREEN')
 
