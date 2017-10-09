@@ -37,7 +37,8 @@ QWAT already developped a dedicated migration tool, allowing to both work on the
 ### pum
 
 The usage of the pum command is:
-```
+```commandline
+
 usage: pum.py [-h] [-v] [-c CONFIG_FILE]
               {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
               ...
@@ -81,7 +82,8 @@ It's possible to ignore one or more of these elements.
 
 The usage of the `check` command is:
 
-```
+```commandline
+
 usage: pum.py check [-h] -p1 PG_SERVICE1 -p2 PG_SERVICE2 [-s SILENT]
                     [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}]
 
@@ -102,18 +104,24 @@ optional arguments:
 For example if we want to check if a database connected to the postgres service `pg_service1` is equal to the
 database connected to the postgres service `pg_service_2`, we can do the following command:
 
-```./pum.py check -p1 pg_service1 -p2 pg_service2```
+```commandline
+./pum.py check -p1 pg_service1 -p2 pg_service2
+```
 
 If we want to run the same command but ignoring the different views and triggers, we do:
 
-```./pum.py check -p1 pg_service1 -p2 pg_service2 -i views triggers```
+```commandline
+
+./pum.py check -p1 pg_service1 -p2 pg_service2 -i views triggers
+```
 
 ### dump
 The `dump` command is used to create a dump (backup) of a postgres db.
 
 The usage of the command is:
 
-```
+```commandline
+
 usage: pum.py dump [-h] -p PG_SERVICE file
 
 positional arguments:
@@ -128,7 +136,10 @@ optional arguments:
 For example, the command to backup the database connected to the postgres service `pg_service1` is into the file
 `/tmp/bak`:
 
-```./pum.py dump -p pg_service1 /tmp/bak```
+```commandline
+
+./pum.py dump -p pg_service1 /tmp/bak
+```
 
 ### restore
 
@@ -136,7 +147,8 @@ The `restore` command is used to restore a backup of a postgres db.
 
 The usage is similar to the `dump` command:
 
-```
+```commandline
+
 usage: pum.py restore [-h] -p PG_SERVICE file
 
 positional arguments:
@@ -150,7 +162,10 @@ optional arguments:
 
 If we want to restore the backup from the `/tmp/bak` into the database connected to the postgres service `pg_service2`:
 
-```./pum.py restore -p pg_service2 /tmp/bak```
+```commandline
+
+./pum.py restore -p pg_service2 /tmp/bak
+```
 
 ### upgrade
 
@@ -160,7 +175,8 @@ deltas. Only the delta files with version greater or equal than the current vers
 
 The usage of the command is:
 
-```
+```commandline
+
 usage: pum.py upgrade [-h] -p PG_SERVICE -t TABLE -d DIR
 
 optional arguments:
@@ -176,7 +192,8 @@ optional arguments:
 The `info` command print the status of the already or not applied delta files.
 
 The usage of the command is:
-```
+```commandline
+
 usage: pum.py info [-h] -p PG_SERVICE -t TABLE -d DIR
 
 optional arguments:
@@ -194,7 +211,8 @@ The `baseline` command creates the upgrades information table and sets the curre
 
 The usage of the command is:
 
-```
+```commandline
+
 usage: pum.py baseline [-h] -p PG_SERVICE -t TABLE -d DIR -b BASELINE
 
 optional arguments:
@@ -223,7 +241,8 @@ The `test-and-upgrade` command does the following steps:
 Only the delta files with version greater or equal than the current version are applied
 
 The usage of the command is:
-```
+```commandline
+
 usage: pum.py test-and-upgrade [-h] [-pp PG_SERVICE_PROD]
                                [-pt PG_SERVICE_TEST] [-pc PG_SERVICE_COMP]
                                [-t TABLE] [-d DIR] [-f FILE]
@@ -270,7 +289,8 @@ command regardless of the current db version.
 A Python file is executed before the sql file with the same kind and version.
 
 In summary the upgrade workflow is:
-```
+```text
+
 execute pre-all.py if exists
 execute pre-all.sql if exists
 
@@ -364,7 +384,9 @@ In the config file db_manager_config.yaml, you have to define, with the YAML syn
 constraints, views, sequences, indexes, triggers, functions or rules
 
 For example:               
-```upgrades_table: qwat_sys.upgrades
+```yaml
+
+upgrades_table: qwat_sys.upgrades
 delta_dir: ../update/delta/
 backup_file: /tmp/backup.dump
 ignore_elements:
