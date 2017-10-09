@@ -43,7 +43,7 @@ class TestUpgrader(TestCase):
 
         try:
             shutil.rmtree('/tmp/test_upgrader')
-        except Exception:
+        except OSError:
             pass
         
         os.mkdir('/tmp/test_upgrader/')
@@ -61,18 +61,29 @@ class TestUpgrader(TestCase):
 
     def test_upgrader_run(self):
         self.upgrader.run()
-        #postgres > 9.4
+        # postgres > 9.4
         self.cur1.execute(
             "SELECT to_regclass('{}');".format(self.upgrades_table))
         self.assertIsNotNone(self.cur1.fetchone()[0])
 
     def test_delta_valid_name(self):
-        self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0_17072017.sql'))
         self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.sql.pre'))
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.py'))
         self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.sql.post'))
-        self.assertTrue(Delta.is_valid_delta_name('delta_1.1.0.sql'))
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.sql'))
+
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.pre.py'))
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.pre.sql'))
+
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.post.py'))
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.post.sql'))
+
+        self.assertTrue(
+            Delta.is_valid_delta_name('delta_1.1.0.sql'))
         self.assertTrue(
             Delta.is_valid_delta_name('delta_1.1.0_blahblah_foo_bar.sql'))
 
@@ -87,27 +98,41 @@ class TestUpgrader(TestCase):
         delta = Delta('delta_0.0.0_17072017.sql')
         self.assertEqual(delta.get_version(), '0.0.0')
 
-        delta = Delta('delta_1.2.3_17072017.sql')
+        delta = Delta('delta_1.2.3_17072017.pre.sql')
         self.assertEqual(delta.get_version(), '1.2.3')
 
-        delta = Delta('delta_100.002.9999_17072017.sql')
+        delta = Delta('delta_100.002.9999_17072017.post.sql')
         self.assertEqual(delta.get_version(), '100.002.9999')
 
     def test_delta_get_name(self):
         delta = Delta('delta_0.0.0_17072017.sql')
         self.assertEqual(delta.get_name(), '17072017')
 
+        delta = Delta('delta_0.0.0_17072017.py')
+        self.assertEqual(delta.get_name(), '17072017')
+
         delta = Delta('delta_0.0.0_.sql')
+        self.assertEqual(delta.get_name(), '')
+
+        delta = Delta('delta_0.0.0_.py')
         self.assertEqual(delta.get_name(), '')
 
         delta = Delta('delta_0.0.0.sql')
         self.assertEqual(delta.get_name(), '')
 
-        delta = Delta('delta_0.0.0_foo.sql.pre')
+        delta = Delta('delta_0.0.0.py')
+        self.assertEqual(delta.get_name(), '')
+
+        delta = Delta('delta_0.0.0_foo.pre.sql')
         self.assertEqual(delta.get_name(), 'foo')
 
+        delta = Delta('delta_0.0.0_foo.pre.py')
+        self.assertEqual(delta.get_name(), 'foo')
 
-        delta = Delta('delta_0.0.0_foo.sql.post')
+        delta = Delta('delta_0.0.0_foo.post.sql')
+        self.assertEqual(delta.get_name(), 'foo')
+
+        delta = Delta('delta_0.0.0_foo.post.py')
         self.assertEqual(delta.get_name(), 'foo')
 
     def test_delta_get_checksum(self):
@@ -122,10 +147,19 @@ class TestUpgrader(TestCase):
 
     def test_delta_get_type(self):
         delta = Delta('delta_0.0.0_17072017.sql')
-        self.assertEqual(delta.get_type(), Delta.DELTA)
+        self.assertEqual(delta.get_type(), Delta.DELTA_SQL)
 
-        delta = Delta('delta_0.0.0_17072017.sql.pre')
-        self.assertEqual(delta.get_type(), Delta.PRE)
+        delta = Delta('delta_0.0.0_17072017.py')
+        self.assertEqual(delta.get_type(), Delta.DELTA_PY)
 
-        delta = Delta('delta_0.0.0_17072017.sql.post')
-        self.assertEqual(delta.get_type(), Delta.POST)
+        delta = Delta('delta_0.0.0_17072017.pre.sql')
+        self.assertEqual(delta.get_type(), Delta.DELTA_PRE_SQL)
+
+        delta = Delta('delta_0.0.0_17072017.pre.py')
+        self.assertEqual(delta.get_type(), Delta.DELTA_PRE_PY)
+
+        delta = Delta('delta_0.0.0_17072017.post.sql')
+        self.assertEqual(delta.get_type(), Delta.DELTA_POST_SQL)
+
+        delta = Delta('delta_0.0.0_17072017.post.py')
+        self.assertEqual(delta.get_type(), Delta.DELTA_POST_PY)
