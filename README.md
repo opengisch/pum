@@ -354,23 +354,25 @@ from core.deltapy import DeltaPy
 class Prova(DeltaPy):
 
     def run(self):
-        # Here goes all the code of the delta file
-        
-        # get the current db version
+               
+        # if you want to get the current db version
         version = self.current_db_version()          
         
-        # get the delta directory path
+        # if you want to get the delta directory path
         delta_dir = self.delta_dir()
         
-        # get the pg_service name
+        # if you want to get the pg_service name
         pg = self.pg_service()
         
-        # get the upgrade information table name
+        # if you want to get the upgrade information table name
         table = self.upgrades_table()
         
-        # print a message
+        # if you want to print a message
         self.write_message('foo')
-
+        
+        # Here goes all the code of the delta file
+        some_cool_python_command()
+        
 ```
 
 
