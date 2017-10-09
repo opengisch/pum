@@ -113,7 +113,8 @@ The `dump` command is used to create a dump (backup) of a postgres db.
 
 The usage of the command is:
 
-```usage: pum.py dump [-h] -p PG_SERVICE file
+```
+usage: pum.py dump [-h] -p PG_SERVICE file
 
 positional arguments:
   file                  The backup file
@@ -135,7 +136,8 @@ The `restore` command is used to restore a backup of a postgres db.
 
 The usage is similar to the `dump` command:
 
-```usage: pum.py restore [-h] -p PG_SERVICE file
+```
+usage: pum.py restore [-h] -p PG_SERVICE file
 
 positional arguments:
   file                  The backup file
@@ -245,6 +247,112 @@ optional arguments:
   --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
 ```
+
+## Delta files
+
+A delta file can be a SQL file containing one or more SQL statements or a Python module containing a 
+class that is a subclass of DeltaPy.
+
+There are 5 kind of delta files:
+- **pre-all**, is executed first thing in an upgrade command. The file must have the name `pre-all.py`
+or `pre-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade 
+command regardless of the current db version.
+- **pre delta**, is executed before the normal delta file. The file's name must be in the form
+`delta_x.x.x_deltaname.pre.py` or `delta_x.x.x_deltaname.pre.sql`
+- **delta**, this is the normal delta file. The file's name must be in the form
+`delta_x.x.x_deltaname.py` or `delta_x.x.x_deltaname.sql`
+- **post delta**, is executed after the normal delta file. The file's name must be in the form
+`delta_x.x.x_deltaname.post.py` or `delta_x.x.x_deltaname.post.sql`
+- **post all**, is executed last thing in an upgrade command. The file must have the name `post-all.py`
+or `post-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade 
+command regardless of the current db version. 
+
+A Python file is executed before the sql file with the same kind and version.
+
+In summary the upgrade workflow is:
+```
+execute pre-all.py if exists
+execute pre-all.sql if exists
+
+for each file delta_x.x.x_deltaname.* ordered by version number:
+	execute delta_x.x.x_deltaname.pre.py if exists
+	execute delta_x.x.x_deltaname.pre.sql if exists
+
+	execute delta_x.x.x_deltaname.py if exists 
+	execute delta_x.x.x_deltaname.sql if exists
+
+	execute delta_x.x.x_deltaname.post.py if exists
+	execute delta_x.x.x_deltaname.post.sql if exists
+	
+execute post-all.py if exists
+execute post-all.sql if exists
+```
+    
+### Python delta files
+
+A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class has the following methods:
+
+```python
+ 
+    @abstractmethod
+    def run(self):
+        """This method must be implemented in the subclasses. It is called
+        when the delta.py file is runned by Upgrader class"""
+
+    @property
+    def current_db_version(self):
+        """Return the current db version"""
+
+    @property
+    def delta_dir(self):
+        """Return the path of the delta directory"""
+
+    @property
+    def pg_service(self):
+        """Return the name of the postgres service"""
+
+    @property
+    def upgrades_table(self):
+        """Return the name of the upgrades information table"""
+
+    def write_message(self, text):
+        """Print a message from the subclass.
+
+        Parameters
+        ----------
+        text: str
+            The message to print
+        """
+```
+
+An example of implementation is:
+```python
+
+from core.deltapy import DeltaPy
+
+
+class Prova(DeltaPy):
+
+    def run(self):
+        # Here goes all the code of the delta file
+        
+        # get the current db version
+        version = self.current_db_version()          
+        
+        # get the delta directory path
+        delta_dir = self.delta_dir()
+        
+        # get the pg_service name
+        pg = self.pg_service()
+        
+        # get the upgrade information table name
+        table = self.upgrades_table()
+        
+        # print a message
+        self.write_message('foo')
+
+```
+
 
 ## Config file
 
