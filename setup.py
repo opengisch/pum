@@ -1,7 +1,8 @@
 from distutils.core import setup
 setup(
     name = 'pum',
-    packages = ['pum'],
+    packages = ['pum', 'pum/core', 'pum/utils'],
+    scripts = ['scripts/pum'],
     version = '[VERSION]',
     description = 'Postgres upgrade manager',
     author = 'Mario Baranzini',
