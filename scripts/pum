@@ -462,7 +462,7 @@ if __name__ == "__main__":
 
     # print the version and exit
     if args.version:
-        print('pum version {}'.format('0.0.1'))
+        print('pum version {}'.format('0.5.1'))
         parser.exit()
 
     # if no command is passed, print the help and exit
