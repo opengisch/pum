@@ -8,10 +8,10 @@ import yaml
 import psycopg2
 import subprocess
 
-from core.checker import Checker
-from core.dumper import Dumper
-from core.upgrader import Upgrader
-from utils.utils import ask_for_confirmation, Bcolors
+from pum.core.checker import Checker
+from pum.core.dumper import Dumper
+from pum.core.upgrader import Upgrader
+from pum.utils.utils import ask_for_confirmation, Bcolors
 
 
 class Pum:

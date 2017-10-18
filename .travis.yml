@@ -1,0 +1,9 @@
+language: python
+
+python:
+  - 3.6
+
+if: tag IS present
+
+script: true
+after_success: .deploy/deploy_to_pypi.sh
