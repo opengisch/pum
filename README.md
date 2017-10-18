@@ -27,6 +27,12 @@ The worklow consists in having version metadata written INSIDE the database and 
 
 The first thing to do is use the "baseline" command to create metadata in your database, and then you are good to go.
 
+## Installation
+
+```sh
+pip install pum
+```
+
 ## History
 
 PUM has been developped to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
