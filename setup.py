@@ -11,4 +11,5 @@ setup(
     download_url = 'https://github.com/opengisch/pum/archive/[VERSION].tar.gz', # I'll explain this in a second
     keywords = ['postgres', 'migration', 'upgrade'],
     classifiers = [],
+    requires=['psycopg2 (>=2.7.3)'],
 )
