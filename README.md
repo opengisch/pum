@@ -16,7 +16,7 @@ and some other useful operations.
 
 ## General purpose and workflow
 
-Good practices regarding database versioning and migration are not so easy to handle in a CVS code management system. Initial developpement is easy, using pure git, and sometimes some meta SQL generation scripts. But when it comes to maintaining databases already in production, good practices differ a lot since SQL patchs can be handled the same way as git diffs.
+Good practices regarding database versioning and migration are not so easy to handle in a CVS code management system. Initial developpement is easy, using pure git, and sometimes some meta SQL generation scripts. But when it comes to maintaining databases already in production, good practices differ a lot since SQL patchs can't be handled the same way as git diffs.
 
 We recommend reading somes of those great articles to get a clearer view on what could, and should (or not) be done:
 
@@ -232,7 +232,7 @@ optional arguments:
                         Set baseline  in the format x.x.x
 ```
 
-The baseline argument receives a the version number to be set in the upgrades information table. The version must match 
+The baseline argument receives a the version number to be set in the upgrades information table. The version must match
 with the `^\d+\.\d+\.\d+$` regular expression, i.e. must be in the format x.x.x
 
 ### test-and-upgrade
