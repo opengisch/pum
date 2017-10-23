@@ -2,8 +2,14 @@ from setuptools import setup
 
 setup(
     name = 'pum',
-    packages = ['pum', 'pum/core', 'pum/utils'],
-    scripts = ['scripts/pum'],
+    packages = [
+        'pum',
+        'pum/core',
+        'pum/utils'
+    ],
+    scripts = [
+        'scripts/pum'
+    ],
     version = '[VERSION]',
     description = 'Postgres upgrade manager',
     author = 'Mario Baranzini',
