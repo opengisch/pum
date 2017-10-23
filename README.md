@@ -407,4 +407,5 @@ ignore_elements:
   - functions
   - rules
 pg_dump_exe: pg_dump
-pg_restore_exe: pg_restore```                                                                              
+pg_restore_exe: pg_restore
+```                                                                              
