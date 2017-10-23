@@ -3,7 +3,7 @@ language: python
 python:
   - 3.6
 
-if: tag IS present
+    # if: tag IS present
 
-script: true
-after_success: .deploy/deploy_to_pypi.sh
+script: PYTHONPATH=`pwd`/pum [[ `./scripts/pum --version | cut -d ' ' -f 2` == $TRAVIS_TAG ]]
+# after_success: .deploy/deploy_to_pypi.sh
