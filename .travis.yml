@@ -7,5 +7,5 @@ if: tag IS present
 
 install: pip install -r requirements.txt
 
-script: PYTHONPATH=`pwd` [[ `./scripts/pum --version | cut -d ' ' -f 2` == $TRAVIS_TAG ]]
+script: export PYTHONPATH=`pwd` && [[ `./scripts/pum --version | cut -d ' ' -f 2` == $TRAVIS_TAG ]]
 after_success: .deploy/deploy_to_pypi.sh
