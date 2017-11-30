@@ -29,8 +29,30 @@ The first thing to do is use the "baseline" command to create metadata in your d
 
 ## Installation
 
+### System-wide
+
+This is the easiest way to install pum for every user on this system.
+
 ```sh
+sudo pip3 install pum
+```
+
+### Local user
+
+Alterantively, to install pum to a virtual environment without requiring sudo access
+
+```sh
+mkdir -p ~/.venv
+virtualenv ~/.venv/pum
+source ~/.venv/pum/bin/activate
 pip install pum
+```
+
+Whenever you use pum you will need to activate the virtual environment prior to using pum
+
+
+```sh
+source ~/.venv/pum/bin/activate
 ```
 
 ## History
@@ -45,9 +67,9 @@ QWAT already developped a dedicated migration tool, allowing to both work on the
 The usage of the pum command is:
 ```commandline
 
-usage: pum.py [-h] [-v] [-c CONFIG_FILE]
-              {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
-              ...
+usage: pum [-h] [-v] [-c CONFIG_FILE]
+           {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
+           ...
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -90,8 +112,8 @@ The usage of the `check` command is:
 
 ```commandline
 
-usage: pum.py check [-h] -p1 PG_SERVICE1 -p2 PG_SERVICE2 [-s SILENT]
-                    [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}]
+usage: pum check [-h] -p1 PG_SERVICE1 -p2 PG_SERVICE2 [-s SILENT]
+                 [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -111,14 +133,14 @@ For example if we want to check if a database connected to the postgres service 
 database connected to the postgres service `pg_service_2`, we can do the following command:
 
 ```commandline
-./pum.py check -p1 pg_service1 -p2 pg_service2
+pum check -p1 pg_service1 -p2 pg_service2
 ```
 
 If we want to run the same command but ignoring the different views and triggers, we do:
 
 ```commandline
 
-./pum.py check -p1 pg_service1 -p2 pg_service2 -i views triggers
+pum check -p1 pg_service1 -p2 pg_service2 -i views triggers
 ```
 
 ### dump
@@ -128,7 +150,7 @@ The usage of the command is:
 
 ```commandline
 
-usage: pum.py dump [-h] -p PG_SERVICE file
+usage: pum dump [-h] -p PG_SERVICE file
 
 positional arguments:
   file                  The backup file
@@ -144,7 +166,7 @@ For example, the command to backup the database connected to the postgres servic
 
 ```commandline
 
-./pum.py dump -p pg_service1 /tmp/bak
+pum dump -p pg_service1 /tmp/bak
 ```
 
 ### restore
@@ -155,7 +177,7 @@ The usage is similar to the `dump` command:
 
 ```commandline
 
-usage: pum.py restore [-h] -p PG_SERVICE file
+usage: pum restore [-h] -p PG_SERVICE file
 
 positional arguments:
   file                  The backup file
@@ -170,7 +192,7 @@ If we want to restore the backup from the `/tmp/bak` into the database connected
 
 ```commandline
 
-./pum.py restore -p pg_service2 /tmp/bak
+pum restore -p pg_service2 /tmp/bak
 ```
 
 ### upgrade
@@ -183,7 +205,7 @@ The usage of the command is:
 
 ```commandline
 
-usage: pum.py upgrade [-h] -p PG_SERVICE -t TABLE -d DIR
+usage: pum upgrade [-h] -p PG_SERVICE -t TABLE -d DIR
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -200,7 +222,7 @@ The `info` command print the status of the already or not applied delta files.
 The usage of the command is:
 ```commandline
 
-usage: pum.py info [-h] -p PG_SERVICE -t TABLE -d DIR
+usage: pum info [-h] -p PG_SERVICE -t TABLE -d DIR
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -219,7 +241,7 @@ The usage of the command is:
 
 ```commandline
 
-usage: pum.py baseline [-h] -p PG_SERVICE -t TABLE -d DIR -b BASELINE
+usage: pum baseline [-h] -p PG_SERVICE -t TABLE -d DIR -b BASELINE
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -249,10 +271,10 @@ Only the delta files with version greater or equal than the current version are 
 The usage of the command is:
 ```commandline
 
-usage: pum.py test-and-upgrade [-h] [-pp PG_SERVICE_PROD]
-                               [-pt PG_SERVICE_TEST] [-pc PG_SERVICE_COMP]
-                               [-t TABLE] [-d DIR] [-f FILE]
-                               [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
+usage: pum test-and-upgrade [-h] [-pp PG_SERVICE_PROD]
+                            [-pt PG_SERVICE_TEST] [-pc PG_SERVICE_COMP]
+                            [-t TABLE] [-d DIR] [-f FILE]
+                            [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
 
 optional arguments:
   -h, --help            show this help message and exit
