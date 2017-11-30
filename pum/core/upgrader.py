@@ -47,6 +47,8 @@ class Upgrader:
         self.__run_pre_all()
 
         deltas = self.__get_delta_files()
+        if not deltas:
+            print('No delta files found')
         for d in deltas:
 
             if verbose:
