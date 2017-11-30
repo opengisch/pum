@@ -111,7 +111,6 @@ It's possible to ignore one or more of these elements.
 The usage of the `check` command is:
 
 ```commandline
-
 usage: pum check [-h] -p1 PG_SERVICE1 -p2 PG_SERVICE2 [-s SILENT]
                  [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}]
 
@@ -139,7 +138,6 @@ pum check -p1 pg_service1 -p2 pg_service2
 If we want to run the same command but ignoring the different views and triggers, we do:
 
 ```commandline
-
 pum check -p1 pg_service1 -p2 pg_service2 -i views triggers
 ```
 
@@ -149,7 +147,6 @@ The `dump` command is used to create a dump (backup) of a postgres db.
 The usage of the command is:
 
 ```commandline
-
 usage: pum dump [-h] -p PG_SERVICE file
 
 positional arguments:
@@ -176,7 +173,6 @@ The `restore` command is used to restore a backup of a postgres db.
 The usage is similar to the `dump` command:
 
 ```commandline
-
 usage: pum restore [-h] -p PG_SERVICE file
 
 positional arguments:
@@ -191,7 +187,6 @@ optional arguments:
 If we want to restore the backup from the `/tmp/bak` into the database connected to the postgres service `pg_service2`:
 
 ```commandline
-
 pum restore -p pg_service2 /tmp/bak
 ```
 
@@ -204,7 +199,6 @@ deltas. Only the delta files with version greater or equal than the current vers
 The usage of the command is:
 
 ```commandline
-
 usage: pum upgrade [-h] -p PG_SERVICE -t TABLE -d DIR
 
 optional arguments:
@@ -220,8 +214,8 @@ optional arguments:
 The `info` command print the status of the already or not applied delta files.
 
 The usage of the command is:
-```commandline
 
+```commandline
 usage: pum info [-h] -p PG_SERVICE -t TABLE -d DIR
 
 optional arguments:
@@ -240,7 +234,6 @@ The `baseline` command creates the upgrades information table and sets the curre
 The usage of the command is:
 
 ```commandline
-
 usage: pum baseline [-h] -p PG_SERVICE -t TABLE -d DIR -b BASELINE
 
 optional arguments:
@@ -270,7 +263,6 @@ Only the delta files with version greater or equal than the current version are 
 
 The usage of the command is:
 ```commandline
-
 usage: pum test-and-upgrade [-h] [-pp PG_SERVICE_PROD]
                             [-pt PG_SERVICE_TEST] [-pc PG_SERVICE_COMP]
                             [-t TABLE] [-d DIR] [-f FILE]
@@ -317,8 +309,8 @@ command regardless of the current db version.
 A Python file is executed before the sql file with the same kind and version.
 
 In summary the upgrade workflow is:
-```text
 
+```text
 execute pre-all.py if exists
 execute pre-all.sql if exists
 
@@ -341,7 +333,6 @@ execute post-all.sql if exists
 A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class has the following methods:
 
 ```python
- 
     @abstractmethod
     def run(self):
         """This method must be implemented in the subclasses. It is called
@@ -375,7 +366,6 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
 
 An example of implementation is:
 ```python
-
 from core.deltapy import DeltaPy
 
 
