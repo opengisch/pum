@@ -7,4 +7,5 @@ if: tag IS present
 
 install: pip install -r requirements.txt
 
+script: true
 after_success: .deploy/deploy_to_pypi.sh
