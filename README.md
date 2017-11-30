@@ -43,7 +43,7 @@ Alterantively, to install pum to a virtual environment without requiring sudo ac
 
 ```sh
 mkdir -p ~/.venv
-virtualenv ~/.venv/pum
+virtualenv -p python3 ~/.venv/pum
 source ~/.venv/pum/bin/activate
 pip install pum
 ```
