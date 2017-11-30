@@ -45,7 +45,7 @@ class TestDumper(TestCase):
 
         try:
             shutil.rmtree('/tmp/test_dumper')
-        except shutil.Error:
+        except Exception:
             pass
 
         os.mkdir('/tmp/test_dumper/')
