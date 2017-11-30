@@ -31,7 +31,7 @@ The first thing to do is use the "baseline" command to create metadata in your d
 
 ### System-wide
 
-This is the easiest way to install pum for every user on this system.
+This is the easiest way to install pum for every user on a system
 
 ```sh
 sudo pip3 install pum
