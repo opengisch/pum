@@ -17,7 +17,7 @@ from .deltapy import DeltaPy
 
 class Upgrader:
     """This class is used to upgrade an existing database using sql delta files.
-    
+
     Stores the info about the upgrade in a table on the database."""
 
     def __init__(self, pg_service, upgrades_table, directory):
@@ -83,7 +83,7 @@ class Upgrader:
 
     def exists_table_upgrades(self):
         """Return if the upgrades table exists
-        
+
         Returns
         -------
         bool
@@ -93,7 +93,7 @@ class Upgrader:
         query = """
             SELECT EXISTS (
             SELECT 1
-            FROM   information_schema.tables 
+            FROM   information_schema.tables
             WHERE  table_schema = '{}'
             AND    table_name = '{}'
             );
@@ -243,14 +243,14 @@ class Upgrader:
         print('')
         print('Applied upgrades in database')
 
-        query = """SELECT 
-                version, 
+        query = """SELECT
+                version,
                 description,
-                type, 
-                installed_by, 
-                installed_on, 
+                type,
+                installed_by,
+                installed_on,
                 success
-                FROM {}         
+                FROM {}
                 """.format(self.upgrades_table)
 
         self.cursor.execute(query)
@@ -264,17 +264,17 @@ class Upgrader:
             delta_type = i[2]
             if delta_type == 0:
                 line.append('baseline')
-            if delta.get_type() == Delta.DELTA_PRE_PY:
+            elif delta_type == Delta.DELTA_PRE_PY:
                 line.append('pre py')
-            elif delta.get_type() == Delta.DELTA_PRE_SQL:
+            elif delta_type == Delta.DELTA_PRE_SQL:
                 line.append('pre sql')
-            elif delta.get_type() == Delta.DELTA_PY:
+            elif delta_type == Delta.DELTA_PY:
                 line.append('delta py')
-            elif delta.get_type() == Delta.DELTA_SQL:
+            elif delta_type == Delta.DELTA_SQL:
                 line.append('delta sql')
-            elif delta.get_type() == Delta.DELTA_POST_PY:
+            elif delta_type == Delta.DELTA_POST_PY:
                 line.append('post py')
-            elif delta.get_type() == Delta.DELTA_POST_SQL:
+            elif delta_type == Delta.DELTA_POST_SQL:
                 line.append('post sql')
 
             line.append(str(i[3]))
@@ -306,22 +306,22 @@ class Upgrader:
 
     def __is_applied(self, delta):
         """Verifies if delta file is already applied on database
-        
+
         Parameters
         ----------
         delta: Delta object
             The delta object representing the delta file
-            
+
         Returns
         -------
         bool
-            True if the delta is already applied on the db 
-            False otherwise 
+            True if the delta is already applied on the db
+            False otherwise
         """
 
         query = """
-        SELECT id FROM {} 
-        WHERE version = '{}' 
+        SELECT id FROM {}
+        WHERE version = '{}'
             AND checksum = '{}'
             AND success = 'TRUE'
         """.format(
@@ -355,8 +355,8 @@ class Upgrader:
             execution_time,
             success
         ) VALUES(
-            '{}', 
-            '{}', 
+            '{}',
+            '{}',
             {},
             '{}',
             '{}',
@@ -392,7 +392,7 @@ class Upgrader:
 
         self.cursor.execute(query)
         self.connection.commit()
-        
+
     def set_baseline(self, version):
         """Set the baseline into the creation information table
 
@@ -415,8 +415,8 @@ class Upgrader:
                     execution_time,
                     success
                 ) VALUES(
-                    '{}', 
-                    '{}', 
+                    '{}',
+                    '{}',
                     {},
                     '{}',
                     '{}',
@@ -460,7 +460,7 @@ class Upgrader:
         """
 
         query = """
-        SELECT version from {} WHERE success = TRUE ORDER BY version DESC        
+        SELECT version from {} WHERE success = TRUE ORDER BY version DESC
         """.format(self.upgrades_table)
 
         self.cursor.execute(query)
@@ -485,7 +485,7 @@ class Delta:
     @staticmethod
     def is_valid_delta_name(file):
         """Return if a file has a valid name
-        
+
         A delta file name can be:
         - pre-all.py
         - pre-all.sql
@@ -527,7 +527,7 @@ class Delta:
 
     def get_type(self):
         """Return the type of the delta file.
-        
+
         Returns
         -------
         type: int

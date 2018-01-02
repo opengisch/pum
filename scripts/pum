@@ -58,7 +58,7 @@ class Pum:
     def run_check(self, pg_service1, pg_service2, ignore_list=None,
                   verbose_level=1):
         """Run the check command
-        
+
         Parameters
         ----------
         pg_service1: string
@@ -73,7 +73,7 @@ class Pum:
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
-            
+
         Returns
         -------
         True if no differences are found, False otherwise.
