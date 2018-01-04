@@ -140,7 +140,7 @@ class Pum:
             exit(1)
         self.__out('OK', 'OKGREEN')
 
-    def run_restore(self, pg_service, file):
+    def run_restore(self, pg_service, file, ignore_restore_errors=False):
         """
         Run the dump command
 
@@ -151,6 +151,8 @@ class Pum:
             pg_service.conf) related to the first db to be compared
         file: string
             The path of the desired backup file
+        ignore_restore_errors: Boolean
+            If true the pg_restore errors don't cause the exit of the program
         """
 
         self.__out('Restore...', type='WAITING')
@@ -164,6 +166,10 @@ class Pum:
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
+
+            # this is useful for a postgis 2.2.0's bug
+            if ignore_restore_errors:
+                return
             exit(1)
         except Exception as e:
             self.__out('ERROR', 'FAIL')
@@ -257,7 +263,7 @@ class Pum:
 
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dir, ignore_list):
+            table, delta_dir, ignore_list, ignore_restore_errors=False):
         """
         Do the following steps:
             - creates a dump of the production db
@@ -289,6 +295,8 @@ class Pum:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
+        ignore_restore_errors: Boolean
+            If true the pg_restore errors don't cause the exit of the program
         """
 
         self.__out('Test and upgrade...', type='WAITING')
@@ -297,7 +305,7 @@ class Pum:
         self.run_dump(pg_service_prod, file)
 
         # Restore db dump on db test
-        self.run_restore(pg_service_test, file)
+        self.run_restore(pg_service_test, file, ignore_restore_errors)
 
         # Apply deltas on db test
         self.run_upgrade(pg_service_test, table, delta_dir)
@@ -389,6 +397,8 @@ if __name__ == "__main__":
     parser_restore.add_argument(
         '-p', '--pg_service', help='Name of the postgres service',
         required=True)
+    parser_restore.add_argument(
+        '-x', help='ignore pg_restore errors', action="store_true")
     parser_restore.add_argument('file', help='The backup file')
 
     # create the parser for the "baseline" command
@@ -447,6 +457,8 @@ if __name__ == "__main__":
         '-d', '--dir', help='Set delta directory')
     parser_test_and_upgrade.add_argument('-f', '--file', help='The backup file')
     parser_test_and_upgrade.add_argument(
+        '-x', help='ignore pg_restore errors', action="store_true")
+    parser_test_and_upgrade.add_argument(
         '-i', '--ignore', help='Elements to be ignored', nargs='+',
         choices=['tables',
                  'columns',
@@ -478,7 +490,7 @@ if __name__ == "__main__":
     elif args.command == 'dump':
         pum.run_dump(args.pg_service, args.file)
     elif args.command == 'restore':
-        pum.run_restore(args.pg_service, args.file)
+        pum.run_restore(args.pg_service, args.file, args.x)
     elif args.command == 'baseline':
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
     elif args.command == 'info':
@@ -488,4 +500,4 @@ if __name__ == "__main__":
     elif args.command == 'test-and-upgrade':
         pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
-            args.file, args.table, args.dir, args.ignore)
+            args.file, args.table, args.dir, args.ignore, args.x)
