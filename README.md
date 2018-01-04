@@ -182,6 +182,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PG_SERVICE, --pg_service PG_SERVICE
                         Name of the postgres service
+  -x                    ignore pg_restore errors
 ```
 
 If we want to restore the backup from the `/tmp/bak` into the database connected to the postgres service `pg_service2`:
@@ -282,6 +283,7 @@ optional arguments:
                         Upgrades information table
   -d DIR, --dir DIR     Set delta directory
   -f FILE, --file FILE  The backup file
+  -x                    ignore pg_restore errors
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ,
   --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
@@ -289,12 +291,12 @@ optional arguments:
 
 ## Delta files
 
-A delta file can be a SQL file containing one or more SQL statements or a Python module containing a 
+A delta file can be a SQL file containing one or more SQL statements or a Python module containing a
 class that is a subclass of DeltaPy.
 
 There are 5 kind of delta files:
 - **pre-all**, is executed first thing in an upgrade command. The file must have the name `pre-all.py`
-or `pre-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade 
+or `pre-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade
 command regardless of the current db version.
 - **pre delta**, is executed before the normal delta file. The file's name must be in the form
 `delta_x.x.x_deltaname.pre.py` or `delta_x.x.x_deltaname.pre.sql`
@@ -303,8 +305,8 @@ command regardless of the current db version.
 - **post delta**, is executed after the normal delta file. The file's name must be in the form
 `delta_x.x.x_deltaname.post.py` or `delta_x.x.x_deltaname.post.sql`
 - **post all**, is executed last thing in an upgrade command. The file must have the name `post-all.py`
-or `post-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade 
-command regardless of the current db version. 
+or `post-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade
+command regardless of the current db version.
 
 A Python file is executed before the sql file with the same kind and version.
 
@@ -318,16 +320,16 @@ for each file delta_x.x.x_deltaname.* ordered by version number:
 	execute delta_x.x.x_deltaname.pre.py if exists
 	execute delta_x.x.x_deltaname.pre.sql if exists
 
-	execute delta_x.x.x_deltaname.py if exists 
+	execute delta_x.x.x_deltaname.py if exists
 	execute delta_x.x.x_deltaname.sql if exists
 
 	execute delta_x.x.x_deltaname.post.py if exists
 	execute delta_x.x.x_deltaname.post.sql if exists
-	
+
 execute post-all.py if exists
 execute post-all.sql if exists
 ```
-    
+
 ### Python delta files
 
 A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class has the following methods:
@@ -372,25 +374,25 @@ from core.deltapy import DeltaPy
 class Prova(DeltaPy):
 
     def run(self):
-               
+
         # if you want to get the current db version
         version = self.current_db_version()          
-        
+
         # if you want to get the delta directory path
         delta_dir = self.delta_dir()
-        
+
         # if you want to get the pg_service name
         pg = self.pg_service()
-        
+
         # if you want to get the upgrade information table name
         table = self.upgrades_table()
-        
+
         # if you want to print a message
         self.write_message('foo')
-        
+
         # Here goes all the code of the delta file
         some_cool_python_command()
-        
+
 ```
 
 
