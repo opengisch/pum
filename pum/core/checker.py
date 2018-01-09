@@ -13,7 +13,7 @@ class Checker:
     def __init__(
             self, pg_service1, pg_service2, ignore_list=None, verbose_level=1):
         """Constructor
-        
+
         Parameters
         ----------
         pg_service1: string
@@ -84,7 +84,6 @@ class Checker:
         if 'rules' not in self.ignore_list:
             tmp_result, differences_dict['rules'] = self.check_rules()
             result = False if not tmp_result else result
-
         if self.verbose_level == 0:
             differences_dict = None
         return result, differences_dict
@@ -100,18 +99,18 @@ class Checker:
             list
                 A list with the differences
         """
-        query = """SELECT table_schema, table_name 
-                FROM information_schema.tables 
-                WHERE table_schema NOT IN ('information_schema') 
-                    AND table_schema NOT LIKE 'pg\_%' 
-                    AND table_type NOT LIKE 'VIEW' 
+        query = """SELECT table_schema, table_name
+                FROM information_schema.tables
+                WHERE table_schema NOT IN ('information_schema')
+                    AND table_schema NOT LIKE 'pg\_%'
+                    AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name"""
 
         return self.__check_equals(query)
 
     def check_columns(self, check_views=True):
         """Check if the columns in all tables are equals.
-            
+
             Parameters
             ----------
             check_views: bool
@@ -127,40 +126,40 @@ class Checker:
                 A list with the differences
         """
         if check_views:
-            query = """WITH table_list AS ( 
-                SELECT table_schema, table_name 
-                FROM information_schema.tables 
-                WHERE table_schema NOT IN ('information_schema') 
-                    AND table_schema NOT LIKE 'pg\_%' 
-                ORDER BY table_schema,table_name 
-                ) 
-                SELECT isc.table_schema, isc.table_name, column_name, 
-                    column_default, is_nullable, data_type, 
-                    character_maximum_length::text, numeric_precision::text, 
-                    numeric_precision_radix::text, datetime_precision::text 
+            query = """WITH table_list AS (
+                SELECT table_schema, table_name
+                FROM information_schema.tables
+                WHERE table_schema NOT IN ('information_schema')
+                    AND table_schema NOT LIKE 'pg\_%'
+                ORDER BY table_schema,table_name
+                )
+                SELECT isc.table_schema, isc.table_name, column_name,
+                    column_default, is_nullable, data_type,
+                    character_maximum_length::text, numeric_precision::text,
+                    numeric_precision_radix::text, datetime_precision::text
                 FROM information_schema.columnS isc,
-                table_list tl 
-                WHERE isc.table_schema = tl.table_schema 
-                    AND isc.table_name = tl.table_name 
+                table_list tl
+                WHERE isc.table_schema = tl.table_schema
+                    AND isc.table_name = tl.table_name
                 ORDER BY isc.table_schema, isc.table_name, column_name"""
 
         else:
-            query = """WITH table_list AS ( 
-                SELECT table_schema, table_name 
-                FROM information_schema.tables 
-                WHERE table_schema NOT IN ('information_schema') 
+            query = """WITH table_list AS (
+                SELECT table_schema, table_name
+                FROM information_schema.tables
+                WHERE table_schema NOT IN ('information_schema')
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
-                ORDER BY table_schema,table_name 
-                ) 
-                SELECT isc.table_schema, isc.table_name, column_name, 
-                    column_default, is_nullable, data_type, 
-                    character_maximum_length::text, numeric_precision::text, 
-                    numeric_precision_radix::text, datetime_precision::text 
+                ORDER BY table_schema,table_name
+                )
+                SELECT isc.table_schema, isc.table_name, column_name,
+                    column_default, is_nullable, data_type,
+                    character_maximum_length::text, numeric_precision::text,
+                    numeric_precision_radix::text, datetime_precision::text
                 FROM information_schema.columnS isc,
-                table_list tl 
-                WHERE isc.table_schema = tl.table_schema 
-                    AND isc.table_name = tl.table_name 
+                table_list tl
+                WHERE isc.table_schema = tl.table_schema
+                    AND isc.table_name = tl.table_name
                 ORDER BY isc.table_schema, isc.table_name, column_name"""
 
         return self.__check_equals(query)
@@ -172,13 +171,13 @@ class Checker:
             -------
             bool
                 True if the constraints are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
         query = """ select
                         tc.constraint_name,
-                        tc.constraint_schema || '.' || tc.table_name || '.' || 
+                        tc.constraint_schema || '.' || tc.table_name || '.' ||
                             kcu.column_name as physical_full_name,
                         tc.constraint_schema,
                         tc.table_name,
@@ -187,13 +186,13 @@ class Checker:
                         ccu.column_name as foreign_column_name,
                         tc.constraint_type
                     from information_schema.table_constraints as tc
-                    join information_schema.key_column_usage as kcu on 
-                        (tc.constraint_name = kcu.constraint_name and 
+                    join information_schema.key_column_usage as kcu on
+                        (tc.constraint_name = kcu.constraint_name and
                         tc.table_name = kcu.table_name)
-                    join information_schema.constraint_column_usage as ccu on 
+                    join information_schema.constraint_column_usage as ccu on
                         ccu.constraint_name = tc.constraint_name
-                    ORDER BY tc.constraint_schema, physical_full_name, 
-                        tc.constraint_name, foreign_table_name, 
+                    ORDER BY tc.constraint_schema, physical_full_name,
+                        tc.constraint_name, foreign_table_name,
                         foreign_column_name  """
 
         return self.__check_equals(query)
@@ -205,15 +204,15 @@ class Checker:
             -------
             bool
                 True if the views are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
         query = """
         SELECT table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
-        WHERE table_schema NOT IN ('information_schema') 
-        AND table_schema NOT LIKE 'pg\_%' 
+        WHERE table_schema NOT IN ('information_schema')
+        AND table_schema NOT LIKE 'pg\_%'
         AND table_name not like 'vw_export_%'
         ORDER BY table_schema, table_name"""
 
@@ -226,7 +225,7 @@ class Checker:
             -------
             bool
                 True if the sequences are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
@@ -245,7 +244,7 @@ class Checker:
             -------
             bool
                 True if the indexes are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
@@ -266,15 +265,15 @@ class Checker:
             and a.attrelid = t.oid
             and a.attnum = ANY(ix.indkey)
             and t.relkind = 'r'
-            AND t.relname NOT IN ('information_schema') 
-            AND t.relname NOT LIKE 'pg\_%' 
+            AND t.relname NOT IN ('information_schema')
+            AND t.relname NOT LIKE 'pg\_%'
         order by
             t.relname,
             i.relname,
             a.attname
         """
         return self.__check_equals(query)
-        
+
     def check_triggers(self):
         """Check if the triggers are equals.
 
@@ -282,7 +281,7 @@ class Checker:
             -------
             bool
                 True if the triggers are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
@@ -296,13 +295,13 @@ class Checker:
         where pp.oid = t.tgfoid
             and t.tgname = tl.tgname
             AND t.tgrelid = p.oid
-            and  SUBSTR(p.relname, 1, 3) != 'vw_' 
-            -- We cannot check for vw_ views, 
+            and  SUBSTR(p.relname, 1, 3) != 'vw_'
+            -- We cannot check for vw_ views,
             -- because they are created after that script
         ORDER BY p.relname, /*t.tgname, */pp.prosrc"""
 
         return self.__check_equals(query)
-        
+
     def check_functions(self):
         """Check if the functions are equals.
 
@@ -310,23 +309,23 @@ class Checker:
             -------
             bool
                 True if the functions are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
         query = """
-        SELECT routines.routine_name, parameters.data_type, 
+        SELECT routines.routine_name, parameters.data_type,
             routines.routine_definition
         FROM information_schema.routines
-        JOIN information_schema.parameters 
+        JOIN information_schema.parameters
         ON routines.specific_name=parameters.specific_name
-        WHERE routines.specific_schema NOT IN ('information_schema') 
-            AND routines.specific_schema NOT LIKE 'pg\_%' 
-        ORDER BY routines.routine_name, parameters.data_type, 
+        WHERE routines.specific_schema NOT IN ('information_schema')
+            AND routines.specific_schema NOT LIKE 'pg\_%'
+        ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position"""
 
         return self.__check_equals(query)
-        
+
     def check_rules(self):
         """Check if the rules are equals.
 
@@ -334,7 +333,7 @@ class Checker:
             -------
             bool
                 True if the rules are the same
-                False otherwise            
+                False otherwise
             list
                 A list with the differences
         """
@@ -352,12 +351,12 @@ class Checker:
         join pg_class c on r.ev_class = c.oid
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
-        WHERE n.nspname NOT IN ('information_schema') 
-            AND n.nspname NOT LIKE 'pg\_%' 
+        WHERE n.nspname NOT IN ('information_schema')
+            AND n.nspname NOT LIKE 'pg\_%'
         ORDER BY n.nspname, c.relname, rule_event"""
 
         return self.__check_equals(query)
-        
+
     def __check_equals(self, query):
         """Check if the query results on the two databases are equals.
 
