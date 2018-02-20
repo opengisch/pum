@@ -1,5 +1,6 @@
-# pum
-Acronym stands for "Postgres Upgrades Manager". It is a Database migration management tool very similar to flyway-db or Liquibase, based on metadata tables.
+# Pum
+
+Pum stands for "Postgres Upgrades Manager". It is a Database migration management tool very similar to flyway-db or Liquibase, based on metadata tables.
 
 
 ## Features
@@ -16,14 +17,14 @@ and some other useful operations.
 
 ## General purpose and workflow
 
-Good practices regarding database versioning and migration are not so easy to handle in a CVS code management system. Initial developpement is easy, using pure git, and sometimes some meta SQL generation scripts. But when it comes to maintaining databases already in production, good practices differ a lot since SQL patchs can't be handled the same way as git diffs.
+Good practices regarding database versioning and migration are not so easy to handle in a VCS (Version Control System). Initial development is easy, using pure Git, and sometimes some meta SQL generation scripts. But when it comes to maintaining databases already in production, good practices differ a lot since SQL patches can't be handled the same way as Git diffs.
 
-We recommend reading somes of those great articles to get a clearer view on what could, and should (or not) be done:
+We recommend reading some of those great articles to get a clearer view on what could, and should (or not) be done:
 
 - https://blog.codinghorror.com/get-your-database-under-version-control/
 - http://petereisentraut.blogspot.fr/2012/05/my-anti-take-on-database-schema-version.html
 
-The worklow consists in having version metadata written INSIDE the database and use that to check current state, old migrations, new migrations to apply, etc..
+The worklow involves having version metadata written INSIDE the database and using that to check current state, old migrations, new migrations to apply, etc..
 
 The first thing to do is use the "baseline" command to create metadata in your database, and then you are good to go.
 
@@ -57,8 +58,8 @@ source ~/.venv/pum/bin/activate
 
 ## History
 
-PUM has been developped to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
-QWAT already developped a dedicated migration tool, allowing to both work on the data model using git AND use delta file for migrations. QGEP needed something also so the group decided to make a more generic tool, yet a simple one to handle that.  
+Pum has been developped to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
+QWAT already developed a dedicated migration tool, allowing to both work on the data model using git AND use delta file for migrations. QGEP needed something also so the group decided to make a more generic tool, yet a simple one to handle that.
 
 ## Command line
 
@@ -193,8 +194,8 @@ pum restore -p pg_service2 /tmp/bak
 
 ### upgrade
 
-The `upgrade` command is used to upgrade an existing database using sql delta files. The command apply
-one or more delta files to an existing database and stores in a table the informations about the applied
+The `upgrade` command is used to upgrade an existing database using sql delta files. The command applies
+one or more delta files to an existing database and stores in a table the information about the applied
 deltas. Only the delta files with version greater or equal than the current version are applied.
 
 The usage of the command is:
@@ -212,7 +213,7 @@ optional arguments:
 ```
 
 ### info
-The `info` command print the status of the already or not applied delta files.
+The `info` command prints the status of the already or not applied delta files.
 
 The usage of the command is:
 
@@ -260,7 +261,7 @@ The `test-and-upgrade` command does the following steps:
 - applies the delta files found in the delta directory to the test db.
 - checks if there are differences between the test db and a comparison db
 - if no significant differences are found, after confirmation, applies the delta files to the production dbD.
-Only the delta files with version greater or equal than the current version are applied
+Only the delta files with version greater or equal than the current version are applied.
 
 The usage of the command is:
 ```commandline
