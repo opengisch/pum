@@ -42,26 +42,31 @@ class TestUpgrader(TestCase):
         self.conn1.commit()
 
         try:
-            shutil.rmtree('/tmp/test_upgrader')
+            shutil.rmtree('/tmp/pum_deltas_1')
+            shutil.rmtree('/tmp/pum_deltas_2')
         except OSError:
             pass
 
-        os.mkdir('/tmp/test_upgrader/')
+        os.mkdir('/tmp/pum_deltas_1/')
+        os.mkdir('/tmp/pum_deltas_2/')
 
-        with open('/tmp/test_upgrader/delta_0.0.1_0.sql', 'w+') as f:
+        with open('/tmp/pum_deltas_1/delta_0.0.1_0.sql', 'w+') as f:
             f.write('DROP TABLE IF EXISTS test_upgrader.bar;')
             f.write(
                 'CREATE TABLE test_upgrader.bar '
                 '(id smallint, value integer, name varchar(100));')
 
-        with open('/tmp/test_upgrader/delta_0.0.1_a.sql', 'w+') as f:
+        with open('/tmp/pum_deltas_1/delta_0.0.1_a.sql', 'w+') as f:
             f.write('SELECT 2;')
 
-        with open('/tmp/test_upgrader/delta_0.0.1_1.sql', 'w+') as f:
+        with open('/tmp/pum_deltas_1/delta_0.0.1_1.sql', 'w+') as f:
             f.write('SELECT 1;')
 
+        with open('/tmp/pum_deltas_2/delta_0.0.1_0.sql', 'w+') as f:
+            f.write('SELECT 3;')
+
         self.upgrader = Upgrader(
-            pg_service1, self.upgrades_table, '/tmp/test_upgrader/')
+            pg_service1, self.upgrades_table, ['/tmp/pum_deltas_1/', '/tmp/pum_deltas_2/'])
         self.upgrader.set_baseline('0.0.1')
 
     def test_upgrader_run(self):
@@ -74,11 +79,12 @@ class TestUpgrader(TestCase):
         self.cur1.execute(
             "SELECT description from {};".format(self.upgrades_table))
         results = self.cur1.fetchall()
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 5)
         self.assertEqual(results[0][0], 'baseline')
         self.assertEqual(results[1][0], '0')
         self.assertEqual(results[2][0], '1')
         self.assertEqual(results[3][0], 'a')
+        self.assertEqual(results[4][0], '0')
 
     def test_delta_valid_name(self):
         self.assertTrue(

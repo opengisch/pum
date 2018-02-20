@@ -18,7 +18,7 @@ class Pum:
     def __init__(self, config_file=None):
 
         self.upgrades_table = None
-        self.delta_dir = None
+        self.delta_dirs = None
         self.backup_file = None
         self.ignore_list = None
         self.pg_dump_exe = None
@@ -48,8 +48,11 @@ class Pum:
             Dictionary of configurations
             """
 
+        if not isinstance(configs['delta_dir'], list):
+            configs['delta_dir'] = [configs['delta_dir']]
+
         self.upgrades_table = configs['upgrades_table']
-        self.delta_dir = configs['delta_dir']
+        self.delta_dirs = configs['delta_dirs']
         self.backup_file = configs['backup_file']
         self.ignore_list = configs['ignore_elements']
         self.pg_dump_exe = configs['pg_dump_exe']
@@ -183,7 +186,7 @@ class Pum:
             exit(1)
         self.__out('OK', 'OKGREEN')
 
-    def run_baseline(self, pg_service, table, delta_dir, baseline):
+    def run_baseline(self, pg_service, table, delta_dirs, baseline):
         """
         Run the baseline command. Set the current database version
         (baseline) into the specified table.
@@ -196,8 +199,8 @@ class Pum:
         table: str
             The name of the upgrades information table in the format
             schema.table
-        delta_dir: str
-            The path of the delta directory
+        delta_dirs: list(str)
+            The paths to the delta directories
         baseline: str
             The version of the current database to set in the information
             table. The baseline must be in the format x.x.x where x are numbers.
@@ -207,7 +210,7 @@ class Pum:
         self.__out('Set baseline...', type='WAITING')
 
         try:
-            upgrader = Upgrader(pg_service, table, delta_dir)
+            upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.create_upgrades_table()
             upgrader.set_baseline(baseline)
 
@@ -218,7 +221,7 @@ class Pum:
 
         self.__out('OK', 'OKGREEN')
 
-    def run_info(self, pg_service, table, delta_dir):
+    def run_info(self, pg_service, table, delta_dirs):
         """Print info about delta file and about already made upgrade
 
         Parameters
@@ -229,19 +232,19 @@ class Pum:
         table: str
             The name of the upgrades information table in the format
             schema.table
-        delta_dir: str
-            The path of the delta directory
+        delta_dir: list(str)
+            The paths to the delta directories
         """
 
         try:
-            upgrader = Upgrader(pg_service, table, delta_dir)
+            upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.show_info()
 
         except Exception as e:
             print(e)
             exit(1)
 
-    def run_upgrade(self, pg_service, table, delta_dir):
+    def run_upgrade(self, pg_service, table, delta_dirs):
         """Apply the delta files to upgrade the database
 
         Parameters
@@ -251,14 +254,14 @@ class Pum:
         table: str
             The name of the upgrades information table in the format
             schema.table
-        delta_dir: str
-            The path of the delta directory
+        delta_dirs: list(str)
+            The paths to the delta directories
         """
 
         self.__out('Upgrade...', type='WAITING')
 
         try:
-            upgrader = Upgrader(pg_service, table, delta_dir)
+            upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.run()
 
         except Exception as e:
@@ -269,7 +272,7 @@ class Pum:
 
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dir, ignore_list, ignore_restore_errors=False):
+            table, delta_dirs, ignore_list, ignore_restore_errors=False):
         """
         Do the following steps:
             - creates a dump of the production db
@@ -296,8 +299,8 @@ class Pum:
         table: str
             The name of the upgrades information table in the format
             schema.table
-        delta_dir: str
-            The path of the delta directory
+        delta_dirs: list(str)
+            The paths to the delta directories
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
@@ -319,7 +322,7 @@ class Pum:
         self.run_restore(pg_service_test, file, ignore_restore_errors)
 
         # Apply deltas on db test
-        self.run_upgrade(pg_service_test, table, delta_dir)
+        self.run_upgrade(pg_service_test, table, delta_dirs)
 
         # Compare db test with db comp
         check_result = self.run_check(
@@ -330,7 +333,7 @@ class Pum:
 
         if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
                 pg_service_prod)):
-            self.run_upgrade(pg_service_prod, table, delta_dir)
+            self.run_upgrade(pg_service_prod, table, delta_dirs)
 
         self.__out('OK', 'OKGREEN')
 
@@ -424,7 +427,8 @@ if __name__ == "__main__":
     parser_baseline.add_argument(
         '-t', '--table', help='Upgrades information table', required=True)
     parser_baseline.add_argument(
-        '-d', '--dir', help='Delta directory', required=True)
+        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
+        required=True)
     parser_baseline.add_argument(
         '-b', '--baseline', help='Set baseline in the format x.x.x',
         required=True)
@@ -437,7 +441,8 @@ if __name__ == "__main__":
     parser_info.add_argument(
         '-t', '--table', help='Upgrades information table', required=True)
     parser_info.add_argument(
-        '-d', '--dir', help='Set delta directory', required=True)
+        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
+        required=True)
 
     # create the parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser('upgrade', help='upgrade db')
@@ -447,7 +452,8 @@ if __name__ == "__main__":
     parser_upgrade.add_argument(
         '-t', '--table', help='Upgrades information table', required=True)
     parser_upgrade.add_argument(
-        '-d', '--dir', help='Set delta directory', required=True)
+        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
+        required=True)
 
     # create the parser for the "test-and-upgrade" command
     parser_test_and_upgrade = subparsers.add_parser(
@@ -468,7 +474,8 @@ if __name__ == "__main__":
     parser_test_and_upgrade.add_argument(
         '-t', '--table', help='Upgrades information table')
     parser_test_and_upgrade.add_argument(
-        '-d', '--dir', help='Set delta directory')
+        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
+        required=True)
     parser_test_and_upgrade.add_argument('-f', '--file', help='The backup file')
     parser_test_and_upgrade.add_argument(
         '-x', help='ignore pg_restore errors', action="store_true")
