@@ -66,11 +66,11 @@ class Upgrader:
                     d.get_version()), end=' ')
 
                 if d.get_type() in [Delta.DELTA_PRE_SQL, Delta.DELTA_SQL,
-                                  Delta.DELTA_POST_SQL]:
+                                    Delta.DELTA_POST_SQL]:
                     self.__run_delta_sql(d)
                     print('OK')
                 elif d.get_type() in [Delta.DELTA_PRE_PY, Delta.DELTA_PY,
-                                    Delta.DELTA_POST_PY]:
+                                      Delta.DELTA_POST_PY]:
                     self.__run_delta_py(d)
                     print('OK')
                 else:
