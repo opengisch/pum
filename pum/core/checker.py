@@ -19,7 +19,7 @@ class Checker:
         pg_service1: string
             The name of the postgres service (defined in pg_service.conf)
             related to the first db to be compared
-        pg_service2: sting
+        pg_service2: string
             The name of the postgres service (defined in pg_service.conf)
             related to the first db to be compared
         ignore_list: list of strings
