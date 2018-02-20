@@ -48,11 +48,19 @@ class TestUpgrader(TestCase):
         
         os.mkdir('/tmp/test_upgrader/')
 
-        file = open('/tmp/test_upgrader/delta_0.0.1.sql', 'w+')
+        file = open('/tmp/test_upgrader/delta_0.0.1_0.sql', 'w+')
         file.write('DROP TABLE IF EXISTS test_upgrader.bar;')
         file.write(
             'CREATE TABLE test_upgrader.bar '
             '(id smallint, value integer, name varchar(100));')
+        file.close()
+
+        file = open('/tmp/test_upgrader/delta_0.0.1_a.sql', 'w+')
+        file.write('SELECT 2;')
+        file.close()
+
+        file = open('/tmp/test_upgrader/delta_0.0.1_1.sql', 'w+')
+        file.write('SELECT 1;')
         file.close()
 
         self.upgrader = Upgrader(
@@ -65,6 +73,15 @@ class TestUpgrader(TestCase):
         self.cur1.execute(
             "SELECT to_regclass('{}');".format(self.upgrades_table))
         self.assertIsNotNone(self.cur1.fetchone()[0])
+
+        self.cur1.execute(
+            "SELECT description from {};".format(self.upgrades_table))
+        results = self.cur1.fetchall()
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0][0], 'baseline')
+        self.assertEqual(results[1][0], '0')
+        self.assertEqual(results[2][0], '1')
+        self.assertEqual(results[3][0], 'a')
 
     def test_delta_valid_name(self):
         self.assertTrue(

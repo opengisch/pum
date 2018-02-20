@@ -126,7 +126,7 @@ class Upgrader:
             delta = Delta(file)
             deltas.append(delta)
 
-        return sorted(deltas, key=lambda x: (x.get_version(), x.get_type()))
+        return sorted(deltas, key=lambda x: (x.get_version(), x.get_type(), x.get_name()))
 
     def __run_delta_sql(self, delta):
         """Execute the delta sql file on the database"""
