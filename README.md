@@ -127,6 +127,8 @@ optional arguments:
                         Elements to be ignored
   -v VERBOSE_LEVEL, --verbose_level VERBOSE_LEVEL
                         Verbose level (0, 1 or 2)
+  -o OUTPUT_FILE, --output_file OUTPUT_FILE
+                        Output file
 ```
 
 For example if we want to check if a database connected to the postgres service `pg_service1` is equal to the
