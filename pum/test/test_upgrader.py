@@ -48,20 +48,17 @@ class TestUpgrader(TestCase):
 
         os.mkdir('/tmp/test_upgrader/')
 
-        file = open('/tmp/test_upgrader/delta_0.0.1_0.sql', 'w+')
-        file.write('DROP TABLE IF EXISTS test_upgrader.bar;')
-        file.write(
-            'CREATE TABLE test_upgrader.bar '
-            '(id smallint, value integer, name varchar(100));')
-        file.close()
+        with open('/tmp/test_upgrader/delta_0.0.1_0.sql', 'w+') as f:
+            f.write('DROP TABLE IF EXISTS test_upgrader.bar;')
+            f.write(
+                'CREATE TABLE test_upgrader.bar '
+                '(id smallint, value integer, name varchar(100));')
 
-        file = open('/tmp/test_upgrader/delta_0.0.1_a.sql', 'w+')
-        file.write('SELECT 2;')
-        file.close()
+        with open('/tmp/test_upgrader/delta_0.0.1_a.sql', 'w+') as f:
+            f.write('SELECT 2;')
 
-        file = open('/tmp/test_upgrader/delta_0.0.1_1.sql', 'w+')
-        file.write('SELECT 1;')
-        file.close()
+        with open('/tmp/test_upgrader/delta_0.0.1_1.sql', 'w+') as f:
+            f.write('SELECT 1;')
 
         self.upgrader = Upgrader(
             pg_service1, self.upgrades_table, '/tmp/test_upgrader/')
