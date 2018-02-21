@@ -178,9 +178,9 @@ class Upgrader:
         filepath: str
             the path of the file to execute"""
 
-        delta_file = open(filepath, 'r')
-        self.cursor.execute(delta_file.read())
-        self.connection.commit()
+        with open(filepath, 'r') as delta_file:
+            self.cursor.execute(delta_file.read())
+            self.connection.commit()
 
     def __run_py_file(self, filepath, module_name):
         """Execute the python file at the passed path
@@ -523,7 +523,9 @@ class Delta:
 
     def get_checksum(self):
         """Return the md5 checksum of the delta file."""
-        return md5(open(self.file, 'rb').read()).hexdigest()
+        with open(self.file, 'rb') as f:
+            cs = md5(f.read()).hexdigest()
+        return cs
 
     def get_type(self):
         """Return the type of the delta file.
