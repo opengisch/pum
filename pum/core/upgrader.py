@@ -28,7 +28,7 @@ class Upgrader:
             pg_service: string
                 The name of the postgres service (defined in pg_service.conf)
                 related to the db
-            upgrades_table: sting
+            upgrades_table: string
                 The name of the table (int the format schema.name) where the
                 informations about the upgrades are stored
             directory: string

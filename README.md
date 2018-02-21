@@ -400,7 +400,7 @@ class Prova(DeltaPy):
 ## Config file
 
 In the config file db_manager_config.yaml, you have to define, with the YAML syntax:
-- **upgrades_table**: the name (and schema) of the table with the migration informations
+- **upgrades_table**: the name (and schema) of the table with the migration information
 - **delta_dir**: the directory with the delta files.
 - **backup_file**: the temporary db dump file used to copy the prod db to a test db
 - **ignore_elements**: list of elements to ignore in db compare. Valid elements: tables, columns,
