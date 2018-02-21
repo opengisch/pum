@@ -9,9 +9,9 @@ from pum.core.upgrader import Upgrader, Delta
 
 class TestUpgrader(TestCase):
     """Test the class Upgrader.
-    
+
     1 pg_service needed for test:
-        qwat_test_1 
+        qwat_test_1
     """
 
     def setUp(self):
@@ -45,7 +45,7 @@ class TestUpgrader(TestCase):
             shutil.rmtree('/tmp/test_upgrader')
         except OSError:
             pass
-        
+
         os.mkdir('/tmp/test_upgrader/')
 
         file = open('/tmp/test_upgrader/delta_0.0.1_0.sql', 'w+')
