@@ -66,11 +66,11 @@ class Upgrader:
                     d.get_version()), end=' ')
 
                 if d.get_type() in [Delta.DELTA_PRE_SQL, Delta.DELTA_SQL,
-                                  Delta.DELTA_POST_SQL]:
+                                    Delta.DELTA_POST_SQL]:
                     self.__run_delta_sql(d)
                     print('OK')
                 elif d.get_type() in [Delta.DELTA_PRE_PY, Delta.DELTA_PY,
-                                    Delta.DELTA_POST_PY]:
+                                      Delta.DELTA_POST_PY]:
                     self.__run_delta_py(d)
                     print('OK')
                 else:
@@ -126,7 +126,7 @@ class Upgrader:
             delta = Delta(file)
             deltas.append(delta)
 
-        return sorted(deltas, key=lambda x: (x.get_version(), x.get_type()))
+        return sorted(deltas, key=lambda x: (x.get_version(), x.get_type(), x.get_name()))
 
     def __run_delta_sql(self, delta):
         """Execute the delta sql file on the database"""
@@ -178,9 +178,9 @@ class Upgrader:
         filepath: str
             the path of the file to execute"""
 
-        delta_file = open(filepath, 'r')
-        self.cursor.execute(delta_file.read())
-        self.connection.commit()
+        with open(filepath, 'r') as delta_file:
+            self.cursor.execute(delta_file.read())
+            self.connection.commit()
 
     def __run_py_file(self, filepath, module_name):
         """Execute the python file at the passed path
@@ -523,7 +523,9 @@ class Delta:
 
     def get_checksum(self):
         """Return the md5 checksum of the delta file."""
-        return md5(open(self.file, 'rb').read()).hexdigest()
+        with open(self.file, 'rb') as f:
+            cs = md5(f.read()).hexdigest()
+        return cs
 
     def get_type(self):
         """Return the type of the delta file.

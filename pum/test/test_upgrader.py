@@ -9,9 +9,9 @@ from pum.core.upgrader import Upgrader, Delta
 
 class TestUpgrader(TestCase):
     """Test the class Upgrader.
-    
+
     1 pg_service needed for test:
-        qwat_test_1 
+        qwat_test_1
     """
 
     def setUp(self):
@@ -45,15 +45,20 @@ class TestUpgrader(TestCase):
             shutil.rmtree('/tmp/test_upgrader')
         except OSError:
             pass
-        
+
         os.mkdir('/tmp/test_upgrader/')
 
-        file = open('/tmp/test_upgrader/delta_0.0.1.sql', 'w+')
-        file.write('DROP TABLE IF EXISTS test_upgrader.bar;')
-        file.write(
-            'CREATE TABLE test_upgrader.bar '
-            '(id smallint, value integer, name varchar(100));')
-        file.close()
+        with open('/tmp/test_upgrader/delta_0.0.1_0.sql', 'w+') as f:
+            f.write('DROP TABLE IF EXISTS test_upgrader.bar;')
+            f.write(
+                'CREATE TABLE test_upgrader.bar '
+                '(id smallint, value integer, name varchar(100));')
+
+        with open('/tmp/test_upgrader/delta_0.0.1_a.sql', 'w+') as f:
+            f.write('SELECT 2;')
+
+        with open('/tmp/test_upgrader/delta_0.0.1_1.sql', 'w+') as f:
+            f.write('SELECT 1;')
 
         self.upgrader = Upgrader(
             pg_service1, self.upgrades_table, '/tmp/test_upgrader/')
@@ -65,6 +70,15 @@ class TestUpgrader(TestCase):
         self.cur1.execute(
             "SELECT to_regclass('{}');".format(self.upgrades_table))
         self.assertIsNotNone(self.cur1.fetchone()[0])
+
+        self.cur1.execute(
+            "SELECT description from {};".format(self.upgrades_table))
+        results = self.cur1.fetchall()
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0][0], 'baseline')
+        self.assertEqual(results[1][0], '0')
+        self.assertEqual(results[2][0], '1')
+        self.assertEqual(results[3][0], 'a')
 
     def test_delta_valid_name(self):
         self.assertTrue(
