@@ -56,7 +56,7 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  verbose_level=1):
+                  verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
@@ -73,6 +73,8 @@ class Pum:
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
+        output_file: string
+            a file path where write the differences
 
         Returns
         -------
@@ -95,8 +97,12 @@ class Pum:
                 self.__out('DIFFERENCES FOUND', 'WARNING')
 
             if differences:
-                print(yaml.dump(differences, default_flow_style=False))
-
+                if output_file:
+                    with open(output_file, 'w') as f:
+                        f.write(
+                            yaml.dump(differences, default_flow_style=False))
+                else:
+                    print(yaml.dump(differences, default_flow_style=False))
             return result
 
         except psycopg2.Error as e:
@@ -382,6 +388,8 @@ if __name__ == "__main__":
                  'rules'])
     parser_check.add_argument(
         '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
+    parser_check.add_argument(
+        '-o', '--output_file', help='Output file')
 
     # create the parser for the "dump" command
     parser_dump = subparsers.add_parser('dump', help='dump a Postgres database')
@@ -486,7 +494,7 @@ if __name__ == "__main__":
 
     if args.command == 'check':
         pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
-                      args.verbose_level)
+                      args.verbose_level, args.output_file)
     elif args.command == 'dump':
         pum.run_dump(args.pg_service, args.file)
     elif args.command == 'restore':
