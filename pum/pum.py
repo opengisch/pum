@@ -7,6 +7,7 @@ from commands.baseline import Baseline
 from commands.check import Check
 from commands.dump import Dump
 from commands.restore import Restore
+from commands.upgrade import Upgrade
 
 
 class Pum(object):
@@ -16,7 +17,8 @@ class Pum(object):
         Baseline,
         Check,
         Dump,
-        Restore
+        Restore,
+        Upgrade
     ]
 
     def __init__(self):
