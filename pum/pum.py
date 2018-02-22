@@ -5,14 +5,16 @@ import argparse
 from commands.info import Info
 from commands.baseline import Baseline
 from commands.check import Check
+from commands.dump import Dump
 
 
 class Pum(object):
 
     COMMANDS = [
         Info,
-        Baseline, 
-        Check
+        Baseline,
+        Check,
+        Dump
     ]
 
     def __init__(self):
