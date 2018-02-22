@@ -1,9 +1,48 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
 import psycopg2
 import psycopg2.extras
 import difflib
+
+from .PUMCommand import PUMCommand
+
+
+class Check(PUMCommand):
+    
+    def add_cli_parser(subparsers):
+        parser = subparsers.add_parser(
+            'check', help='check the differences between two databases')
+        parser.add_argument(
+            '-p1', '--pg_service1', help='Name of the first postgres service',
+            required=True)
+        parser.add_argument(
+            '-p2', '--pg_service2', help='Name of the second postgres service',
+            required=True)
+        parser.add_argument(
+            '-i', '--ignore', help='Elements to be ignored', nargs='+',
+            choices=['tables',
+                     'columns',
+                     'constraints',
+                     'views',
+                     'sequences',
+                     'indexes',
+                     'triggers',
+                     'functions',
+                     'rules'])
+        parser.add_argument(
+            '-v', '--verbose_level', help='Verbose level (0, 1 or 2)',
+            type=int)
+        parser.add_argument(
+            '-o', '--output_file', help='Output file')
+
+        parser.set_defaults(func=Check.run)
+
+    def run(args):
+        # TODO refactor
+        checker = Checker(
+            args.pg_service1, args.pg_service2, args.ignore,
+            args.verbose_level)
+        return checker.run_checks()
 
 
 class Checker:
