@@ -16,13 +16,13 @@ class Checker:
 
         Parameters
         ----------
-        pg_service1: string
+        pg_service1: str
             The name of the postgres service (defined in pg_service.conf)
             related to the first db to be compared
-        pg_service2: string
+        pg_service2: str
             The name of the postgres service (defined in pg_service.conf)
             related to the first db to be compared
-        ignore_list: list of strings
+        ignore_list: list(str)
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
         verbose_level: int
