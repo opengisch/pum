@@ -1,7 +1,7 @@
 import psycopg2
 from unittest import TestCase
 
-from pum.commands.check import Check
+from commands.check import Check
 
 
 class TestCheck(TestCase):

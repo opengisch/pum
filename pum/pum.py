@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import argparse
 
 from commands.info import Info
@@ -8,6 +9,8 @@ from commands.check import Check
 from commands.dump import Dump
 from commands.restore import Restore
 from commands.upgrade import Upgrade
+
+sys.path.append('.')
 
 
 class Pum(object):

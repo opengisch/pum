@@ -1,7 +1,7 @@
 import psycopg2
 from unittest import TestCase
 
-from pum.commands.baseline import Baseline
+from commands.baseline import Baseline
 
 
 class TestBaseline(TestCase):

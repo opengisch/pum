@@ -3,7 +3,7 @@
 import psycopg2
 import re
 
-from .PUMCommand import PUMCommand
+from commands.PUMCommand import PUMCommand
 
 
 class Baseline(PUMCommand):

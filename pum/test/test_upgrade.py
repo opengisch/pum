@@ -4,8 +4,10 @@ from unittest import TestCase
 
 import psycopg2
 import psycopg2.extras
-from pum.commands.upgrade import Upgrade, Delta
-from pum.commands.baseline import Baseline
+
+from commands.baseline import Baseline
+from commands.upgrade import Upgrade
+from core.delta import Delta
 
 
 class TestUpgrade(TestCase):
@@ -22,19 +24,19 @@ class TestUpgrade(TestCase):
         self.cur1.execute("""
             CREATE SCHEMA test_upgrade;
             CREATE TABLE {}
-                (
-                id serial NOT NULL,
-                version character varying(50),
-                description character varying(200) NOT NULL,
-                type integer NOT NULL,
-                script character varying(1000) NOT NULL,
-                checksum character varying(32) NOT NULL,
-                installed_by character varying(100) NOT NULL,
-                installed_on timestamp without time zone NOT NULL DEFAULT now(),
-                execution_time integer NOT NULL,
-                success boolean NOT NULL,
-                CONSTRAINT upgrades_pk PRIMARY KEY (id)
-                );
+            (
+            id serial NOT NULL,
+            version character varying(50),
+            description character varying(200) NOT NULL,
+            type integer NOT NULL,
+            script character varying(1000) NOT NULL,
+            checksum character varying(32) NOT NULL,
+            installed_by character varying(100) NOT NULL,
+            installed_on timestamp without time zone NOT NULL DEFAULT now(),
+            execution_time integer NOT NULL,
+            success boolean NOT NULL,
+            CONSTRAINT upgrades_pk PRIMARY KEY (id)
+            );
             """.format(self.info_table))
         self.conn1.commit()
 
@@ -59,13 +61,12 @@ class TestUpgrade(TestCase):
         Baseline.run(args)
 
     def tearDown(self):
-        self.info_table = 'test_upgrade.upgrades'
 
         self.conn1 = psycopg2.connect("service={0}".format(
             TestUpgrade.PG_SERVICE))
         self.cur1 = self.conn1.cursor()
 
-        self.cur1.execute("""DROP SCHEMA IF EXISTS test_upgrade CASCADE;""")
+        self.cur1.execute("""DROP SCHEMA test_upgrade CASCADE;""")
         self.conn1.commit()
 
         shutil.rmtree('/tmp/test_upgrade')
@@ -115,7 +116,8 @@ class TestUpgrade(TestCase):
         self.assertFalse(Delta.is_valid_delta_name('1.1.0_17072017.sql'))
         self.assertFalse(Delta.is_valid_delta_name('Delta_1.1.0_17072017.sql'))
         self.assertFalse(Delta.is_valid_delta_name('delta_1.1.0_17072017'))
-        self.assertFalse(Delta.is_valid_delta_name('delta_1.1.0_17072017.post'))
+        self.assertFalse(
+            Delta.is_valid_delta_name('delta_1.1.0_17072017.post'))
         self.assertFalse(Delta.is_valid_delta_name('delta_1.1.0_17072017.pre'))
         self.assertFalse(Delta.is_valid_delta_name('delta_1.1_17072017.sql'))
 

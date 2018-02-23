@@ -2,7 +2,7 @@
 
 import psycopg2
 
-from .PUMCommand import PUMCommand
+from commands.PUMCommand import PUMCommand
 
 
 class Info(PUMCommand):

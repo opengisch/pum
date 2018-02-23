@@ -4,11 +4,11 @@ import psycopg2
 import psycopg2.extras
 import difflib
 
-from .PUMCommand import PUMCommand
+from commands.PUMCommand import PUMCommand
 
 
 class Check(PUMCommand):
-    
+
     def add_cli_parser(subparsers):
         parser = subparsers.add_parser(
             'check', help='check the differences between two databases')

@@ -2,7 +2,7 @@
 
 import subprocess
 
-from .PUMCommand import PUMCommand
+from commands.PUMCommand import PUMCommand
 
 
 class Dump(PUMCommand):

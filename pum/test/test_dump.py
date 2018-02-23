@@ -5,7 +5,7 @@ from unittest import TestCase
 import psycopg2
 import psycopg2.extras
 
-from pum.commands.dump import Dump
+from commands.dump import Dump
 
 
 class TestDump(TestCase):
@@ -50,6 +50,8 @@ class TestDump(TestCase):
         Dump.run(args)
 
         self.assertTrue(os.path.isfile(args.file))
+
+    # TODO add more tests
 
 
 class Args(object):
