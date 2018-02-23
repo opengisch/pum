@@ -25,13 +25,13 @@ class Upgrader:
 
             Parameters
             ----------
-            pg_service: string
+            pg_service: str
                 The name of the postgres service (defined in pg_service.conf)
                 related to the db
-            upgrades_table: string
+            upgrades_table: str
                 The name of the table (int the format schema.name) where the
                 informations about the upgrades are stored
-            directory: string
+            directory: str
                 The path of the directory where the delta files are stored
         """
         self.pg_service = pg_service
