@@ -490,11 +490,14 @@ if __name__ == "__main__":
         parser.print_help()
         parser.exit()
 
+    exitval = 0
     pum = Pum(args.config_file)
 
     if args.command == 'check':
-        pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
-                      args.verbose_level, args.output_file)
+        success = pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
+                                args.verbose_level, args.output_file)
+        if not success:
+            exitval = 1
     elif args.command == 'dump':
         pum.run_dump(args.pg_service, args.file)
     elif args.command == 'restore':
@@ -509,3 +512,5 @@ if __name__ == "__main__":
         pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
             args.file, args.table, args.dir, args.ignore, args.x)
+
+    exit(exitval)
