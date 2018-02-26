@@ -303,6 +303,11 @@ class Pum:
             views, ...)
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
+
+        Returns
+        -------
+        False if the prod database cannot be upgraded because there are
+        differences between the test and comp databases.
         """
 
         self.__out('Test and upgrade...', type='WAITING')
@@ -320,15 +325,16 @@ class Pum:
         check_result = self.run_check(
             pg_service_test, pg_service_comp, ignore_list)
 
-        if check_result:
-            if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
-                    pg_service_prod)):
-                self.run_upgrade(pg_service_prod, table, delta_dir)
-        else:
-            # print error
-            pass
+        if not check_result:
+            return False
+
+        if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
+                pg_service_prod)):
+            self.run_upgrade(pg_service_prod, table, delta_dir)
 
         self.__out('OK', 'OKGREEN')
+
+        return True
 
     def __out(self, message, type='DEFAULT'):
         # print output of the commands
@@ -509,8 +515,10 @@ if __name__ == "__main__":
     elif args.command == 'upgrade':
         pum.run_upgrade(args.pg_service, args.table, args.dir)
     elif args.command == 'test-and-upgrade':
-        pum.run_test_and_upgrade(
+        success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
             args.file, args.table, args.dir, args.ignore, args.x)
+        if not success:
+            exitval = 1
 
     exit(exitval)
