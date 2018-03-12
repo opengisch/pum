@@ -33,7 +33,7 @@ setup(
         'Development Status :: 5 - Production/Stable'
     ],
     install_requires = [
-        'psycopg2>=2.7.3',
+        'psycopg2-binary>=2.7.3',
         'PyYAML'
     ],
     python_requires=">=3.3",
