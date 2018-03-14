@@ -6,6 +6,7 @@ import re
 import os
 from os import listdir
 from os.path import isfile, join, basename
+from collections import OrderedDict
 import psycopg2
 import psycopg2.extras
 from hashlib import md5
@@ -20,7 +21,7 @@ class Upgrader:
 
     Stores the info about the upgrade in a table on the database."""
 
-    def __init__(self, pg_service, upgrades_table, directory):
+    def __init__(self, pg_service, upgrades_table, dirs):
         """Constructor
 
             Parameters
@@ -31,14 +32,14 @@ class Upgrader:
             upgrades_table: str
                 The name of the table (int the format schema.name) where the
                 informations about the upgrades are stored
-            directory: str
-                The path of the directory where the delta files are stored
+            dirs: list(str)
+                The paths to directories where delta files are stored
         """
         self.pg_service = pg_service
         self.connection = psycopg2.connect("service={}".format(pg_service))
         self.cursor = self.connection.cursor()
         self.upgrades_table = upgrades_table
-        self.dir = directory
+        self.dirs = dirs
 
     def run(self, verbose=False):
         if not self.exists_table_upgrades():
@@ -47,23 +48,22 @@ class Upgrader:
         self.__run_pre_all()
 
         deltas = self.__get_delta_files()
+        deltas = [delta for dirname in deltas for delta in deltas[dirname]]
         if not deltas:
             print('No delta files found')
-        for d in deltas:
 
+        db_version = self.current_db_version()
+
+        for d in deltas:
             if verbose:
                 print('Found delta {}, version {}, type {}'.format(
                     d.get_name(), d.get_version(), d.get_type()))
                 print('     Already applied: ', self.__is_applied(d))
-                print(
-                    '     Version greather or equal than current: ',
-                    self.__is_version_greater_or_equal_than_current(
-                        d.get_version()))
-            if (not self.__is_applied(d)) and (
-                    self.__is_version_greater_or_equal_than_current(
-                        d.get_version())):
-                print('     Applying delta {}...'.format(
-                    d.get_version()), end=' ')
+                print('     Version greather or equal than current: ',
+                      d.get_version() >= db_version)
+            if not self.__is_applied(d) and d.get_version() >= db_version:
+                print('     Applying delta {} {}...'.format(
+                    d.get_version(), d.get_name()), end=' ')
 
                 if d.get_type() in [Delta.DELTA_PRE_SQL, Delta.DELTA_SQL,
                                     Delta.DELTA_POST_SQL]:
@@ -112,21 +112,27 @@ class Upgrader:
         return self.connection.get_dsn_parameters()['user']
 
     def __get_delta_files(self):
-        """Search for delta files and return a list of Delta objects."""
-        files_in_dir = [f for f in listdir(self.dir) if isfile(
-            join(self.dir, f))]
+        """Search for delta files and return a dict of Delta objects, keyed by directory names."""
+        files = [(d, f) for d in self.dirs for f in listdir(d) if isfile(join(d, f))]
 
-        deltas = []
-        for i in files_in_dir:
-            file = join(self.dir, i)
+        deltas = OrderedDict()
+        for d, f in files:
+            file_ = join(d, f)
 
-            if not Delta.is_valid_delta_name(file):
+            if not Delta.is_valid_delta_name(file_):
                 continue
 
-            delta = Delta(file)
-            deltas.append(delta)
+            delta = Delta(file_)
 
-        return sorted(deltas, key=lambda x: (x.get_version(), x.get_type(), x.get_name()))
+            if d not in deltas:
+                deltas[d] = []
+            deltas[d].append(delta)
+
+        # sort delta objects in each bucket
+        for d in deltas:
+            deltas[d].sort(key=lambda x: (x.get_version(), x.get_type(), x.get_name()))
+
+        return deltas
 
     def __run_delta_sql(self, delta):
         """Execute the delta sql file on the database"""
@@ -143,32 +149,34 @@ class Upgrader:
     def __run_pre_all(self):
         """Execute the pre-all.py and pre-all.sql files if they exist"""
 
-        pre_all_py_path = os.path.join(self.dir, 'pre-all.py')
-        if os.path.isfile(pre_all_py_path):
-            print('     Applying pre-all.py...', end=' ')
-            self.__run_py_file(pre_all_py_path, 'pre-all')
-            print('OK')
+        for d in self.dirs:
+            pre_all_py_path = os.path.join(d, 'pre-all.py')
+            if os.path.isfile(pre_all_py_path):
+                print('     Applying pre-all.py...', end=' ')
+                self.__run_py_file(pre_all_py_path, 'pre-all')
+                print('OK')
 
-        pre_all_sql_path = os.path.join(self.dir, 'pre-all.sql')
-        if os.path.isfile(pre_all_sql_path):
-            print('     Applying pre-all.sql...', end=' ')
-            self.__run_sql_file(pre_all_sql_path)
-            print('OK')
+            pre_all_sql_path = os.path.join(d, 'pre-all.sql')
+            if os.path.isfile(pre_all_sql_path):
+                print('     Applying pre-all.sql...', end=' ')
+                self.__run_sql_file(pre_all_sql_path)
+                print('OK')
 
     def __run_post_all(self):
         """Execute the post-all.py and post-all.sql files if they exist"""
 
-        post_all_py_path = os.path.join(self.dir, 'post-all.py')
-        if os.path.isfile(post_all_py_path):
-            print('     Applying post-all.py...', end=' ')
-            self.__run_py_file(post_all_py_path, 'post-all')
-            print('OK')
+        for d in self.dirs:
+            post_all_py_path = os.path.join(d, 'post-all.py')
+            if os.path.isfile(post_all_py_path):
+                print('     Applying post-all.py...', end=' ')
+                self.__run_py_file(post_all_py_path, 'post-all')
+                print('OK')
 
-        post_all_sql_path = os.path.join(self.dir, 'post-all.sql')
-        if os.path.isfile(post_all_sql_path):
-            print('     Applying post-all.sql...', end=' ')
-            self.__run_sql_file(post_all_sql_path)
-            print('OK')
+            post_all_sql_path = os.path.join(d, 'post-all.sql')
+            if os.path.isfile(post_all_sql_path):
+                print('     Applying post-all.sql...', end=' ')
+                self.__run_sql_file(post_all_sql_path)
+                print('OK')
 
     def __run_sql_file(self, filepath):
         """Execute the sql file at the passed path
@@ -205,7 +213,7 @@ class Upgrader:
                     obj, DeltaPy):
 
                 delta_py_inst = obj(
-                    self.current_db_version(), self.dir, self.pg_service,
+                    self.current_db_version(), self.dirs, self.pg_service,
                     self.upgrades_table)
                 delta_py_inst.run()
 
@@ -213,30 +221,33 @@ class Upgrader:
         """Print info about found delta files and about already made upgrades"""
 
         deltas = self.__get_delta_files()
-        print('delta files in dir: ', self.dir)
+
         table = [['Version', 'Name', 'Type', 'Status']]
 
-        for delta in deltas:
-            line = [delta.get_version(), delta.get_name()]
-            if delta.get_type() == Delta.DELTA_PRE_PY:
-                line.append('pre py')
-            elif delta.get_type() == Delta.DELTA_PRE_SQL:
-                line.append('pre sql')
-            elif delta.get_type() == Delta.DELTA_PY:
-                line.append('delta py')
-            elif delta.get_type() == Delta.DELTA_SQL:
-                line.append('delta sql')
-            elif delta.get_type() == Delta.DELTA_POST_PY:
-                line.append('post py')
-            elif delta.get_type() == Delta.DELTA_POST_SQL:
-                line.append('post sql')
+        for dirname in deltas:
+            print('delta files in dir: ', dirname)
 
-            if self.__is_applied(delta):
-                line.append('Applied')
-            else:
-                line.append('Pending')
+            for delta in deltas[dirname]:
+                line = [delta.get_version(), delta.get_name()]
+                if delta.get_type() == Delta.DELTA_PRE_PY:
+                    line.append('pre py')
+                elif delta.get_type() == Delta.DELTA_PRE_SQL:
+                    line.append('pre sql')
+                elif delta.get_type() == Delta.DELTA_PY:
+                    line.append('delta py')
+                elif delta.get_type() == Delta.DELTA_SQL:
+                    line.append('delta sql')
+                elif delta.get_type() == Delta.DELTA_POST_PY:
+                    line.append('post py')
+                elif delta.get_type() == Delta.DELTA_POST_SQL:
+                    line.append('post sql')
 
-            table.append(line)
+                if self.__is_applied(delta):
+                    line.append('Applied')
+                else:
+                    line.append('Pending')
+
+                table.append(line)
 
         self.__print_table(table)
 
@@ -427,27 +438,6 @@ class Upgrader:
                              '', '', self.__get_dbuser())
         self.cursor.execute(query)
         self.connection.commit()
-
-    def __is_version_greater_or_equal_than_current(self, version):
-        """Read the upgrades information table and return if the passed
-        version is greater or equal than the current db version
-
-        Parameters
-        ----------
-        version: str
-            the version to be compared with the current db version
-
-        Returns
-        -------
-        bool
-            True id the passed version is greater or equal to the current db
-            version,
-            False otherwise
-        """
-
-        if version >= self.current_db_version():
-            return True
-        return False
 
     def current_db_version(self):
         """Read the upgrades information table and return the current db

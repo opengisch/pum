@@ -203,7 +203,7 @@ deltas. Only the delta files with version greater or equal than the current vers
 The usage of the command is:
 
 ```commandline
-usage: pum upgrade [-h] -p PG_SERVICE -t TABLE -d DIR
+usage: pum upgrade [-h] -p PG_SERVICE -t TABLE -d DIR [DIR ...]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -211,7 +211,8 @@ optional arguments:
                         Name of the postgres service
   -t TABLE, --table TABLE
                         Upgrades information table
-  -d DIR, --dir DIR     Set delta directory
+  -d DIR [DIR ...], --dir DIR [DIR ...]
+                        Delta directories (space-separated)
 ```
 
 ### info
@@ -220,7 +221,7 @@ The `info` command prints the status of the already or not applied delta files.
 The usage of the command is:
 
 ```commandline
-usage: pum info [-h] -p PG_SERVICE -t TABLE -d DIR
+usage: pum info [-h] -p PG_SERVICE -t TABLE -d DIR [DIR ...]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -228,7 +229,8 @@ optional arguments:
                         Name of the postgres service
   -t TABLE, --table TABLE
                         Upgrades information table
-  -d DIR, --dir DIR     Set delta directory
+  -d DIR [DIR ...], --dir DIR [DIR ...]
+                        Delta directories (space-separated)
 ```
 
 ### baseline
@@ -238,7 +240,7 @@ The `baseline` command creates the upgrades information table and sets the curre
 The usage of the command is:
 
 ```commandline
-usage: pum baseline [-h] -p PG_SERVICE -t TABLE -d DIR -b BASELINE
+usage: pum baseline [-h] -p PG_SERVICE -t TABLE -d DIR [DIR ...] -b BASELINE
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -246,7 +248,8 @@ optional arguments:
                         Name of the postgres service
   -t TABLE, --table TABLE
                         Upgrades information table
-  -d DIR, --dir DIR     Delta directory
+  -d DIR [DIR ...], --dir DIR [DIR ...]
+                        Delta directories (space-separated)
   -b BASELINE, --baseline BASELINE
                         Set baseline  in the format x.x.x
 ```
@@ -260,7 +263,7 @@ The `test-and-upgrade` command does the following steps:
 
 - creates a dump of the production db
 - restores the db dump into a test db
-- applies the delta files found in the delta directory to the test db.
+- applies the delta files found in the delta directories to the test db.
 - checks if there are differences between the test db and a comparison db
 - if no significant differences are found, after confirmation, applies the delta files to the production dbD.
 Only the delta files with version greater or equal than the current version are applied.
@@ -269,7 +272,7 @@ The usage of the command is:
 ```commandline
 usage: pum test-and-upgrade [-h] [-pp PG_SERVICE_PROD]
                             [-pt PG_SERVICE_TEST] [-pc PG_SERVICE_COMP]
-                            [-t TABLE] [-d DIR] [-f FILE]
+                            [-t TABLE] -d DIR [DIR ...] [-f FILE]
                             [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
 
 optional arguments:
@@ -284,7 +287,8 @@ optional arguments:
                         the updated db test with the last version of the db
   -t TABLE, --table TABLE
                         Upgrades information table
-  -d DIR, --dir DIR     Set delta directory
+  -d DIR [DIR ...], --dir DIR [DIR ...]
+                        Delta directories (space-separated)
   -f FILE, --file FILE  The backup file
   -x                    ignore pg_restore errors
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ,
@@ -349,7 +353,11 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
 
     @property
     def delta_dir(self):
-        """Return the path of the delta directory"""
+        """Return the path of the first delta directory"""
+
+    @property
+    def delta_dirs(self):
+        """Return the paths of the delta directories"""
 
     @property
     def pg_service(self):
@@ -381,8 +389,8 @@ class Prova(DeltaPy):
         # if you want to get the current db version
         version = self.current_db_version()          
 
-        # if you want to get the delta directory path
-        delta_dir = self.delta_dir()
+        # if you want to get the paths to the delta directories
+        delta_dirs = self.delta_dirs()
 
         # if you want to get the pg_service name
         pg = self.pg_service()
