@@ -5,7 +5,7 @@ from __future__ import print_function
 import re
 import os
 from os import listdir
-from os.path import isfile, join, basename
+from os.path import isfile, join, basename, dirname
 from collections import OrderedDict
 import psycopg2
 import psycopg2.extras
@@ -206,6 +206,11 @@ class Upgrader:
         delta_py = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(delta_py)
 
+        # Get the python file's directory path
+        # Note: we add a separator for backward compatibility, as existing DeltaPy subclasses
+        # may assume that delta_dir ends with a separator
+        dir_ = dirname(filepath) + os.sep
+
         # Search for subclasses of DeltaPy
         for name in dir(delta_py):
             obj = getattr(delta_py, name)
@@ -213,7 +218,7 @@ class Upgrader:
                     obj, DeltaPy):
 
                 delta_py_inst = obj(
-                    self.current_db_version(), self.dirs, self.pg_service,
+                    self.current_db_version(), dir_, self.dirs, self.pg_service,
                     self.upgrades_table)
                 delta_py_inst.run()
 
@@ -224,10 +229,10 @@ class Upgrader:
 
         table = [['Version', 'Name', 'Type', 'Status']]
 
-        for dirname in deltas:
-            print('delta files in dir: ', dirname)
+        for dir_ in deltas:
+            print('delta files in dir: ', dir_)
 
-            for delta in deltas[dirname]:
+            for delta in deltas[dir_]:
                 line = [delta.get_version(), delta.get_name()]
                 if delta.get_type() == Delta.DELTA_PRE_PY:
                     line.append('pre py')

@@ -353,7 +353,7 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
 
     @property
     def delta_dir(self):
-        """Return the path of the first delta directory"""
+        """Return the path of the delta directory including this delta"""
 
     @property
     def delta_dirs(self):
@@ -388,6 +388,9 @@ class Prova(DeltaPy):
 
         # if you want to get the current db version
         version = self.current_db_version()          
+
+        # if you want to get the path to the delta directory including that delta file
+        delta_dir = self.delta_dir()
 
         # if you want to get the paths to the delta directories
         delta_dirs = self.delta_dirs()
