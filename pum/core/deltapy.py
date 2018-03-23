@@ -7,7 +7,7 @@ class DeltaPy(metaclass=ABCMeta):
     """This abstract class must be instantiated by the delta.py classes"""
 
     def __init__(
-            self, current_db_version, delta_dirs, pg_service, upgrades_table):
+            self, current_db_version, delta_dir, delta_dirs, pg_service, upgrades_table):
         """Constructor, receive some useful parameters accesible from the
         subclasses als propperties.
 
@@ -21,11 +21,14 @@ class DeltaPy(metaclass=ABCMeta):
         upgrades_table: str
             The name of the table (int the format schema.name) where the
             informations about the upgrades are stored
+        delta_dir: str
+            The path to the directory where this delta file is stored
         delta_dirs: list(str)
             The paths to directories where delta files are stored
         """
 
         self.__current_db_version = current_db_version
+        self.__delta_dir = delta_dir
         self.__delta_dirs = delta_dirs
         self.__pg_service = pg_service
         self.__upgrades_table = upgrades_table
@@ -43,8 +46,8 @@ class DeltaPy(metaclass=ABCMeta):
 
     @property
     def delta_dir(self):
-        """Return the path of the first delta directory"""
-        return self.__delta_dirs[0]
+        """Return the path of the delta directory including this delta"""
+        return self.__delta_dir
 
     @property
     def delta_dirs(self):
