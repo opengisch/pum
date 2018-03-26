@@ -149,7 +149,10 @@ class Upgrader:
     def __run_pre_all(self):
         """Execute the pre-all.py and pre-all.sql files if they exist"""
 
-        for d in self.dirs:
+        # if the list of delta dirs is [delta1, delta2] the pre scripts of delta2 are
+        # executed before the pre scripts of delta1
+
+        for d in reversed(self.dirs):
             pre_all_py_path = os.path.join(d, 'pre-all.py')
             if os.path.isfile(pre_all_py_path):
                 print('     Applying pre-all.py...', end=' ')
@@ -164,6 +167,9 @@ class Upgrader:
 
     def __run_post_all(self):
         """Execute the post-all.py and post-all.sql files if they exist"""
+
+        # if the list of delta dirs is [delta1, delta2] the post scripts of delta1 are
+        # executed before the post scripts of delta2
 
         for d in self.dirs:
             post_all_py_path = os.path.join(d, 'post-all.py')
