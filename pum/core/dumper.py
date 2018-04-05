@@ -39,7 +39,10 @@ class Dumper:
         """
 
         command = [
-            pg_restore_exe, '-d',
-            'service={}'.format(self.pg_service), self.file]
+            pg_restore_exe,
+            'service={}'.format(self.pg_service),
+            '--exit-on-error',
+            '--no-owner',
+            self.file]
 
         subprocess.check_output(command, stderr=subprocess.STDOUT)
