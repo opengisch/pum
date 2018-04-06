@@ -123,6 +123,8 @@ optional arguments:
                         Name of the second postgres service
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}, --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
+  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
+                        Schemas to be skpipped.
   -v VERBOSE_LEVEL, --verbose_level VERBOSE_LEVEL
                         Verbose level (0, 1 or 2)
   -o OUTPUT_FILE, --output_file OUTPUT_FILE

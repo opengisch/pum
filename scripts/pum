@@ -59,7 +59,7 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  verbose_level=1, output_file=None):
+                  skip_schemas=None,verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
@@ -73,6 +73,8 @@ class Pum:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
+        skip_schemas: list of strings
+            List of schemas to be ignored in check.
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
@@ -89,9 +91,12 @@ class Pum:
             verbose_level = 1
         if not ignore_list:
             ignore_list = []
+        if not skip_schemas:
+            skip_schemas = []
         try:
             checker = Checker(
-                pg_service1, pg_service2, ignore_list, verbose_level)
+                pg_service1, pg_service2,
+                ignore_list, skip_schemas, verbose_level)
             result, differences = checker.run_checks()
 
             if result:
@@ -396,6 +401,8 @@ if __name__ == "__main__":
                  'functions',
                  'rules'])
     parser_check.add_argument(
+        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
+    parser_check.add_argument(
         '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
     parser_check.add_argument(
         '-o', '--output_file', help='Output file')
@@ -508,7 +515,7 @@ if __name__ == "__main__":
 
     if args.command == 'check':
         success = pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
-                                args.verbose_level, args.output_file)
+                                args.skip_schemas, args.verbose_level, args.output_file)
         if not success:
             exitval = 1
     elif args.command == 'dump':

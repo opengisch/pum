@@ -11,7 +11,8 @@ class Checker:
     differences."""
 
     def __init__(
-            self, pg_service1, pg_service2, ignore_list=None, verbose_level=1):
+            self, pg_service1, pg_service2,
+            skip_schemas=None, ignore_list=None, verbose_level=1):
         """Constructor
 
         Parameters
@@ -25,6 +26,8 @@ class Checker:
         ignore_list: list(str)
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
+        skip_schemas: list of strings
+            List of schemas to be ignored in check.
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
@@ -37,6 +40,9 @@ class Checker:
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list
+        self.skip_schemas = ['information_schema']
+        if skip_schemas is not None:
+            self.skip_schemas += skip_schemas
 
         self.verbose_level = verbose_level
 
@@ -101,10 +107,11 @@ class Checker:
         """
         query = """SELECT table_schema, table_name
                 FROM information_schema.tables
-                WHERE table_schema NOT IN ('information_schema')
+                WHERE table_schema NOT IN {}
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
-                ORDER BY table_schema, table_name"""
+                ORDER BY table_schema, table_name
+                """.format(self.skip_schemas)
 
         return self.__check_equals(query)
 
@@ -129,7 +136,7 @@ class Checker:
             query = """WITH table_list AS (
                 SELECT table_schema, table_name
                 FROM information_schema.tables
-                WHERE table_schema NOT IN ('information_schema')
+                WHERE table_schema NOT IN {}
                     AND table_schema NOT LIKE 'pg\_%'
                 ORDER BY table_schema,table_name
                 )
@@ -137,17 +144,18 @@ class Checker:
                     column_default, is_nullable, data_type,
                     character_maximum_length::text, numeric_precision::text,
                     numeric_precision_radix::text, datetime_precision::text
-                FROM information_schema.columnS isc,
+                FROM information_schema.columns isc,
                 table_list tl
                 WHERE isc.table_schema = tl.table_schema
                     AND isc.table_name = tl.table_name
-                ORDER BY isc.table_schema, isc.table_name, column_name"""
+                ORDER BY isc.table_schema, isc.table_name, column_name
+                """.format(self.skip_schemas)
 
         else:
             query = """WITH table_list AS (
                 SELECT table_schema, table_name
                 FROM information_schema.tables
-                WHERE table_schema NOT IN ('information_schema')
+                WHERE table_schema NOT IN {}
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema,table_name
@@ -156,11 +164,12 @@ class Checker:
                     column_default, is_nullable, data_type,
                     character_maximum_length::text, numeric_precision::text,
                     numeric_precision_radix::text, datetime_precision::text
-                FROM information_schema.columnS isc,
+                FROM information_schema.columns isc,
                 table_list tl
                 WHERE isc.table_schema = tl.table_schema
                     AND isc.table_name = tl.table_name
-                ORDER BY isc.table_schema, isc.table_name, column_name"""
+                ORDER BY isc.table_schema, isc.table_name, column_name
+                """.format(self.skip_schemas)
 
         return self.__check_equals(query)
 
@@ -211,10 +220,11 @@ class Checker:
         query = """
         SELECT table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
-        WHERE table_schema NOT IN ('information_schema')
+        WHERE table_schema NOT IN {}
         AND table_schema NOT LIKE 'pg\_%'
         AND table_name not like 'vw_export_%'
-        ORDER BY table_schema, table_name"""
+        ORDER BY table_schema, table_name
+        """.format(self.skip_schemas)
 
         return self.__check_equals(query)
 
@@ -319,10 +329,11 @@ class Checker:
         FROM information_schema.routines
         JOIN information_schema.parameters
         ON routines.specific_name=parameters.specific_name
-        WHERE routines.specific_schema NOT IN ('information_schema')
+        WHERE routines.specific_schema NOT IN {}
             AND routines.specific_schema NOT LIKE 'pg\_%'
         ORDER BY routines.routine_name, parameters.data_type,
-            routines.routine_definition, parameters.ordinal_position"""
+            routines.routine_definition, parameters.ordinal_position
+            """.format(self.skip_schemas)
 
         return self.__check_equals(query)
 
@@ -351,9 +362,10 @@ class Checker:
         join pg_class c on r.ev_class = c.oid
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
-        WHERE n.nspname NOT IN ('information_schema')
+        WHERE n.nspname NOT IN {}
             AND n.nspname NOT LIKE 'pg\_%'
-        ORDER BY n.nspname, c.relname, rule_event"""
+        ORDER BY n.nspname, c.relname, rule_event
+        """.format(self.skip_schemas)
 
         return self.__check_equals(query)
 
