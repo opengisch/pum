@@ -13,6 +13,13 @@ class TestChecker(unittest.TestCase):
         pum_test_2
     """
 
+    def tearDown(self):
+        self.cur1.execute('DROP SCHEMA IF EXISTS schema_foo CASCADE;')
+        self.conn1.commit()
+
+        self.cur2.execute('DROP SCHEMA IF EXISTS schema_foo CASCADE;')
+        self.conn2.commit()
+
     def setUp(self):
         pg_service1 = 'pum_test_1'
         pg_service2 = 'pum_test_2'
@@ -27,7 +34,7 @@ class TestChecker(unittest.TestCase):
         self.conn2 = psycopg2.connect("service={0}".format(pg_service2))
         self.cur2 = self.conn2.cursor()
 
-        self.checker = Checker(pg_service1, pg_service2)
+        self.checker = Checker(pg_service1, pg_service2, None, 2)
 
         self.cur2.execute('DROP SCHEMA IF EXISTS schema_foo CASCADE;'
                           'CREATE SCHEMA schema_foo;')

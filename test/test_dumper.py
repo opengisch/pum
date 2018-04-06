@@ -16,6 +16,13 @@ class TestDumper(unittest.TestCase):
         pum_test_2
     """
 
+    def tearDown(self):
+        self.cur1.execute('DROP SCHEMA IF EXISTS test_dumper CASCADE;')
+        self.conn1.commit()
+
+        self.cur2.execute('DROP SCHEMA IF EXISTS test_dumper CASCADE;')
+        self.conn2.commit()
+
     def setUp(self):
         self.pg_service1 = 'pum_test_1'
         self.pg_service2 = 'pum_test_2'
