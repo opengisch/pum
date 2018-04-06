@@ -3,7 +3,7 @@ language: python
 python:
   - 3.6
 
-if: tag IS present
+if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present
 
 install: pip install -r requirements.txt
 
