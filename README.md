@@ -68,13 +68,13 @@ QWAT already developed a dedicated migration tool, allowing to both work on the 
 The usage of the pum command is:
 ```commandline
 
-usage: pum [-h] [-v] [-c CONFIG_FILE]
+usage: pum [-h] [-V] [-c CONFIG_FILE]
            {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
            ...
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         print the version and exit
+  -V, --version         print the version and exit
   -c CONFIG_FILE, --config_file CONFIG_FILE
                         set the config file
 
@@ -112,7 +112,7 @@ It's possible to ignore one or more of these elements.
 The usage of the `check` command is:
 
 ```commandline
-usage: pum check [-h] -p1 PG_SERVICE1 -p2 PG_SERVICE2 [-s SILENT]
+usage: pum check [-h] -p1 PG_SERVICE1 -p2 PG_SERVICE2 [-v LEVEL]
                  [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}]
 
 optional arguments:
@@ -121,8 +121,6 @@ optional arguments:
                         Name of the first postgres service
   -p2 PG_SERVICE2, --pg_service2 PG_SERVICE2
                         Name of the second postgres service
-  -s SILENT, --silent SILENT
-                        Don't print lines with differences
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}, --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
   -v VERBOSE_LEVEL, --verbose_level VERBOSE_LEVEL
