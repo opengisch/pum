@@ -13,8 +13,8 @@ env:
 install: pip install -r requirements.txt
 
 script:
-  - ./pum/test/setup_db.sh
-  - python -m unittest discover pum/test/
+  - ./.ci/setup_db.sh
+  - nosetests
 
 after_success:
   - if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present

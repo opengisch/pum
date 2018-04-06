@@ -1,11 +1,11 @@
-from unittest import TestCase
+import unittest
 
 import psycopg2
 import psycopg2.extras
 from pum.core.checker import Checker
 
 
-class TestChecker(TestCase):
+class TestChecker(unittest.TestCase):
     """Test the class Checker.
 
     2 pg_services related to 2 empty db, needed for test:
@@ -267,3 +267,6 @@ class TestChecker(TestCase):
 
         result, differences = self.checker.check_rules()
         self.assertTrue(result)
+
+if __name__ == '__main__':
+    unittest.main()

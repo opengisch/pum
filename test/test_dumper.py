@@ -1,6 +1,6 @@
 import os
 import shutil
-from unittest import TestCase
+import unittest
 
 import psycopg2
 import psycopg2.extras
@@ -8,7 +8,7 @@ import psycopg2.extras
 from pum.core.dumper import Dumper
 
 
-class TestDumper(TestCase):
+class TestDumper(unittest.TestCase):
     """Test the class Dumper.
 
     2 pg_services needed for test related to empty db:
@@ -61,3 +61,6 @@ class TestDumper(TestCase):
         self.cur2.execute(
             "SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
         self.assertIsNotNone(self.cur2.fetchone()[0])
+
+if __name__ == '__main__':
+    unittest.main()

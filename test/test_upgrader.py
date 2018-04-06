@@ -1,13 +1,13 @@
 import os
 import shutil
-from unittest import TestCase
+import unittest
 
 import psycopg2
 import psycopg2.extras
 from pum.core.upgrader import Upgrader, Delta
 
 
-class TestUpgrader(TestCase):
+class TestUpgrader(unittest.TestCase):
     """Test the class Upgrader.
 
     1 pg_service needed for test:
@@ -183,3 +183,6 @@ class TestUpgrader(TestCase):
 
         delta = Delta('delta_0.0.0_17072017.post.py')
         self.assertEqual(delta.get_type(), Delta.DELTA_POST_PY)
+
+if __name__ == '__main__':
+    unittest.main()
