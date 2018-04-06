@@ -45,4 +45,7 @@ class Dumper:
             '--no-owner',
             self.file]
 
-        subprocess.check_output(command, stderr=subprocess.STDOUT)
+        try:
+            subprocess.check_output(command)
+        except subprocess.CalledProcessError as e:
+            print("*** pg_restore failed:\n", e.stderr)
