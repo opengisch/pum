@@ -4,16 +4,16 @@ python:
   - 3.6
   - postgresql: 9.6
 
-install: pip install -r requirements.txt
-
 env:
   global:
     - PGUSER=postgres
+
+install: pip install -r requirements.txt
 
 script:
   - ./pum/test/setup_db.sh
   - python -m unittest discover test/
 
 after_success:
-  if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present
-  .deploy/deploy_to_pypi.sh
+  - if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present
+  - ./deploy/deploy_to_pypi.sh
