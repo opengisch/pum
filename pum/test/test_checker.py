@@ -7,15 +7,15 @@ from pum.core.checker import Checker
 
 class TestChecker(TestCase):
     """Test the class Checker.
-    
+
     2 pg_services related to 2 empty db, needed for test:
-        qwat_test_1 
-        qwat_test_2
+        pum_test_1
+        pum_test_2
     """
 
     def setUp(self):
-        pg_service1 = 'qwat_test_1'
-        pg_service2 = 'qwat_test_2'
+        pg_service1 = 'pum_test_1'
+        pg_service2 = 'pum_test_2'
 
         self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
         self.cur1 = self.conn1.cursor()
@@ -169,16 +169,16 @@ class TestChecker(TestCase):
         self.assertTrue(result)
 
         self.cur1.execute(
-            """CREATE FUNCTION trigger_function() RETURNS trigger AS 
+            """CREATE FUNCTION trigger_function() RETURNS trigger AS
             $$
             BEGIN
-            select ("a"); 
-            END; 
+            select ("a");
+            END;
             $$
             LANGUAGE 'plpgsql';
-            CREATE TABLE schema_foo.bar (id smallint, 
+            CREATE TABLE schema_foo.bar (id smallint,
             value integer, name varchar(100));
-            CREATE TRIGGER trig       
+            CREATE TRIGGER trig
             BEFORE UPDATE ON schema_foo.bar
             FOR EACH ROW
             EXECUTE PROCEDURE trigger_function();""")
@@ -188,16 +188,16 @@ class TestChecker(TestCase):
         self.assertFalse(result)
 
         self.cur2.execute(
-            """CREATE FUNCTION trigger_function() RETURNS trigger AS 
+            """CREATE FUNCTION trigger_function() RETURNS trigger AS
             $$
             BEGIN
-            select ("a"); 
-            END; 
+            select ("a");
+            END;
             $$
             LANGUAGE 'plpgsql';
-            CREATE TABLE schema_foo.bar 
+            CREATE TABLE schema_foo.bar
             (id smallint, value integer, name varchar(100));
-            CREATE TRIGGER trig       
+            CREATE TRIGGER trig
             BEFORE UPDATE ON schema_foo.bar
             FOR EACH ROW
             EXECUTE PROCEDURE trigger_function();""")
@@ -249,9 +249,9 @@ class TestChecker(TestCase):
         self.assertTrue(result)
 
         self.cur1.execute(
-            """CREATE TABLE schema_foo.bar 
+            """CREATE TABLE schema_foo.bar
             (id smallint, value integer, name varchar(100));
-            CREATE RULE foorule AS ON UPDATE TO 
+            CREATE RULE foorule AS ON UPDATE TO
             schema_foo.bar DO ALSO NOTIFY bar;""")
         self.conn1.commit()
 
@@ -259,9 +259,9 @@ class TestChecker(TestCase):
         self.assertFalse(result)
 
         self.cur2.execute(
-            """CREATE TABLE schema_foo.bar 
+            """CREATE TABLE schema_foo.bar
             (id smallint, value integer, name varchar(100));
-            CREATE RULE foorule AS ON UPDATE TO 
+            CREATE RULE foorule AS ON UPDATE TO
             schema_foo.bar DO ALSO NOTIFY bar;""")
         self.conn2.commit()
 

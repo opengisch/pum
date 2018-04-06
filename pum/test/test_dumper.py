@@ -12,13 +12,13 @@ class TestDumper(TestCase):
     """Test the class Dumper.
 
     2 pg_services needed for test related to empty db:
-        qwat_test_1
-        qwat_test_2
+        pum_test_1
+        pum_test_2
     """
 
     def setUp(self):
-        self.pg_service1 = 'qwat_test_1'
-        self.pg_service2 = 'qwat_test_2'
+        self.pg_service1 = 'pum_test_1'
+        self.pg_service2 = 'pum_test_2'
 
         self.conn1 = psycopg2.connect("service={0}".format(self.pg_service1))
         self.cur1 = self.conn1.cursor()

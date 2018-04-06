@@ -11,11 +11,11 @@ class TestUpgrader(TestCase):
     """Test the class Upgrader.
 
     1 pg_service needed for test:
-        qwat_test_1
+        pum_test_1
     """
 
     def setUp(self):
-        pg_service1 = 'qwat_test_1'
+        pg_service1 = 'pum_test_1'
         self.upgrades_table = 'test_upgrader.upgrades'
 
         self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
