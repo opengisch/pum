@@ -5,7 +5,7 @@ from unittest import TestCase
 import psycopg2
 import psycopg2.extras
 
-from core.dumper import Dumper
+from pum.core.dumper import Dumper
 
 
 class TestDumper(TestCase):
