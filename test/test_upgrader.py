@@ -17,9 +17,11 @@ class TestUpgrader(unittest.TestCase):
     def tearDown(self):
         self.cur1.execute('DROP SCHEMA IF EXISTS test_upgrader CASCADE;')
         self.conn1.commit()
+        self.conn1.close()
 
         self.cur2.execute('DROP SCHEMA IF EXISTS test_upgrader CASCADE;')
         self.conn2.commit()
+        self.conn2.close()
 
     def setUp(self):
         pg_service1 = 'pum_test_1'
