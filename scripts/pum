@@ -277,7 +277,8 @@ class Pum:
 
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dirs, ignore_list, ignore_restore_errors=False):
+            table, delta_dirs, ignore_list, skip_schemas,
+            ignore_restore_errors=False):
         """
         Do the following steps:
             - creates a dump of the production db
@@ -309,6 +310,8 @@ class Pum:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
+        skip_schemas: list of strings
+            List of schemas to be ignored in check.
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
 
@@ -331,7 +334,7 @@ class Pum:
 
         # Compare db test with db comp
         check_result = self.run_check(
-            pg_service_test, pg_service_comp, ignore_list)
+            pg_service_test, pg_service_comp, skip_schemas, ignore_list )
 
         if not check_result:
             return False
@@ -497,6 +500,9 @@ if __name__ == "__main__":
                  'triggers',
                  'functions',
                  'rules'])
+    parser_test_and_upgrade.add_argument(
+        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
+
 
     args = parser.parse_args()
 
@@ -531,7 +537,8 @@ if __name__ == "__main__":
     elif args.command == 'test-and-upgrade':
         success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
-            args.file, args.table, args.dir, args.ignore, args.x)
+            args.file, args.table, args.dir, args.ignore, args.skip_schemas,
+            args.x)
         if not success:
             exitval = 1
 
