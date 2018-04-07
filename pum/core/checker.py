@@ -40,6 +40,10 @@ class Checker:
 
         self.verbose_level = verbose_level
 
+    def close(self):
+        self.conn1.close()
+        self.conn2.close()
+
     def run_checks(self):
         """Run all the checks functions.
 

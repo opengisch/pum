@@ -23,6 +23,8 @@ class TestUpgrader(unittest.TestCase):
         self.conn2.commit()
         self.conn2.close()
 
+        self.upgrader.close()
+
     def setUp(self):
         pg_service1 = 'pum_test_1'
         self.upgrades_table = 'test_upgrader.upgrades'

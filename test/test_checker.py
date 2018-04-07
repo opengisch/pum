@@ -14,6 +14,7 @@ class TestChecker(unittest.TestCase):
     """
 
     def tearDown(self):
+        print("TestChecker teardown")
         self.cur1.execute('DROP SCHEMA IF EXISTS schema_foo CASCADE;')
         self.conn1.commit()
         self.conn1.close()
@@ -22,7 +23,10 @@ class TestChecker(unittest.TestCase):
         self.conn2.commit()
         self.conn2.close()
 
+        self.checker.close()
+
     def setUp(self):
+        print("TestChecker setup")
         pg_service1 = 'pum_test_1'
         pg_service2 = 'pum_test_2'
 
