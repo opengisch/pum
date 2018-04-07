@@ -12,7 +12,7 @@ class Checker:
 
     def __init__(
             self, pg_service1, pg_service2,
-            skip_schemas=None, ignore_list=None, verbose_level=1):
+            skip_schemas=(), ignore_list=(), verbose_level=1):
         """Constructor
 
         Parameters
@@ -40,9 +40,10 @@ class Checker:
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list
-        self.skip_schemas = ['information_schema']
-        if skip_schemas is not None:
-            self.skip_schemas += skip_schemas
+        self.skip_schemas = "('information_schema'"
+        for schema in skip_schemas:
+            self.skip_schemas += ", '{}'".format(schema)
+        self.skip_schemas += ")"
 
         self.verbose_level = verbose_level
 

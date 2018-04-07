@@ -38,7 +38,7 @@ class TestChecker(unittest.TestCase):
         self.conn2 = psycopg2.connect("service={0}".format(pg_service2))
         self.cur2 = self.conn2.cursor()
 
-        self.checker = Checker(pg_service1, pg_service2, None, 2)
+        self.checker = Checker(pg_service1, pg_service2)
 
         self.cur2.execute('DROP SCHEMA IF EXISTS schema_foo CASCADE;'
                           'CREATE SCHEMA schema_foo;')
