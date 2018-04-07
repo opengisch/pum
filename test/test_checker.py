@@ -14,7 +14,7 @@ class TestChecker(unittest.TestCase):
     """
 
     def tearDown(self):
-        self.checker.close()
+        del self.checker
 
         self.cur1.execute('DROP SCHEMA IF EXISTS schema_foo CASCADE;')
         self.conn1.commit()

@@ -15,7 +15,7 @@ class TestUpgrader(unittest.TestCase):
     """
 
     def tearDown(self):
-        self.upgrader.close()
+        del self.upgrader
 
         self.cur1.execute('DROP SCHEMA IF EXISTS test_upgrader CASCADE;')
         self.conn1.commit()

@@ -41,9 +41,6 @@ class Upgrader:
         self.upgrades_table = upgrades_table
         self.dirs = dirs
 
-    def close(self):
-        self.connection.close()
-
     def run(self, verbose=False):
         if not self.exists_table_upgrades():
             raise UpgradesTableNotFoundError(self.upgrades_table)
