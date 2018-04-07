@@ -1,24 +1,33 @@
 import os
 import shutil
-from unittest import TestCase
+import unittest
 
 import psycopg2
 import psycopg2.extras
 
-from core.dumper import Dumper
+from pum.core.dumper import Dumper
 
 
-class TestDumper(TestCase):
+class TestDumper(unittest.TestCase):
     """Test the class Dumper.
 
     2 pg_services needed for test related to empty db:
-        qwat_test_1
-        qwat_test_2
+        pum_test_1
+        pum_test_2
     """
 
+    def tearDown(self):
+        self.cur1.execute('DROP SCHEMA IF EXISTS test_dumper CASCADE;')
+        self.conn1.commit()
+        self.conn1.close()
+
+        self.cur2.execute('DROP SCHEMA IF EXISTS test_dumper CASCADE;')
+        self.conn2.commit()
+        self.conn2.close()
+
     def setUp(self):
-        self.pg_service1 = 'qwat_test_1'
-        self.pg_service2 = 'qwat_test_2'
+        self.pg_service1 = 'pum_test_1'
+        self.pg_service2 = 'pum_test_2'
 
         self.conn1 = psycopg2.connect("service={0}".format(self.pg_service1))
         self.cur1 = self.conn1.cursor()
@@ -52,7 +61,7 @@ class TestDumper(TestCase):
 
     def test_dump_restore(self):
         dumper = Dumper(self.pg_service1, '/tmp/test_dumper/dump.sql')
-        dumper.pg_backup()
+        dumper.pg_backup(skip_schemas=['public'])
 
         dumper = Dumper(self.pg_service2, '/tmp/test_dumper/dump.sql')
         dumper.pg_restore()
@@ -61,3 +70,6 @@ class TestDumper(TestCase):
         self.cur2.execute(
             "SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
         self.assertIsNotNone(self.cur2.fetchone()[0])
+
+if __name__ == '__main__':
+    unittest.main()

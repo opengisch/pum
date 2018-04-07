@@ -3,9 +3,19 @@ language: python
 python:
   - 3.6
 
-if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present
+addons:
+  postgresql: "9.6"
+
+env:
+  global:
+    - PGUSER=postgres
 
 install: pip install -r requirements.txt
 
-script: true
-after_success: .deploy/deploy_to_pypi.sh
+script:
+  - ./.ci/setup_db.sh
+  - nosetests -v
+
+after_success:
+  - if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present
+  - ./deploy/deploy_to_pypi.sh
