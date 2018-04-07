@@ -13,19 +13,23 @@ class Dumper:
 
         self.pg_service = pg_service
 
-    def pg_backup(self, pg_dump_exe='pg_dump'):
+    def pg_backup(self, pg_dump_exe='pg_dump', skip_schemas=None):
         """Call the pg_dump command to create a db backup
 
         Parameters
         ----------
         pg_dump_exe: str
             the pg_dump command path
+        skip_schemas: str[]
+            list of schemas to be skipped
         """
 
         command = [
             pg_dump_exe, '-Fc', '-f', self.file,
             'service={}'.format(self.pg_service)
         ]
+        for schema in skip_schemas:
+            command.append("--exclude-schema={}".format(schema))
 
         subprocess.check_output(command, stderr=subprocess.STDOUT)
 
