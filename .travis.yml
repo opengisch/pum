@@ -18,4 +18,4 @@ script:
 
 after_success:
   - if: head_repo = opengisch/pum AND branch = master AND type = push AND tag IS present
-  - ./deploy/deploy_to_pypi.sh
+  - ./.deploy/deploy_to_pypi.sh
