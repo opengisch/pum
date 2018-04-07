@@ -4,6 +4,8 @@ import psycopg2
 import psycopg2.extras
 from pum.core.checker import Checker
 
+pg_service1 = 'pum_test_1'
+pg_service2 = 'pum_test_2'
 
 class TestChecker(unittest.TestCase):
     """Test the class Checker.
@@ -12,6 +14,7 @@ class TestChecker(unittest.TestCase):
         pum_test_1
         pum_test_2
     """
+
 
     def tearDown(self):
         del self.checker
@@ -25,8 +28,6 @@ class TestChecker(unittest.TestCase):
         self.conn2.close()
 
     def setUp(self):
-        pg_service1 = 'pum_test_1'
-        pg_service2 = 'pum_test_2'
 
         self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
         self.cur1 = self.conn1.cursor()
@@ -123,7 +124,6 @@ class TestChecker(unittest.TestCase):
         self.assertTrue(result)
 
     def test_check_sequences(self):
-
         self.cur1.execute('DROP SEQUENCE IF EXISTS serial CASCADE;')
         self.conn1.commit()
         self.cur2.execute('DROP SEQUENCE IF EXISTS serial CASCADE;')
@@ -145,7 +145,6 @@ class TestChecker(unittest.TestCase):
         self.assertTrue(result)
 
     def test_check_indexes(self):
-
         self.cur1.execute(
             'CREATE TABLE schema_foo.bar '
             '(id smallint, value integer, name varchar(100));'
@@ -259,22 +258,44 @@ class TestChecker(unittest.TestCase):
         result, differences = self.checker.check_rules()
         self.assertTrue(result)
 
-        self.cur1.execute(
-            """CREATE TABLE schema_foo.bar
-            (id smallint, value integer, name varchar(100));
-            CREATE RULE foorule AS ON UPDATE TO
-            schema_foo.bar DO ALSO NOTIFY bar;""")
+        sql = """CREATE TABLE schema_foo.bar
+              (id smallint, value integer, name varchar(100));
+              CREATE RULE foorule AS ON UPDATE TO
+              schema_foo.bar DO ALSO NOTIFY bar;"""
+
+        self.cur1.execute(sql)
         self.conn1.commit()
 
         result, differences = self.checker.check_rules()
         self.assertFalse(result)
 
-        self.cur2.execute(
-            """CREATE TABLE schema_foo.bar
-            (id smallint, value integer, name varchar(100));
-            CREATE RULE foorule AS ON UPDATE TO
-            schema_foo.bar DO ALSO NOTIFY bar;""")
+        self.cur2.execute(sql)
         self.conn2.commit()
+
+        result, differences = self.checker.check_rules()
+        self.assertTrue(result)
+
+    def test_skip_schema(self):
+        self.test_check_rules()
+
+        result, differences = self.checker.check_rules()
+        self.assertTrue(result)
+
+        self.cur1.execute("""CREATE TABLE public.bar
+                          (id smallint, value integer, name varchar(100));
+                          CREATE RULE foorule AS ON UPDATE TO
+                          public.bar DO ALSO NOTIFY bar;""")
+        self.conn1.commit()
+
+        result, differences = self.checker.check_rules()
+        self.assertFalse(result)
+
+        checker2 = Checker(pg_service1, pg_service2, ['public'])
+        result, differences = checker2.check_rules()
+        self.assertTrue(result)
+
+        self.cur1.execute("""DROP TABLE IF EXISTS public.bar;""")
+        self.conn1.commit()
 
         result, differences = self.checker.check_rules()
         self.assertTrue(result)
