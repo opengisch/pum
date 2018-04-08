@@ -16,7 +16,8 @@ script:
   - ./.ci/setup_db.sh
   - nosetests -v
 
-after_success:
-  if ( [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]] ) && [[ "$TRAVIS_PULL_REQUEST" == "false" ]]; then
-    ./.deploy/deploy_to_pypi.sh
-  fi
+deploy:
+- provider: script
+  script: ./.deploy/deploy_to_pypi.sh
+    on:
+      tags: true
