@@ -17,7 +17,7 @@ script:
   - nosetests -v
 
 deploy:
-- provider: script
+  provider: script
   script: ./.deploy/deploy_to_pypi.sh
     on:
       tags: true
