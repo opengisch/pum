@@ -19,5 +19,5 @@ script:
 deploy:
   provider: script
   script: ./.deploy/deploy_to_pypi.sh
-    on:
-      tags: true
+  on:
+    tags: true
