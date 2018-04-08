@@ -17,6 +17,6 @@ script:
   - nosetests -v
 
 after_success:
-  if ( [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]] ) && [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_REPO_SLUG" == "opengisch/pum" ]]; then
+  if ( [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]] ) && [[ "$TRAVIS_PULL_REQUEST" == "false" ]]; then
     ./.deploy/deploy_to_pypi.sh
   fi
