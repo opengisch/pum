@@ -123,7 +123,7 @@ class Pum:
             self.__out(e.args[0])
             exit(1)
 
-    def run_dump(self, pg_service, file):
+    def run_dump(self, pg_service, file, skip_schemas):
         """
         Run the dump command
 
@@ -141,9 +141,9 @@ class Pum:
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_dump_exe:
-                dumper.pg_backup(self.pg_dump_exe)
+                dumper.pg_backup(pg_dump_exe=self.pg_dump_exe, skip_schemas=skip_schemas)
             else:
-                dumper.pg_backup()
+                dumper.pg_backup(skip_schemas=skip_schemas)
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
@@ -324,7 +324,7 @@ class Pum:
         self.__out('Test and upgrade...', type='WAITING')
 
         # Backup of db prod
-        self.run_dump(pg_service_prod, file)
+        self.run_dump(pg_service_prod, file, skip_schemas)
 
         # Restore db dump on db test
         self.run_restore(pg_service_test, file, ignore_restore_errors)
@@ -416,6 +416,8 @@ if __name__ == "__main__":
     parser_dump.add_argument(
         '-p', '--pg_service', help='Name of the postgres service',
         required=True)
+    parser_dump.add_argument(
+        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
     parser_dump.add_argument('file', help='The backup file')
 
     # create the parser for the "restore" command
@@ -525,7 +527,7 @@ if __name__ == "__main__":
         if not success:
             exitval = 1
     elif args.command == 'dump':
-        pum.run_dump(args.pg_service, args.file)
+        pum.run_dump(args.pg_service, args.file, args.skip_schemas)
     elif args.command == 'restore':
         pum.run_restore(args.pg_service, args.file, args.x)
     elif args.command == 'baseline':

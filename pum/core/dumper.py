@@ -28,7 +28,7 @@ class Dumper:
             pg_dump_exe, '-Fc', '-f', self.file,
             'service={}'.format(self.pg_service)
         ]
-        for schema in skip_schemas:
+        for schema in skip_schemas or []:
             command.append("--exclude-schema={}".format(schema))
 
         subprocess.check_output(command, stderr=subprocess.STDOUT)
