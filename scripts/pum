@@ -59,7 +59,7 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  skip_schemas=None,verbose_level=1, output_file=None):
+                  skip_schemas=None, verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
@@ -504,7 +504,6 @@ if __name__ == "__main__":
                  'rules'])
     parser_test_and_upgrade.add_argument(
         '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
-
 
     args = parser.parse_args()
 
