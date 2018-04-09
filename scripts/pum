@@ -334,7 +334,7 @@ class Pum:
 
         # Compare db test with db comp
         check_result = self.run_check(
-            pg_service_test, pg_service_comp, skip_schemas, ignore_list )
+            pg_service_test, pg_service_comp, ignore_list, skip_schemas)
 
         if not check_result:
             return False
