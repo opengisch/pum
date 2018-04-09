@@ -96,7 +96,7 @@ class Pum:
         try:
             checker = Checker(
                 pg_service1, pg_service2,
-                ignore_list, skip_schemas, verbose_level)
+                skip_schemas, ignore_list, verbose_level)
             result, differences = checker.run_checks()
 
             if result:
