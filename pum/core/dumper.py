@@ -45,7 +45,6 @@ class Dumper:
         command = [
             pg_restore_exe, '-d',
             'service={}'.format(self.pg_service),
-            '--exit-on-error',
             '--no-owner',
             self.file]
 
