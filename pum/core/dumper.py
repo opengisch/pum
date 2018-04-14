@@ -26,9 +26,10 @@ class Dumper:
 
         command = [
             pg_dump_exe, '-Fc', '-f', self.file,
-            'service={}'.format(self.pg_service),
-            ' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas or [])
+            'service={}'.format(self.pg_service)
             ]
+        if skip_schemas:
+            command.append(' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas))
 
         subprocess.check_output(command, stderr=subprocess.STDOUT)
 
@@ -44,10 +45,11 @@ class Dumper:
         command = [
             pg_restore_exe, '-d',
             'service={}'.format(self.pg_service),
-            '--no-owner',
-            ' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas or []),
-            self.file
+            '--no-owner'
             ]
+        if skip_schemas:
+            command.append(' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas))
+        command.append(self.file)
 
         try:
             subprocess.check_output(command)
