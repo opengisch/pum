@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import subprocess
+from distutils.version import LooseVersion
 
 
 class Dumper:
@@ -47,8 +48,17 @@ class Dumper:
             'service={}'.format(self.pg_service),
             '--no-owner'
             ]
+
         if skip_schemas:
-            command.append(' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas))
+            skip_schema_available = False
+            try:
+                pg_version = subprocess.check_output(['pg_restore','--version'])
+                pg_version = str(pg_version).replace('\\n', '').replace("'", '').split(' ')[-1]
+                skip_schema_available = LooseVersion(pg_version) >= LooseVersion("10.0")
+            except subprocess.CalledProcessError as e:
+                print("*** Could not get pg_restore version:\n", e.stderr)
+            if skip_schema_available:
+                command.append(' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas))
         command.append(self.file)
 
         try:
