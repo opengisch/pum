@@ -10,4 +10,4 @@ ${DIR}/../scripts/pum test-and-upgrade \
   -d delta/ \
   -f /tmp/qwat_dump \
   -i constraints views \
-  --skip-schemas public
+  --exclude-schemas public

@@ -14,14 +14,14 @@ class Dumper:
 
         self.pg_service = pg_service
 
-    def pg_backup(self, pg_dump_exe='pg_dump', skip_schemas=None):
+    def pg_backup(self, pg_dump_exe='pg_dump', exclude_schema=None):
         """Call the pg_dump command to create a db backup
 
         Parameters
         ----------
         pg_dump_exe: str
             the pg_dump command path
-        skip_schemas: str[]
+        exclude_schema: str[]
             list of schemas to be skipped
         """
 
@@ -29,12 +29,12 @@ class Dumper:
             pg_dump_exe, '-Fc', '-f', self.file,
             'service={}'.format(self.pg_service)
             ]
-        if skip_schemas:
-            command.append(' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas))
+        if exclude_schema:
+            command.append(' '.join("--exclude-schema={}".format(schema) for schema in exclude_schema))
 
         subprocess.check_output(command, stderr=subprocess.STDOUT)
 
-    def pg_restore(self, pg_restore_exe='pg_restore', skip_schemas=None):
+    def pg_restore(self, pg_restore_exe='pg_restore', exclude_schema=None):
         """Call the pg_restore command to restore a db backup
 
         Parameters
@@ -49,16 +49,16 @@ class Dumper:
             '--no-owner'
             ]
 
-        if skip_schemas:
-            skip_schema_available = False
+        if exclude_schema:
+            exclude_schema_available = False
             try:
                 pg_version = subprocess.check_output(['pg_restore','--version'])
                 pg_version = str(pg_version).replace('\\n', '').replace("'", '').split(' ')[-1]
-                skip_schema_available = LooseVersion(pg_version) >= LooseVersion("10.0")
+                exclude_schema_available = LooseVersion(pg_version) >= LooseVersion("10.0")
             except subprocess.CalledProcessError as e:
                 print("*** Could not get pg_restore version:\n", e.stderr)
-            if skip_schema_available:
-                command.append(' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas))
+            if exclude_schema_available:
+                command.append(' '.join("--exclude-schema={}".format(schema) for schema in exclude_schema))
         command.append(self.file)
 
         try:

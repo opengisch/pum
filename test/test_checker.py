@@ -275,7 +275,7 @@ class TestChecker(unittest.TestCase):
         result, differences = self.checker.check_rules()
         self.assertTrue(result)
 
-    def test_skip_schema(self):
+    def test_exclude_schema(self):
         self.test_check_rules()
 
         result, differences = self.checker.check_rules()

@@ -12,7 +12,7 @@ class Checker:
 
     def __init__(
             self, pg_service1, pg_service2,
-            skip_schemas=None, ignore_list=None, verbose_level=1):
+            exclude_schema=None, ignore_list=None, verbose_level=1):
         """Constructor
 
         Parameters
@@ -26,7 +26,7 @@ class Checker:
         ignore_list: list(str)
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
-        skip_schemas: list of strings
+        exclude_schema: list of strings
             List of schemas to be ignored in check.
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
@@ -40,11 +40,11 @@ class Checker:
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list
-        self.skip_schemas = "('information_schema'"
-        if skip_schemas is not None:
-            for schema in skip_schemas:
-                self.skip_schemas += ", '{}'".format(schema)
-        self.skip_schemas += ")"
+        self.exclude_schema = "('information_schema'"
+        if exclude_schema is not None:
+            for schema in exclude_schema:
+                self.exclude_schema += ", '{}'".format(schema)
+        self.exclude_schema += ")"
 
         self.verbose_level = verbose_level
 
@@ -113,7 +113,7 @@ class Checker:
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name
-                """.format(self.skip_schemas)
+                """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -151,7 +151,7 @@ class Checker:
                 WHERE isc.table_schema = tl.table_schema
                     AND isc.table_name = tl.table_name
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(self.skip_schemas)
+                """.format(self.exclude_schema)
 
         else:
             query = """WITH table_list AS (
@@ -171,7 +171,7 @@ class Checker:
                 WHERE isc.table_schema = tl.table_schema
                     AND isc.table_name = tl.table_name
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(self.skip_schemas)
+                """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -226,7 +226,7 @@ class Checker:
         AND table_schema NOT LIKE 'pg\_%'
         AND table_name not like 'vw_export_%'
         ORDER BY table_schema, table_name
-        """.format(self.skip_schemas)
+        """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -335,7 +335,7 @@ class Checker:
             AND routines.specific_schema NOT LIKE 'pg\_%'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
-            """.format(self.skip_schemas)
+            """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -367,7 +367,7 @@ class Checker:
         WHERE n.nspname NOT IN {}
             AND n.nspname NOT LIKE 'pg\_%'
         ORDER BY n.nspname, c.relname, rule_event
-        """.format(self.skip_schemas)
+        """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 

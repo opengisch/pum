@@ -123,8 +123,8 @@ optional arguments:
                         Name of the second postgres service
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}, --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
-  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
-                        Schemas to be skipped.
+  -N SCHEMA [SCHEMA...], --exclude-schema SCHEMA [SCHEMA...]
+                        Schema to be skipped.
   -v VERBOSE_LEVEL, --verbose_level VERBOSE_LEVEL
                         Verbose level (0, 1 or 2)
   -o OUTPUT_FILE, --output_file OUTPUT_FILE
@@ -159,8 +159,8 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PG_SERVICE, --pg_service PG_SERVICE
                         Name of the postgres service
-  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
-                        Schemas to be skipped.
+  -N SCHEMA [SCHEMA...], --exclude-schema SCHEMA [SCHEMA...]
+                        Schema to be skipped.
 ```
 
 For example, the command to backup the database connected to the postgres service `pg_service1` is into the file
@@ -187,8 +187,8 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PG_SERVICE, --pg_service PG_SERVICE
                         Name of the postgres service
-  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
-                        Schemas to be skipped.
+  -N SCHEMA [SCHEMA...], --exclude-schema SCHEMA [SCHEMA...]
+                        Schema to be skipped.
                         When used, this shall be followed by `--` to prevent
                         argument parsing error (file eing grabbed as a schema).
   -x                    ignore pg_restore errors
@@ -300,8 +300,8 @@ optional arguments:
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ,
   --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
-  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
-                        Schemas to be skipped.
+  -N SCHEMA, --exclude-schema SCHEMA
+                        Schema to be skipped.
 ```
 
 ## Delta files

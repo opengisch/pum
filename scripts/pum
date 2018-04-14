@@ -59,7 +59,7 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  skip_schemas=None, verbose_level=1, output_file=None):
+                  exclude_schema=None, verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
@@ -73,7 +73,7 @@ class Pum:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
-        skip_schemas: list of strings
+        exclude_schema: list of strings
             List of schemas to be ignored in check.
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
@@ -91,12 +91,12 @@ class Pum:
             verbose_level = 1
         if not ignore_list:
             ignore_list = []
-        if not skip_schemas:
-            skip_schemas = []
+        if not exclude_schema:
+            exclude_schema = []
         try:
             checker = Checker(
                 pg_service1, pg_service2,
-                skip_schemas, ignore_list, verbose_level)
+                exclude_schema, ignore_list, verbose_level)
             result, differences = checker.run_checks()
 
             if result:
@@ -123,7 +123,7 @@ class Pum:
             self.__out(e.args[0])
             exit(1)
 
-    def run_dump(self, pg_service, file, skip_schemas):
+    def run_dump(self, pg_service, file, exclude_schema):
         """
         Run the dump command
 
@@ -141,9 +141,9 @@ class Pum:
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_dump_exe:
-                dumper.pg_backup(pg_dump_exe=self.pg_dump_exe, skip_schemas=skip_schemas)
+                dumper.pg_backup(pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema)
             else:
-                dumper.pg_backup(skip_schemas=skip_schemas)
+                dumper.pg_backup(exclude_schema=exclude_schema)
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
@@ -154,7 +154,7 @@ class Pum:
             exit(1)
         self.__out('OK', 'OKGREEN')
 
-    def run_restore(self, pg_service, file, ignore_restore_errors=False, skip_schemas=None):
+    def run_restore(self, pg_service, file, ignore_restore_errors=False, exclude_schema=None):
         """
         Run the dump command
 
@@ -174,9 +174,9 @@ class Pum:
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_restore_exe:
-                dumper.pg_restore(pg_restore_exe=self.pg_restore_exe, skip_schemas=skip_schemas)
+                dumper.pg_restore(pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema)
             else:
-                dumper.pg_restore(skip_schemas=skip_schemas)
+                dumper.pg_restore(exclude_schema=exclude_schema)
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
@@ -277,7 +277,7 @@ class Pum:
 
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dirs, ignore_list, skip_schemas,
+            table, delta_dirs, ignore_list, exclude_schema,
             ignore_restore_errors=False):
         """
         Do the following steps:
@@ -310,7 +310,7 @@ class Pum:
         ignore_list: list of strings
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
-        skip_schemas: list of strings
+        exclude_schema: list of strings
             List of schemas to be ignored in check.
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
@@ -324,7 +324,7 @@ class Pum:
         self.__out('Test and upgrade...', type='WAITING')
 
         # Backup of db prod
-        self.run_dump(pg_service_prod, file, skip_schemas)
+        self.run_dump(pg_service_prod, file, exclude_schema)
 
         # Restore db dump on db test
         self.run_restore(pg_service_test, file, ignore_restore_errors)
@@ -334,7 +334,7 @@ class Pum:
 
         # Compare db test with db comp
         check_result = self.run_check(
-            pg_service_test, pg_service_comp, ignore_list, skip_schemas)
+            pg_service_test, pg_service_comp, ignore_list, exclude_schema)
 
         if not check_result:
             return False
@@ -404,7 +404,7 @@ if __name__ == "__main__":
                  'functions',
                  'rules'])
     parser_check.add_argument(
-        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
+        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
     parser_check.add_argument(
         '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
     parser_check.add_argument(
@@ -417,7 +417,7 @@ if __name__ == "__main__":
         '-p', '--pg_service', help='Name of the postgres service',
         required=True)
     parser_dump.add_argument(
-        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
+        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
     parser_dump.add_argument('file', help='The backup file')
 
     # create the parser for the "restore" command
@@ -429,7 +429,7 @@ if __name__ == "__main__":
     parser_restore.add_argument(
         '-x', help='ignore pg_restore errors', action="store_true")
     parser_restore.add_argument(
-        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
+        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
     parser_restore.add_argument('file', help='The backup file')
 
     # create the parser for the "baseline" command
@@ -505,7 +505,7 @@ if __name__ == "__main__":
                  'functions',
                  'rules'])
     parser_test_and_upgrade.add_argument(
-        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
+        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
 
     args = parser.parse_args()
 
@@ -524,13 +524,13 @@ if __name__ == "__main__":
 
     if args.command == 'check':
         success = pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
-                                args.skip_schemas, args.verbose_level, args.output_file)
+                                args.exclude_schema, args.verbose_level, args.output_file)
         if not success:
             exitval = 1
     elif args.command == 'dump':
-        pum.run_dump(args.pg_service, args.file, args.skip_schemas)
+        pum.run_dump(args.pg_service, args.file, args.exclude_schema)
     elif args.command == 'restore':
-        pum.run_restore(args.pg_service, args.file, args.x, args.skip_schemas)
+        pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
     elif args.command == 'baseline':
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
     elif args.command == 'info':
@@ -540,7 +540,7 @@ if __name__ == "__main__":
     elif args.command == 'test-and-upgrade':
         success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
-            args.file, args.table, args.dir, args.ignore, args.skip_schemas,
+            args.file, args.table, args.dir, args.ignore, args.exclude_schema,
             args.x)
         if not success:
             exitval = 1

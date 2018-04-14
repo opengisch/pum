@@ -61,7 +61,7 @@ class TestDumper(unittest.TestCase):
 
     def test_dump_restore(self):
         dumper = Dumper(self.pg_service1, '/tmp/test_dumper/dump.sql')
-        dumper.pg_backup(skip_schemas=['public'])
+        dumper.pg_backup(exclude_schemas=['public'])
 
         dumper = Dumper(self.pg_service2, '/tmp/test_dumper/dump.sql')
         dumper.pg_restore()
