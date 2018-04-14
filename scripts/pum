@@ -154,7 +154,7 @@ class Pum:
             exit(1)
         self.__out('OK', 'OKGREEN')
 
-    def run_restore(self, pg_service, file, ignore_restore_errors=False):
+    def run_restore(self, pg_service, file, ignore_restore_errors=False, skip_schemas=None):
         """
         Run the dump command
 
@@ -174,9 +174,9 @@ class Pum:
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_restore_exe:
-                dumper.pg_restore(self.pg_restore_exe)
+                dumper.pg_restore(pg_restore_exe=self.pg_restore_exe, skip_schemas=skip_schemas)
             else:
-                dumper.pg_restore()
+                dumper.pg_restore(skip_schemas=skip_schemas)
         except subprocess.CalledProcessError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
@@ -428,6 +428,8 @@ if __name__ == "__main__":
         required=True)
     parser_restore.add_argument(
         '-x', help='ignore pg_restore errors', action="store_true")
+    parser_restore.add_argument(
+        '-s', '--skip-schemas', help='Schemas to be ignored.', nargs='+')
     parser_restore.add_argument('file', help='The backup file')
 
     # create the parser for the "baseline" command
@@ -528,7 +530,7 @@ if __name__ == "__main__":
     elif args.command == 'dump':
         pum.run_dump(args.pg_service, args.file, args.skip_schemas)
     elif args.command == 'restore':
-        pum.run_restore(args.pg_service, args.file, args.x)
+        pum.run_restore(args.pg_service, args.file, args.x, args.skip_schemas)
     elif args.command == 'baseline':
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
     elif args.command == 'info':

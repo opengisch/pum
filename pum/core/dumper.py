@@ -26,14 +26,13 @@ class Dumper:
 
         command = [
             pg_dump_exe, '-Fc', '-f', self.file,
-            'service={}'.format(self.pg_service)
-        ]
-        for schema in skip_schemas or []:
-            command.append("--exclude-schema={}".format(schema))
+            'service={}'.format(self.pg_service),
+            ' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas or [])
+            ]
 
         subprocess.check_output(command, stderr=subprocess.STDOUT)
 
-    def pg_restore(self, pg_restore_exe='pg_restore'):
+    def pg_restore(self, pg_restore_exe='pg_restore', skip_schemas=None):
         """Call the pg_restore command to restore a db backup
 
         Parameters
@@ -46,9 +45,11 @@ class Dumper:
             pg_restore_exe, '-d',
             'service={}'.format(self.pg_service),
             '--no-owner',
-            self.file]
+            ' '.join("--exclude-schema={}".format(schema) for schema in skip_schemas or []),
+            self.file
+            ]
 
         try:
             subprocess.check_output(command)
         except subprocess.CalledProcessError as e:
-            print("*** pg_restore failed:\n", e.stderr)
+            print("*** pg_restore failed:\n", command, '\n', e.stderr)

@@ -159,6 +159,8 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PG_SERVICE, --pg_service PG_SERVICE
                         Name of the postgres service
+  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
+                        Schemas to be skipped.
 ```
 
 For example, the command to backup the database connected to the postgres service `pg_service1` is into the file
@@ -185,6 +187,10 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PG_SERVICE, --pg_service PG_SERVICE
                         Name of the postgres service
+  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
+                        Schemas to be skipped.
+                        When used, this shall be followed by `--` to prevent
+                        argument parsing error (file eing grabbed as a schema).
   -x                    ignore pg_restore errors
 ```
 
@@ -294,6 +300,8 @@ optional arguments:
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ,
   --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
+  -s SCHEMA [SCHEMA...], --skip-schemas SCHEMA [SCHEMA...]
+                        Schemas to be skipped.
 ```
 
 ## Delta files
