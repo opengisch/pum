@@ -68,13 +68,13 @@ QWAT already developed a dedicated migration tool, allowing to both work on the 
 The usage of the pum command is:
 ```commandline
 
-usage: pum [-h] [-V] [-c CONFIG_FILE]
+usage: pum [-h] [-v] [-c CONFIG_FILE]
            {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
            ...
 
 optional arguments:
   -h, --help            show this help message and exit
-  -V, --version         print the version and exit
+  -v, --version         print the version and exit
   -c CONFIG_FILE, --config_file CONFIG_FILE
                         set the config file
 
