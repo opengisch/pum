@@ -261,9 +261,8 @@ class Pum:
             schema.table
         delta_dirs: list(str)
             The paths to the delta directories
-        variables: list(list(str))
-            2 dimensional arrays of variables names and values for SQL deltas
-            e.g. [["my_string_var", "'a string'"], ["my_int_var", 1]]
+        variables: dict
+            dictionary for variables to be used in SQL deltas ( name => value )
         max_version: str
             Maximum (including) version to run the deltas up to.
         """
@@ -319,9 +318,8 @@ class Pum:
             List of schemas to be ignored in check.
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
-        variables: list(list(str))
-            2 dimensional arrays of variables names and values for SQL deltas
-            e.g. [["my_string_var", "'a string'"], ["my_int_var", 1]]
+        variables: dict
+            dictionary for variables to be used in SQL deltas ( name => value )
         max_version: str
             Maximum (including) version to run the deltas up to.
 
@@ -483,7 +481,8 @@ if __name__ == "__main__":
     parser_upgrade.add_argument(
         '-u', '--max-version', help='upper bound limit version')
     parser_upgrade.add_argument(
-        '-v', '--var', nargs=2, help='Assign variable for running SQL deltas.',
+        '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
+                                     'Format is: (string|float|int) name value. ',
         action='append', required=False)
 
 
@@ -527,7 +526,8 @@ if __name__ == "__main__":
     parser_test_and_upgrade.add_argument(
         '-u', '--max-version', help='upper bound limit version')
     parser_test_and_upgrade.add_argument(
-        '-v', '--var', nargs=2, help='Assign variable for running SQL deltas.',
+        '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
+                                     'Format is: (string|float|int) name value.',
         action='append', required=False)
 
     args = parser.parse_args()
@@ -541,6 +541,16 @@ if __name__ == "__main__":
     if not args.command:
         parser.print_help()
         parser.exit()
+
+    variables = dict()
+    if args.command in ('upgrade', 'test-and-upgrade'):
+        for v in args.var or ():
+            if v[0] == 'float':
+                variables[v[1]] = float(v[2])
+            elif v[0] == 'int':
+                variables[v[1]] = int(v[2])
+            else:
+                variables[v[1]] = v[2]
 
     exitval = 0
     pum = Pum(args.config_file)
@@ -559,13 +569,13 @@ if __name__ == "__main__":
     elif args.command == 'info':
         pum.run_info(args.pg_service, args.table, args.dir)
     elif args.command == 'upgrade':
-        pum.run_upgrade(args.pg_service, args.table, args.dir, args.var,
+        pum.run_upgrade(args.pg_service, args.table, args.dir, variables,
                         args.max_version)
     elif args.command == 'test-and-upgrade':
         success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
             args.file, args.table, args.dir, args.ignore, args.exclude_schema,
-            args.x, args.var, args.max_version)
+            args.x, variables, args.max_version)
         if not success:
             exitval = 1
 

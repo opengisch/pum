@@ -221,8 +221,8 @@ optional arguments:
                         Delta directories (space-separated)
   -u VERSION, --max-version VERSION
                         Upper bound limit version to run the deltas up to.
-  -v VARIABLE VALUE, --var VARIABLE VALUE
-                        Assign variable for running SQL deltas.
+  -v TYPE VARIABLE VALUE, --var TYPE VARIABLE VALUE
+                        Assign variable for running SQL deltas. TYPE is one of int, float, str.
 ```
 
 ### info
@@ -306,8 +306,8 @@ optional arguments:
                         Elements to be ignored
   -u VERSION, --max-version VERSION
                         Upper bound limit version to run the deltas up to.
-  -v VARIABLE VALUE, --var VARIABLE VALUE
-                        Assign variable for running SQL deltas.
+  -v TYPE VARIABLE VALUE, --var TYPE VARIABLE VALUE
+                        Assign variable for running SQL deltas. TYPE is one of int, float, str.
   -N SCHEMA, --exclude-schema SCHEMA
                         Schema to be skipped.
 ```
@@ -352,6 +352,8 @@ for each file delta_x.x.x_deltaname.* ordered by version number:
 execute post-all.py if exists
 execute post-all.sql if exists
 ```
+
+If variables are used, it follows `psycopg` rules to [pass Parameters to SQL queries](http://initd.org/psycopg/docs/usage.html#query-parameters).
 
 ### Python delta files
 

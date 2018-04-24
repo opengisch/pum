@@ -16,7 +16,7 @@ do
   ${DIR}/../.ci/setup_db.sh
   EXTRA_ARG=
   if [[ $updated =~ ^1\.1\.0$ ]]; then
-    EXTRA_ARG=" -v my_field_name description_v2"
+    EXTRA_ARG=" -v int my_field_length 20"
   fi
   PGSERVICE=pum_test_1 psql --quiet -v ON_ERROR_STOP=on -f ${DIR}/data/create_northwind_$base.sql;
   PGSERVICE=pum_test_1 psql --quiet -v ON_ERROR_STOP=on -c "CREATE SCHEMA pum_sys";
