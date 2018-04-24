@@ -109,4 +109,5 @@ ENV/
 *\~
 
 *.orig
+.DS_Store
 
