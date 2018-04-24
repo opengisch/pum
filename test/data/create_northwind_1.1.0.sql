@@ -9,8 +9,8 @@ CREATE SCHEMA northwind;
 
 CREATE TABLE northwind.categories_v2 (
     categoryid smallint NOT NULL,
-    categoryname character varying(15),
-    description_v2 text,
+    categoryname character varying(20),
+    description text,
     picture bytea
 );
 

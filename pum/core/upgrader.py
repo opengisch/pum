@@ -35,9 +35,8 @@ class Upgrader:
                 informations about the upgrades are stored
             dirs: list(str)
                 The paths to directories where delta files are stored
-            variables: list(list(str))
-                2 dimensional arrays of variables names and values for SQL deltas
-                e.g. [["my_string_var", "'a string'"], ["my_int_var", 1]]
+            variables: dictionary
+                dictionary for variables to be used in SQL deltas ( name => value )
             max_version: str
                 Maximum (including) version to run the deltas up to.
         """
@@ -203,10 +202,10 @@ class Upgrader:
 
         with open(filepath, 'r') as delta_file:
             sql = delta_file.read()
-            for var in self.variables or ():
-                p = re.compile(r':{}\b'.format(var[0]))
-                (sql, count) = p.subn(var[1], sql)
-            self.cursor.execute(sql)
+            if self.variables:
+                self.cursor.execute(sql, self.variables)
+            else:
+                self.cursor.execute(sql)
             self.connection.commit()
 
     def __run_py_file(self, filepath, module_name):
