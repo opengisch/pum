@@ -219,6 +219,10 @@ optional arguments:
                         Upgrades information table
   -d DIR [DIR ...], --dir DIR [DIR ...]
                         Delta directories (space-separated)
+  -u VERSION, --max-version VERSION
+                        Upper bound limit version to run the deltas up to.
+  -v VARIABLE VALUE, --var VARIABLE VALUE
+                        Assign variable for running SQL deltas.
 ```
 
 ### info
@@ -300,6 +304,10 @@ optional arguments:
   -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ,
   --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
                         Elements to be ignored
+  -u VERSION, --max-version VERSION
+                        Upper bound limit version to run the deltas up to.
+  -v VARIABLE VALUE, --var VARIABLE VALUE
+                        Assign variable for running SQL deltas.
   -N SCHEMA, --exclude-schema SCHEMA
                         Schema to be skipped.
 ```

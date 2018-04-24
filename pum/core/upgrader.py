@@ -21,7 +21,8 @@ class Upgrader:
 
     Stores the info about the upgrade in a table on the database."""
 
-    def __init__(self, pg_service, upgrades_table, dirs):
+    def __init__(self, pg_service, upgrades_table, dirs, variables=None,
+                 max_version=None):
         """Constructor
 
             Parameters
@@ -34,12 +35,19 @@ class Upgrader:
                 informations about the upgrades are stored
             dirs: list(str)
                 The paths to directories where delta files are stored
+            variables: list(list(str))
+                2 dimensional arrays of variables names and values for SQL deltas
+                e.g. [["my_string_var", "'a string'"], ["my_int_var", 1]]
+            max_version: str
+                Maximum (including) version to run the deltas up to.
         """
         self.pg_service = pg_service
         self.connection = psycopg2.connect("service={}".format(pg_service))
         self.cursor = self.connection.cursor()
         self.upgrades_table = upgrades_table
         self.dirs = dirs
+        self.variables = variables
+        self.max_version = max_version
 
     def run(self, verbose=False):
         if not self.exists_table_upgrades():
@@ -61,7 +69,8 @@ class Upgrader:
                 print('     Already applied: ', self.__is_applied(d))
                 print('     Version greather or equal than current: ',
                       d.get_version() >= db_version)
-            if not self.__is_applied(d) and d.get_version() >= db_version:
+            if not self.__is_applied(d) and d.get_version() >= db_version and \
+                    (self.max_version is None or d.get_version() <= self.max_version):
                 print('     Applying delta {} {}...'.format(
                     d.get_version(), d.get_name()), end=' ')
 
@@ -193,7 +202,11 @@ class Upgrader:
             the path of the file to execute"""
 
         with open(filepath, 'r') as delta_file:
-            self.cursor.execute(delta_file.read())
+            sql = delta_file.read()
+            for var in self.variables or ():
+                p = re.compile(r':{}\b'.format(var[0]))
+                (sql, count) = p.subn(var[1], sql)
+            self.cursor.execute(sql)
             self.connection.commit()
 
     def __run_py_file(self, filepath, module_name):

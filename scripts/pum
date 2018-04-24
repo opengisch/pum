@@ -249,7 +249,7 @@ class Pum:
             print(e)
             exit(1)
 
-    def run_upgrade(self, pg_service, table, delta_dirs):
+    def run_upgrade(self, pg_service, table, delta_dirs, variables=None, max_version=None):
         """Apply the delta files to upgrade the database
 
         Parameters
@@ -261,12 +261,17 @@ class Pum:
             schema.table
         delta_dirs: list(str)
             The paths to the delta directories
+        variables: list(list(str))
+            2 dimensional arrays of variables names and values for SQL deltas
+            e.g. [["my_string_var", "'a string'"], ["my_int_var", 1]]
+        max_version: str
+            Maximum (including) version to run the deltas up to.
         """
 
         self.__out('Upgrade...', type='WAITING')
 
         try:
-            upgrader = Upgrader(pg_service, table, delta_dirs)
+            upgrader = Upgrader(pg_service, table, delta_dirs, variables=variables, max_version=max_version)
             upgrader.run()
 
         except Exception as e:
@@ -278,7 +283,7 @@ class Pum:
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
             table, delta_dirs, ignore_list, exclude_schema,
-            ignore_restore_errors=False):
+            ignore_restore_errors=False, variables=None, max_version=None):
         """
         Do the following steps:
             - creates a dump of the production db
@@ -314,6 +319,11 @@ class Pum:
             List of schemas to be ignored in check.
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
+        variables: list(list(str))
+            2 dimensional arrays of variables names and values for SQL deltas
+            e.g. [["my_string_var", "'a string'"], ["my_int_var", 1]]
+        max_version: str
+            Maximum (including) version to run the deltas up to.
 
         Returns
         -------
@@ -330,7 +340,8 @@ class Pum:
         self.run_restore(pg_service_test, file, ignore_restore_errors)
 
         # Apply deltas on db test
-        self.run_upgrade(pg_service_test, table, delta_dirs)
+        self.run_upgrade(pg_service_test, table, delta_dirs, variables,
+                         max_version)
 
         # Compare db test with db comp
         check_result = self.run_check(
@@ -341,7 +352,8 @@ class Pum:
 
         if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
                 pg_service_prod)):
-            self.run_upgrade(pg_service_prod, table, delta_dirs)
+            self.run_upgrade(pg_service_prod, table, delta_dirs, variables,
+                             max_version)
 
         self.__out('OK', 'OKGREEN')
 
@@ -468,6 +480,12 @@ if __name__ == "__main__":
     parser_upgrade.add_argument(
         '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
         required=True)
+    parser_upgrade.add_argument(
+        '-u', '--max-version', help='upper bound limit version')
+    parser_upgrade.add_argument(
+        '-v', '--var', nargs=2, help='Assign variable for running SQL deltas.',
+        action='append', required=False)
+
 
     # create the parser for the "test-and-upgrade" command
     parser_test_and_upgrade = subparsers.add_parser(
@@ -506,6 +524,11 @@ if __name__ == "__main__":
                  'rules'])
     parser_test_and_upgrade.add_argument(
         '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
+    parser_test_and_upgrade.add_argument(
+        '-u', '--max-version', help='upper bound limit version')
+    parser_test_and_upgrade.add_argument(
+        '-v', '--var', nargs=2, help='Assign variable for running SQL deltas.',
+        action='append', required=False)
 
     args = parser.parse_args()
 
@@ -536,12 +559,13 @@ if __name__ == "__main__":
     elif args.command == 'info':
         pum.run_info(args.pg_service, args.table, args.dir)
     elif args.command == 'upgrade':
-        pum.run_upgrade(args.pg_service, args.table, args.dir)
+        pum.run_upgrade(args.pg_service, args.table, args.dir, args.var,
+                        args.max_version)
     elif args.command == 'test-and-upgrade':
         success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
             args.file, args.table, args.dir, args.ignore, args.exclude_schema,
-            args.x)
+            args.x, args.var, args.max_version)
         if not success:
             exitval = 1
 
