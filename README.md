@@ -61,6 +61,17 @@ source ~/.venv/pum/bin/activate
 Pum has been developped to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
 QWAT already developed a dedicated migration tool, allowing to both work on the data model using git AND use delta file for migrations. QGEP needed something also so the group decided to make a more generic tool, yet a simple one to handle that.
 
+
+## Configuring database services
+
+PUM uses a [pg_service.conf](https://www.postgresql.org/docs/current/static/libpq-pgservice.html) file to define connection parameters for databases.
+An environment variable can be used to specify the file location.
+This is useful if the parameters are stored in a directory alongside application data instead of at the standard `~/.pg_service.conf`.
+
+```bash
+export PGSERVICEFILE=/path/to/pg_service.conf
+```
+
 ## Command line
 
 ### pum
