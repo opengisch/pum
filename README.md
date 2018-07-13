@@ -92,6 +92,9 @@ commands:
                         the production db
 
 ```
+
+Pum is using [postgres connection service file](https://www.postgresql.org/docs/current/static/libpq-pgservice.html) to define the database connection parameters.
+
 ### check
 
 The `check` command compares 2 databases and shows the
@@ -131,7 +134,7 @@ optional arguments:
                         Output file
 ```
 
-For example if we want to check if a database connected to the postgres service `pg_service1` is equal to the
+For example if we want to check if a database connected to the [postgres service](https://www.postgresql.org/docs/current/static/libpq-pgservice.html) `pg_service1` is equal to the
 database connected to the postgres service `pg_service_2`, we can do the following command:
 
 ```commandline
@@ -163,7 +166,7 @@ optional arguments:
                         Schema to be skipped.
 ```
 
-For example, the command to backup the database connected to the postgres service `pg_service1` is into the file
+For example, the command to backup the database connected to the [postgres service](https://www.postgresql.org/docs/current/static/libpq-pgservice.html) `pg_service1` is into the file
 `/tmp/bak`:
 
 ```commandline
@@ -194,7 +197,7 @@ optional arguments:
   -x                    ignore pg_restore errors
 ```
 
-If we want to restore the backup from the `/tmp/bak` into the database connected to the postgres service `pg_service2`:
+If we want to restore the backup from the `/tmp/bak` into the database connected to the [postgres service](https://www.postgresql.org/docs/current/static/libpq-pgservice.html) `pg_service2`:
 
 ```commandline
 pum restore -p pg_service2 /tmp/bak
