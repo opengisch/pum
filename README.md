@@ -40,7 +40,7 @@ sudo pip3 install pum
 
 ### Local user
 
-Alterantively, to install pum to a virtual environment without requiring sudo access
+Alternatively, to install pum to a virtual environment without requiring sudo access
 
 ```sh
 mkdir -p ~/.venv
@@ -58,7 +58,7 @@ source ~/.venv/pum/bin/activate
 
 ## History
 
-Pum has been developped to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
+Pum has been developed to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
 QWAT already developed a dedicated migration tool, allowing to both work on the data model using git AND use delta file for migrations. QGEP needed something also so the group decided to make a more generic tool, yet a simple one to handle that.
 
 ## Command line
@@ -267,7 +267,7 @@ optional arguments:
                         Set baseline  in the format x.x.x
 ```
 
-The baseline argument receives a the version number to be set in the upgrades information table. The version must match
+The baseline argument receives the version number to be set in the upgrades information table. The version must match
 with the `^\d+\.\d+\.\d+$` regular expression, i.e. must be in the format x.x.x
 
 ### test-and-upgrade
