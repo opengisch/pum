@@ -4,7 +4,7 @@ import unittest
 
 import psycopg2
 import psycopg2.extras
-from pum.core.upgrader import Upgrader, Delta
+from pum.core.upgrader import Upgrader, Delta, DeltaType
 
 
 class TestUpgrader(unittest.TestCase):
@@ -174,22 +174,22 @@ class TestUpgrader(unittest.TestCase):
 
     def test_delta_get_type(self):
         delta = Delta('delta_0.0.0_17072017.sql')
-        self.assertEqual(delta.get_type(), Delta.DELTA_SQL)
+        self.assertEqual(delta.get_type(), DeltaType.SQL)
 
         delta = Delta('delta_0.0.0_17072017.py')
-        self.assertEqual(delta.get_type(), Delta.DELTA_PY)
+        self.assertEqual(delta.get_type(), DeltaType.PYTHON)
 
         delta = Delta('delta_0.0.0_17072017.pre.sql')
-        self.assertEqual(delta.get_type(), Delta.DELTA_PRE_SQL)
+        self.assertEqual(delta.get_type(), DeltaType.PRE_SQL)
 
         delta = Delta('delta_0.0.0_17072017.pre.py')
-        self.assertEqual(delta.get_type(), Delta.DELTA_PRE_PY)
+        self.assertEqual(delta.get_type(), DeltaType.PRE_PYTHON)
 
         delta = Delta('delta_0.0.0_17072017.post.sql')
-        self.assertEqual(delta.get_type(), Delta.DELTA_POST_SQL)
+        self.assertEqual(delta.get_type(), DeltaType.POST_SQL)
 
         delta = Delta('delta_0.0.0_17072017.post.py')
-        self.assertEqual(delta.get_type(), Delta.DELTA_POST_PY)
+        self.assertEqual(delta.get_type(), DeltaType.POST_PYTHON)
 
 if __name__ == '__main__':
     unittest.main()
