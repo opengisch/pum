@@ -12,6 +12,7 @@ import psycopg2.extras
 from hashlib import md5
 import importlib.util
 import inspect
+from enum import IntFlag
 
 from .deltapy import DeltaPy
 
@@ -73,12 +74,10 @@ class Upgrader:
                 print('     Applying delta {} {}...'.format(
                     d.get_version(), d.get_name()), end=' ')
 
-                if d.get_type() in [Delta.DELTA_PRE_SQL, Delta.DELTA_SQL,
-                                    Delta.DELTA_POST_SQL]:
+                if d.get_type() & DeltaType.SQL:
                     self.__run_delta_sql(d)
                     print('OK')
-                elif d.get_type() in [Delta.DELTA_PRE_PY, Delta.DELTA_PY,
-                                      Delta.DELTA_POST_PY]:
+                elif d.get_type() & DeltaType.PYTHON:
                     self.__run_delta_py(d)
                     print('OK')
                 else:
@@ -138,7 +137,7 @@ class Upgrader:
 
         # sort delta objects in each bucket
         for d in deltas:
-            deltas[d].sort(key=lambda x: (x.get_version(), x.get_type(), x.get_name()))
+            deltas[d].sort(key=lambda x: (x.get_version(), x.get_priority(), x.get_name()))
 
         return deltas
 
@@ -252,17 +251,17 @@ class Upgrader:
 
             for delta in deltas[dir_]:
                 line = [delta.get_version(), delta.get_name()]
-                if delta.get_type() == Delta.DELTA_PRE_PY:
+                if delta.get_type() == DeltaType.PRE_PYTHON:
                     line.append('pre py')
-                elif delta.get_type() == Delta.DELTA_PRE_SQL:
+                elif delta.get_type() == DeltaType.PRE_SQL:
                     line.append('pre sql')
-                elif delta.get_type() == Delta.DELTA_PY:
+                elif delta.get_type() == DeltaType.PYTHON:
                     line.append('delta py')
-                elif delta.get_type() == Delta.DELTA_SQL:
+                elif delta.get_type() == DeltaType.SQL:
                     line.append('delta sql')
-                elif delta.get_type() == Delta.DELTA_POST_PY:
+                elif delta.get_type() == DeltaType.POST_PYTHON:
                     line.append('post py')
-                elif delta.get_type() == Delta.DELTA_POST_SQL:
+                elif delta.get_type() == DeltaType.POST_SQL:
                     line.append('post sql')
 
                 if self.__is_applied(delta):
@@ -298,17 +297,17 @@ class Upgrader:
             delta_type = i[2]
             if delta_type == 0:
                 line.append('baseline')
-            elif delta_type == Delta.DELTA_PRE_PY:
+            elif delta_type == DeltaType.PRE_PYTHON:
                 line.append('pre py')
-            elif delta_type == Delta.DELTA_PRE_SQL:
+            elif delta_type == DeltaType.PRE_SQL:
                 line.append('pre sql')
-            elif delta_type == Delta.DELTA_PY:
+            elif delta_type == DeltaType.PYTHON:
                 line.append('delta py')
-            elif delta_type == Delta.DELTA_SQL:
+            elif delta_type == DeltaType.SQL:
                 line.append('delta sql')
-            elif delta_type == Delta.DELTA_POST_PY:
+            elif delta_type == DeltaType.POST_PYTHON:
                 line.append('post py')
-            elif delta_type == Delta.DELTA_POST_SQL:
+            elif delta_type == DeltaType.POST_SQL:
                 line.append('post sql')
 
             line.append(str(i[3]))
@@ -481,15 +480,22 @@ class Upgrader:
         return self.cursor.fetchone()[0]
 
 
+class DeltaType(IntFlag):
+    PRE = 1
+    POST = 2
+
+    PYTHON = 4
+    SQL = 8
+
+    PRE_PYTHON = PRE | PYTHON
+    PRE_SQL = PRE | SQL
+
+    POST_PYTHON = POST | PYTHON
+    POST_SQL = POST | SQL
+
+
 class Delta:
     """This class represent a delta file."""
-
-    DELTA_PRE_PY = 0
-    DELTA_PRE_SQL = 1
-    DELTA_PY = 2
-    DELTA_SQL = 3
-    DELTA_POST_PY = 4
-    DELTA_POST_SQL = 5
 
     FILENAME_PATTERN = (
         r"^(delta_)(\d+\.\d+\.\d+)(_*)(\w*)\."
@@ -526,6 +532,9 @@ class Delta:
         pattern = re.compile(self.FILENAME_PATTERN)
         self.match = re.match(pattern, filename)
 
+    def __repr__(self):
+        return '<file: {f} (v: {v}, n: {n}>'.format(f=self.file, v=self.get_version(), n=self.get_name())
+
     def get_version(self):
         """Return the version of the delta file."""
         return self.match.group(2)
@@ -551,17 +560,30 @@ class Delta:
         ext = self.match.group(5)
 
         if ext == 'pre.py':
-            return Delta.DELTA_PRE_PY
+            return DeltaType.PRE_PYTHON
         elif ext == 'pre.sql':
-            return Delta.DELTA_PRE_SQL
+            return DeltaType.PRE_SQL
         elif ext == 'py':
-            return Delta.DELTA_PY
+            return DeltaType.PYTHON
         elif ext == 'sql':
-            return Delta.DELTA_SQL
+            return DeltaType.SQL
         elif ext == 'post.py':
-            return Delta.DELTA_POST_PY
+            return DeltaType.POST_PYTHON
         elif ext == 'post.sql':
-            return Delta.DELTA_POST_SQL
+            return DeltaType.POST_SQL
+
+    def get_priority(self) -> int:
+        """
+        Rerturns the priority of the file from 1 (pre) to 3 (post)
+        :return: the priority
+        """
+        dtype = self.get_type()
+        if dtype & DeltaType.PRE:
+            return 1
+        elif dtype & DeltaType.POST:
+            return 3
+        else:
+            return 2
 
     def get_file(self):
         return self.file
