@@ -138,7 +138,7 @@ class Upgrader:
 
         # sort delta objects in each bucket
         for d in deltas:
-            deltas[d].sort(key=lambda x: (x.get_version(), x.get_name(), x.get_type()))
+            deltas[d].sort(key=lambda x: (x.get_version(), x.get_type(), x.get_name()))
 
         return deltas
 
@@ -525,9 +525,6 @@ class Delta:
         filename = basename(self.file)
         pattern = re.compile(self.FILENAME_PATTERN)
         self.match = re.match(pattern, filename)
-
-    def __repr__(self):
-        return '<file: {f} (v: {v}, n: {n}>'.format(f=self.file, v=self.get_version(), n=self.get_name())
 
     def get_version(self):
         """Return the version of the delta file."""
