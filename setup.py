@@ -1,7 +1,7 @@
 from setuptools import setup
 import sys
-if sys.version_info < (3,3):
-    sys.exit('Pum requires at least Python version 3.3.\nYou are currently running this installation with\n\n{}'.format(sys.version))
+if sys.version_info < (3,6):
+    sys.exit('Pum requires at least Python version 3.6.\nYou are currently running this installation with\n\n{}'.format(sys.version))
 
 setup(
     name = 'pum',
