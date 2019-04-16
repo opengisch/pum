@@ -356,7 +356,12 @@ execute post-all.py if exists
 execute post-all.sql if exists
 ```
 
+### SQL deltas
+
+If SQL code contains `%` characater, it must be escaped by using `%%`.
+
 If variables are used, it follows `psycopg` rules to [pass Parameters to SQL queries](http://initd.org/psycopg/docs/usage.html#query-parameters).
+For example, a string variable named SRID, will be called in a SQL delta as `%(SRID)s`.
 
 ### Python delta files
 
