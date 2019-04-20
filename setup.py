@@ -36,5 +36,5 @@ setup(
         'psycopg2-binary>=2.7.3',
         'PyYAML'
     ],
-    python_requires=">=3.3",
+    python_requires=">=3.6",
 )
