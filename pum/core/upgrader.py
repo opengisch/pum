@@ -236,7 +236,7 @@ class Upgrader:
 
                 delta_py_inst = obj(
                     self.current_db_version(), dir_, self.dirs, self.pg_service,
-                    self.upgrades_table)
+                    self.upgrades_table, variables=self.variables)
                 delta_py_inst.run()
 
     def show_info(self):

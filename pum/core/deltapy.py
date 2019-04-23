@@ -7,9 +7,9 @@ class DeltaPy(metaclass=ABCMeta):
     """This abstract class must be instantiated by the delta.py classes"""
 
     def __init__(
-            self, current_db_version, delta_dir, delta_dirs, pg_service, upgrades_table):
-        """Constructor, receive some useful parameters accesible from the
-        subclasses als propperties.
+            self, current_db_version, delta_dir, delta_dirs, pg_service, upgrades_table, variables: dict={}):
+        """Constructor, receive some useful parameters accessible from the
+        subclasses als properties.
 
         Parameters
         ----------
@@ -20,7 +20,7 @@ class DeltaPy(metaclass=ABCMeta):
             related to the db
         upgrades_table: str
             The name of the table (int the format schema.name) where the
-            informations about the upgrades are stored
+            information about the upgrades are stored
         delta_dir: str
             The path to the directory where this delta file is stored
         delta_dirs: list(str)
@@ -32,12 +32,25 @@ class DeltaPy(metaclass=ABCMeta):
         self.__delta_dirs = delta_dirs
         self.__pg_service = pg_service
         self.__upgrades_table = upgrades_table
+        self.__variables = variables
 
     @abstractmethod
     def run(self):
         """This method must be implemented in the subclasses. It is called
-        when the delta.py file is runned by Upgrader class"""
+        when the delta.py file is run by Upgrader class"""
         pass
+
+    def variable(self, name: str, error_if_not_found: bool = True):
+        """
+        Returns the value of the variable given in PUM
+        :param name: the name of the variable
+        :param error_if_not_found: If True raise an exception if the variable is not found. If False and not found, None will be returned
+        :return: the variable value
+        """
+        if error_if_not_found:
+            return self.__variables[name]
+        else:
+            return self.__variables.get(name, None)
 
     @property
     def current_db_version(self):
