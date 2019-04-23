@@ -40,11 +40,6 @@ class DeltaPy(metaclass=ABCMeta):
         when the delta.py file is run by Upgrader class"""
         pass
 
-    @property
-    def current_db_version(self):
-        """Return the current db version"""
-        return self.__current_db_version
-
     def variable(self, name: str, error_if_not_found: bool = True):
         """
         Returns the value of the variable given in PUM
@@ -56,6 +51,11 @@ class DeltaPy(metaclass=ABCMeta):
             return self.__variables[name]
         else:
             return self.__variables.get(name, None)
+
+    @property
+    def current_db_version(self):
+        """Return the current db version"""
+        return self.__current_db_version
 
     @property
     def delta_dir(self):

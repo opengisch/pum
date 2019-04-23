@@ -372,6 +372,14 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
     def run(self):
         """This method must be implemented in the subclasses. It is called
         when the delta.py file is runned by Upgrader class"""
+        
+    def variable(self, name: str, error_if_not_found: bool = True):
+        """
+        Returns the value of the variable given in PUM
+        :param name: the name of the variable
+        :param error_if_not_found: If True raise an exception if the variable is not found. If False and not found, None will be returned
+        :return: the variable value
+        """
 
     @property
     def current_db_version(self):
@@ -426,6 +434,9 @@ class Prova(DeltaPy):
 
         # if you want to get the upgrade information table name
         table = self.upgrades_table
+        
+        # access to a variable given in command line
+        srid = self.variable('my_var_name')
 
         # if you want to print a message
         self.write_message('foo')
