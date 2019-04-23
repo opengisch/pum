@@ -286,7 +286,7 @@ class Checker:
         """
         return self.__check_equals(query)
 
-    def check_triggers(self):
+    def check_triggers(self) -> dict:
         """Check if the triggers are equals.
 
             Returns
