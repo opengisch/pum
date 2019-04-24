@@ -48,7 +48,7 @@ CREATE TABLE northwind.customers (
     city character varying(15),
     region character varying(15),
     postalcode character varying(10),
-    country character varying(15),
+    country character varying(20),
     phone character varying(24),
     fax character varying(24)
 );
