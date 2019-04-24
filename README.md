@@ -373,6 +373,10 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
         """This method must be implemented in the subclasses. It is called
         when the delta.py file is runned by Upgrader class"""
         
+    @property
+    def variables(self):
+        """Return the dictionary of variables"""
+        
     def variable(self, name: str, error_if_not_found: bool = True):
         """
         Returns the value of the variable given in PUM

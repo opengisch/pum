@@ -40,6 +40,11 @@ class DeltaPy(metaclass=ABCMeta):
         when the delta.py file is run by Upgrader class"""
         pass
 
+    @property
+    def variables(self):
+        """Return the dictionary of variables"""
+        return self.__variables
+
     def variable(self, name: str, error_if_not_found: bool = True):
         """
         Returns the value of the variable given in PUM
