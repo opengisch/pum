@@ -364,10 +364,11 @@ class Checker:
         join pg_class c on r.ev_class = c.oid
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
-        WHERE n.nspname NOT IN {}
+        WHERE n.nspname NOT IN {excl}
+            AND r.rulename != '_RETURN'
             AND n.nspname NOT LIKE 'pg\_%'
         ORDER BY n.nspname, c.relname, rule_event
-        """.format(self.exclude_schema)
+        """.format(excl=self.exclude_schema)
 
         return self.__check_equals(query)
 
