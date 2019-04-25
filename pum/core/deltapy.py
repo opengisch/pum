@@ -45,17 +45,18 @@ class DeltaPy(metaclass=ABCMeta):
         """Return the dictionary of variables"""
         return self.__variables
 
-    def variable(self, name: str, error_if_not_found: bool = True):
+    def variable(self, name: str, default_value = None):
         """
         Returns the value of the variable given in PUM
         :param name: the name of the variable
-        :param error_if_not_found: If True raise an exception if the variable is not found. If False and not found, None will be returned
+        :param default_value: If not given or None, an exception will be raised if the variable is not found.
         :return: the variable value
         """
-        if error_if_not_found:
-            return self.__variables[name]
+        if default_value:
+            return self.__variables.get(name, default_value)
         else:
-            return self.__variables.get(name, None)
+            return self.__variables[name]
+
 
     @property
     def current_db_version(self):
