@@ -377,12 +377,31 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
     def variables(self):
         """Return the dictionary of variables"""
         
-    def variable(self, name: str, error_if_not_found: bool = True):
+    def variable(self, name: str):
         """
         Returns the value of the variable given in PUM
-        :param name: the name of the variable
-        :param error_if_not_found: If True raise an exception if the variable is not found. If False and not found, None will be returned
-        :return: the variable value
+
+        Parameters
+        ----------
+        name
+            the name of the variable
+
+        Raises
+        ------
+        KeyError
+            if the variable is not found.
+        """
+
+    def variable(self, name: str, default_value=None):
+        """
+        Safely returns the value of the variable given in PUM
+
+        Parameters
+        ----------
+        name
+            the name of the variable
+        default_value
+            the default value for the variable if it does not exist
         """
 
     @property
