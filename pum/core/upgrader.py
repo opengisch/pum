@@ -410,7 +410,7 @@ class Upgrader:
         query = """CREATE TABLE IF NOT EXISTS {}
                 (
                 id serial NOT NULL,
-                version character varying(50),
+                version character varying(50) NOT NULL,
                 description character varying(200) NOT NULL,
                 type integer NOT NULL,
                 script character varying(1000) NOT NULL,
