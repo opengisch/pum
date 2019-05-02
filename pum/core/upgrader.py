@@ -419,7 +419,8 @@ class Upgrader:
                 installed_on timestamp without time zone NOT NULL DEFAULT now(),
                 execution_time integer NOT NULL,
                 success boolean NOT NULL,
-                PRIMARY KEY (id)
+                PRIMARY KEY (id),
+                EXCLUDE (version WITH =) WHERE (type = 0)
                 )
         """.format(self.upgrades_table)
 
