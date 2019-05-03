@@ -58,8 +58,8 @@ class Pum:
         self.pg_dump_exe = configs['pg_dump_exe']
         self.pg_restore_exe = configs['pg_restore_exe']
 
-    def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  exclude_schema=None, verbose_level=1, output_file=None):
+    def run_check(self, pg_service1, pg_service2, ignore_list,
+                  exclude_schema, verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
@@ -154,7 +154,7 @@ class Pum:
             exit(1)
         self.__out('OK', 'OKGREEN')
 
-    def run_restore(self, pg_service, file, ignore_restore_errors=False, exclude_schema=None):
+    def run_restore(self, pg_service, file, ignore_restore_errors, exclude_schema=None):
         """
         Run the dump command
 
@@ -249,7 +249,7 @@ class Pum:
             print(e)
             exit(1)
 
-    def run_upgrade(self, pg_service, table, delta_dirs, variables=None, max_version=None):
+    def run_upgrade(self, pg_service, table, delta_dirs, variables, max_version, verbose):
         """Apply the delta files to upgrade the database
 
         Parameters
@@ -265,13 +265,15 @@ class Pum:
             dictionary for variables to be used in SQL deltas ( name => value )
         max_version: str
             Maximum (including) version to run the deltas up to.
+        verbose: bool
+            Whether to display extra information
         """
 
         self.__out('Upgrade...', type='WAITING')
 
         try:
             upgrader = Upgrader(pg_service, table, delta_dirs, variables=variables, max_version=max_version)
-            upgrader.run()
+            upgrader.run(verbose=verbose)
 
         except Exception as e:
             print(e)
@@ -282,7 +284,7 @@ class Pum:
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
             table, delta_dirs, ignore_list, exclude_schema,
-            ignore_restore_errors=False, variables=None, max_version=None):
+            ignore_restore_errors, variables, max_version, verbose):
         """
         Do the following steps:
             - creates a dump of the production db
@@ -322,6 +324,8 @@ class Pum:
             dictionary for variables to be used in SQL deltas ( name => value )
         max_version: str
             Maximum (including) version to run the deltas up to.
+        verbose: bool
+            Whether to display extra information
 
         Returns
         -------
@@ -338,8 +342,7 @@ class Pum:
         self.run_restore(pg_service_test, file, ignore_restore_errors)
 
         # Apply deltas on db test
-        self.run_upgrade(pg_service_test, table, delta_dirs, variables,
-                         max_version)
+        self.run_upgrade(pg_service_test, table, delta_dirs, variables, max_version, verbose)
 
         # Compare db test with db comp
         check_result = self.run_check(
@@ -350,8 +353,7 @@ class Pum:
 
         if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
                 pg_service_prod)):
-            self.run_upgrade(pg_service_prod, table, delta_dirs, variables,
-                             max_version)
+            self.run_upgrade(pg_service_prod, table, delta_dirs, variables, max_version, verbose)
 
         self.__out('OK', 'OKGREEN')
 
@@ -484,7 +486,8 @@ if __name__ == "__main__":
         '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
                                      'Format is: (string|float|int) name value. ',
         action='append', required=False)
-
+    parser_upgrade.add_argument(
+        '-vv', '--verbose', action='store_true', help='Display extra information')
 
     # create the parser for the "test-and-upgrade" command
     parser_test_and_upgrade = subparsers.add_parser(
@@ -529,6 +532,8 @@ if __name__ == "__main__":
         '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
                                      'Format is: (string|float|int) name value.',
         action='append', required=False)
+    parser_test_and_upgrade.add_argument(
+        '-vv', '--verbose', action='store_true', help='Display extra information')
 
     args = parser.parse_args()
 
@@ -569,13 +574,13 @@ if __name__ == "__main__":
     elif args.command == 'info':
         pum.run_info(args.pg_service, args.table, args.dir)
     elif args.command == 'upgrade':
-        pum.run_upgrade(args.pg_service, args.table, args.dir, variables,
-                        args.max_version)
+        pum.run_upgrade(args.pg_service, args.table, args.dir, variables, args.max_version,
+                        args.verbose)
     elif args.command == 'test-and-upgrade':
         success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
             args.file, args.table, args.dir, args.ignore, args.exclude_schema,
-            args.x, variables, args.max_version)
+            args.x, variables, args.max_version, args.verbose)
         if not success:
             exitval = 1
 
