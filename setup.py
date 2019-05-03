@@ -1,7 +1,7 @@
 from setuptools import setup
 import sys
-if sys.version_info < (3,6):
-    sys.exit('Pum requires at least Python version 3.6.\nYou are currently running this installation with\n\n{}'.format(sys.version))
+if sys.version_info < (3,3):
+    sys.exit('Pum requires at least Python version 3.3.\nYou are currently running this installation with\n\n{}'.format(sys.version))
 
 setup(
     name = 'pum',
@@ -36,5 +36,5 @@ setup(
         'psycopg2-binary>=2.7.3',
         'PyYAML'
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.3",
 )
