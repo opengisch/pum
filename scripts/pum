@@ -249,8 +249,7 @@ class Pum:
             print(e)
             exit(1)
 
-    def run_upgrade(self, pg_service, table, delta_dirs, variables=None, max_version=None,
-                    verbose=False):
+    def run_upgrade(self, pg_service, table, delta_dirs, variables, max_version, verbose):
         """Apply the delta files to upgrade the database
 
         Parameters
