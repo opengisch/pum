@@ -154,7 +154,7 @@ class Pum:
             exit(1)
         self.__out('OK', 'OKGREEN')
 
-    def run_restore(self, pg_service, file, ignore_restore_errors=False, exclude_schema=None):
+    def run_restore(self, pg_service, file, ignore_restore_errors, exclude_schema=None):
         """
         Run the dump command
 
