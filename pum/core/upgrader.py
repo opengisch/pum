@@ -12,7 +12,6 @@ import psycopg2.extras
 from hashlib import md5
 import importlib.util
 import inspect
-from enum import IntFlag
 
 from .deltapy import DeltaPy
 
@@ -481,7 +480,7 @@ class Upgrader:
         return self.cursor.fetchone()[0]
 
 
-class DeltaType(IntFlag):
+class DeltaType:
     PRE = 1
     POST = 2
 
