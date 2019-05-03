@@ -58,8 +58,8 @@ class Pum:
         self.pg_dump_exe = configs['pg_dump_exe']
         self.pg_restore_exe = configs['pg_restore_exe']
 
-    def run_check(self, pg_service1, pg_service2, ignore_list=None,
-                  exclude_schema=None, verbose_level=1, output_file=None):
+    def run_check(self, pg_service1, pg_service2, ignore_list,
+                  exclude_schema, verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
