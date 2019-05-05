@@ -377,33 +377,6 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
     def variables(self):
         """Return the dictionary of variables"""
         
-    def variable(self, name: str):
-        """
-        Returns the value of the variable given in PUM
-
-        Parameters
-        ----------
-        name
-            the name of the variable
-
-        Raises
-        ------
-        KeyError
-            if the variable is not found.
-        """
-
-    def variable(self, name: str, default_value=None):
-        """
-        Safely returns the value of the variable given in PUM
-
-        Parameters
-        ----------
-        name
-            the name of the variable
-        default_value
-            the default value for the variable if it does not exist
-        """
-
     @property
     def current_db_version(self):
         """Return the current db version"""
@@ -459,7 +432,7 @@ class Prova(DeltaPy):
         table = self.upgrades_table
         
         # access to a variable given in command line
-        srid = self.variable('my_var_name')
+        srid = self.variables.get('srid', 4326)
 
         # if you want to print a message
         self.write_message('foo')
