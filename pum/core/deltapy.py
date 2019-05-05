@@ -15,16 +15,18 @@ class DeltaPy(metaclass=ABCMeta):
         ----------
         current_db_version: str
             The current db version
-        pg_service: str
-            The name of the postgres service (defined in pg_service.conf)
-            related to the db
-        upgrades_table: str
-            The name of the table (int the format schema.name) where the
-            information about the upgrades are stored
         delta_dir: str
             The path to the directory where this delta file is stored
         delta_dirs: list(str)
             The paths to directories where delta files are stored
+        pg_service: str
+            The name of the postgres service (defined in pg_service.conf)
+            related to the db
+        upgrades_table: str
+            The name of the table (in the format schema.name) where the
+            information about the upgrades is stored
+        variables: dict
+            The variables passed on the pum command line
         """
 
         self.__current_db_version = current_db_version
@@ -51,13 +53,18 @@ class DeltaPy(metaclass=ABCMeta):
 
         Parameters
         ----------
-        name
+        name: str
             the name of the variable
 
         Raises
         ------
         KeyError
-            if the variable is not found.
+            if the variable is not found
+
+        Returns
+        -------
+        str or int or float
+            The variable value
         """
         return self.__variables[name]
 
@@ -67,10 +74,15 @@ class DeltaPy(metaclass=ABCMeta):
 
         Parameters
         ----------
-        name
+        name: str
             the name of the variable
-        default_value
+        default_value: str or int or float
             the default value for the variable if it does not exist
+
+        Returns
+        -------
+        str or int or float
+            The variable value
         """
         return self.__variables.get(name, default_value)
 

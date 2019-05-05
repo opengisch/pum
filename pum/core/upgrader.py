@@ -35,7 +35,7 @@ class Upgrader:
                 informations about the upgrades are stored
             dirs: list(str)
                 The paths to directories where delta files are stored
-            variables: dictionary
+            variables: dict
                 dictionary for variables to be used in SQL deltas ( name => value )
             max_version: str
                 Maximum (including) version to run the deltas up to.
@@ -573,9 +573,11 @@ class Delta:
             return DeltaType.POST_SQL
 
     def get_priority(self) -> int:
-        """
-        Rerturns the priority of the file from 1 (pre) to 3 (post)
-        :return: the priority
+        """Return the priority of the file from 1 (pre) to 3 (post)
+
+        Returns
+        -------
+        type: int
         """
         dtype = self.get_type()
         if dtype & DeltaType.PRE:
