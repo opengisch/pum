@@ -547,7 +547,7 @@ if __name__ == "__main__":
         parser.print_help()
         parser.exit()
 
-    variables = dict()
+    variables = {}
     if args.command in ('upgrade', 'test-and-upgrade'):
         for v in args.var or ():
             if v[0] == 'float':
