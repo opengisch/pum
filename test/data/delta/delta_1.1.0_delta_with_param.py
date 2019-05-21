@@ -7,7 +7,7 @@ from pum.core.deltapy import DeltaPy
 class CreateViews(DeltaPy):
 
     def run(self):
-        my_field_length = self.variable('my_field_length')
+        my_field_length = self.variables['my_field_length']
 
         conn = psycopg2.connect("service={0}".format(self.pg_service))
         cursor = conn.cursor()

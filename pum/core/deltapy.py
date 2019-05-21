@@ -47,45 +47,6 @@ class DeltaPy(metaclass=ABCMeta):
         """Return the dictionary of variables"""
         return self.__variables
 
-    def variable(self, name: str):
-        """
-        Returns the value of the variable given in PUM
-
-        Parameters
-        ----------
-        name: str
-            the name of the variable
-
-        Raises
-        ------
-        KeyError
-            if the variable is not found
-
-        Returns
-        -------
-        str or int or float
-            The variable value
-        """
-        return self.__variables[name]
-
-    def variable(self, name: str, default_value=None):
-        """
-        Safely returns the value of the variable given in PUM
-
-        Parameters
-        ----------
-        name: str
-            the name of the variable
-        default_value: str or int or float
-            the default value for the variable if it does not exist
-
-        Returns
-        -------
-        str or int or float
-            The variable value
-        """
-        return self.__variables.get(name, default_value)
-
     @property
     def current_db_version(self):
         """Return the current db version"""
