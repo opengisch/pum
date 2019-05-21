@@ -290,7 +290,7 @@ class TestChecker(unittest.TestCase):
         result, differences = self.checker.check_rules()
         self.assertFalse(result)
 
-        checker2 = Checker(pg_service1, pg_service2, ['public'])
+        checker2 = Checker(pg_service1, pg_service2, exclude_schema=['public'])
         result, differences = checker2.check_rules()
         self.assertTrue(result)
 
