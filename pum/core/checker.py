@@ -48,7 +48,7 @@ class Checker:
             for schema in exclude_schema:
                 self.exclude_schema += ", '{}'".format(schema)
         self.exclude_schema += ")"
-        self.exclude_field_pattern = exclude_field_pattern
+        self.exclude_field_pattern = exclude_field_pattern or []
 
         self.verbose_level = verbose_level
 
