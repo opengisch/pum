@@ -58,7 +58,7 @@ class Pum:
         self.pg_dump_exe = configs['pg_dump_exe']
         self.pg_restore_exe = configs['pg_restore_exe']
 
-    def run_check(self, pg_service1, pg_service2, ignore_list=None,
+    def run_check(self, pg_service1, pg_service2, ignore_list,
                   exclude_schema, exclude_field_pattern,
                   verbose_level=1, output_file=None):
         """Run the check command
@@ -101,8 +101,8 @@ class Pum:
         try:
             checker = Checker(
                 pg_service1, pg_service2,
-                exclude_schema, exclude_field_pattern,
-                ignore_list, verbose_level)
+                exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern,
+                ignore_list=ignore_list, verbose_level=verbose_level)
             result, differences = checker.run_checks()
 
             if result:
@@ -289,7 +289,7 @@ class Pum:
 
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dirs, ignore_list, exclude_schema, exclude_field_pattern=None,
+            table, delta_dirs, ignore_list, exclude_schema, exclude_field_pattern,
             ignore_restore_errors, variables, max_version, verbose):
         """
         Do the following steps:
@@ -354,7 +354,8 @@ class Pum:
 
         # Compare db test with db comp
         check_result = self.run_check(
-            pg_service_test, pg_service_comp, ignore_list, exclude_schema, exclude_field_pattern)
+            pg_service_test, pg_service_comp,
+            ignore_list=ignore_list, exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern)
 
         if not check_result:
             return False
@@ -573,9 +574,9 @@ if __name__ == "__main__":
     pum = Pum(args.config_file)
 
     if args.command == 'check':
-        success = pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
-                                args.exclude_schema, args.exclude_field_pattern,
-                                args.verbose_level, args.output_file)
+        success = pum.run_check(args.pg_service1, args.pg_service2, ignore_list=args.ignore,
+                                exclude_schema=args.exclude_schema, exclude_field_pattern=args.exclude_field_pattern,
+                                verbose_level=args.verbose_level, output_file=args.output_file)
         if not success:
             exitval = 1
     elif args.command == 'dump':
