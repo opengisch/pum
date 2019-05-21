@@ -59,7 +59,8 @@ class Pum:
         self.pg_restore_exe = configs['pg_restore_exe']
 
     def run_check(self, pg_service1, pg_service2, ignore_list,
-                  exclude_schema, verbose_level=1, output_file=None):
+                  exclude_schema, exclude_field_pattern,
+                  verbose_level=1, output_file=None):
         """Run the check command
 
         Parameters
@@ -75,6 +76,8 @@ class Pum:
             views, ...)
         exclude_schema: list of strings
             List of schemas to be ignored in check.
+        exclude_field_pattern: list of strings
+            List of field patterns to be ignored in check.
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
@@ -93,10 +96,13 @@ class Pum:
             ignore_list = []
         if not exclude_schema:
             exclude_schema = []
+        if not exclude_field_pattern:
+            exclude_field_pattern = []
         try:
             checker = Checker(
                 pg_service1, pg_service2,
-                exclude_schema, ignore_list, verbose_level)
+                exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern,
+                ignore_list=ignore_list, verbose_level=verbose_level)
             result, differences = checker.run_checks()
 
             if result:
@@ -283,7 +289,7 @@ class Pum:
 
     def run_test_and_upgrade(
             self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dirs, ignore_list, exclude_schema,
+            table, delta_dirs, ignore_list, exclude_schema, exclude_field_pattern,
             ignore_restore_errors, variables, max_version, verbose):
         """
         Do the following steps:
@@ -318,6 +324,8 @@ class Pum:
             views, ...)
         exclude_schema: list of strings
             List of schemas to be ignored in check.
+        exclude_field_pattern: list of strings
+            List of field patterns to be ignored in check.
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
         variables: dict
@@ -346,7 +354,8 @@ class Pum:
 
         # Compare db test with db comp
         check_result = self.run_check(
-            pg_service_test, pg_service_comp, ignore_list, exclude_schema)
+            pg_service_test, pg_service_comp,
+            ignore_list=ignore_list, exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern)
 
         if not check_result:
             return False
@@ -417,6 +426,8 @@ if __name__ == "__main__":
                  'rules'])
     parser_check.add_argument(
         '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
+    parser_check.add_argument(
+        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.', action='append')
     parser_check.add_argument(
         '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
     parser_check.add_argument(
@@ -527,6 +538,8 @@ if __name__ == "__main__":
     parser_test_and_upgrade.add_argument(
         '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
     parser_test_and_upgrade.add_argument(
+        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.', action='append')
+    parser_test_and_upgrade.add_argument(
         '-u', '--max-version', help='upper bound limit version')
     parser_test_and_upgrade.add_argument(
         '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
@@ -561,8 +574,9 @@ if __name__ == "__main__":
     pum = Pum(args.config_file)
 
     if args.command == 'check':
-        success = pum.run_check(args.pg_service1, args.pg_service2, args.ignore,
-                                args.exclude_schema, args.verbose_level, args.output_file)
+        success = pum.run_check(args.pg_service1, args.pg_service2, ignore_list=args.ignore,
+                                exclude_schema=args.exclude_schema, exclude_field_pattern=args.exclude_field_pattern,
+                                verbose_level=args.verbose_level, output_file=args.output_file)
         if not success:
             exitval = 1
     elif args.command == 'dump':
@@ -579,7 +593,8 @@ if __name__ == "__main__":
     elif args.command == 'test-and-upgrade':
         success = pum.run_test_and_upgrade(
             args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
-            args.file, args.table, args.dir, args.ignore, args.exclude_schema,
+            args.file, args.table, args.dir, args.ignore,
+            args.exclude_schema, args.exclude_field_pattern,
             args.x, variables, args.max_version, args.verbose)
         if not success:
             exitval = 1

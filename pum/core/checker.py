@@ -12,7 +12,8 @@ class Checker:
 
     def __init__(
             self, pg_service1, pg_service2,
-            exclude_schema=None, ignore_list=None, verbose_level=1):
+            exclude_schema=None, exclude_field_pattern=None,
+            ignore_list=None, verbose_level=1):
         """Constructor
 
         Parameters
@@ -28,6 +29,8 @@ class Checker:
             views, ...)
         exclude_schema: list of strings
             List of schemas to be ignored in check.
+        exclude_field_pattern: list of strings
+            List of field patterns to be ignored in check.
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
@@ -45,6 +48,7 @@ class Checker:
             for schema in exclude_schema:
                 self.exclude_schema += ", '{}'".format(schema)
         self.exclude_schema += ")"
+        self.exclude_field_pattern = exclude_field_pattern or []
 
         self.verbose_level = verbose_level
 
@@ -134,34 +138,27 @@ class Checker:
             list
                 A list with the differences
         """
+        with_query = None
         if check_views:
-            query = """WITH table_list AS (
-                SELECT table_schema, table_name
-                FROM information_schema.tables
-                WHERE table_schema NOT IN {}
-                    AND table_schema NOT LIKE 'pg\_%'
-                ORDER BY table_schema,table_name
-                )
-                SELECT isc.table_schema, isc.table_name, column_name,
-                    column_default, is_nullable, data_type,
-                    character_maximum_length::text, numeric_precision::text,
-                    numeric_precision_radix::text, datetime_precision::text
-                FROM information_schema.columns isc,
-                table_list tl
-                WHERE isc.table_schema = tl.table_schema
-                    AND isc.table_name = tl.table_name
-                ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(self.exclude_schema)
+            with_query = """WITH table_list AS (
+                         SELECT table_schema, table_name
+                         FROM information_schema.tables
+                         WHERE table_schema NOT IN {es}
+                            AND table_schema NOT LIKE 'pg\_%'
+                         ORDER BY table_schema,table_name
+                         )""".format(es=self.exclude_schema)
 
         else:
-            query = """WITH table_list AS (
-                SELECT table_schema, table_name
-                FROM information_schema.tables
-                WHERE table_schema NOT IN {}
-                    AND table_schema NOT LIKE 'pg\_%'
-                    AND table_type NOT LIKE 'VIEW'
-                ORDER BY table_schema,table_name
-                )
+            with_query = """WITH table_list AS (
+                         SELECT table_schema, table_name
+                         FROM information_schema.tables
+                         WHERE table_schema NOT IN {es}
+                            AND table_schema NOT LIKE 'pg\_%'
+                            AND table_type NOT LIKE 'VIEW'
+                         ORDER BY table_schema,table_name
+                         )""".format(es=self.exclude_schema)
+
+        query = """{wq}
                 SELECT isc.table_schema, isc.table_name, column_name,
                     column_default, is_nullable, data_type,
                     character_maximum_length::text, numeric_precision::text,
@@ -170,8 +167,11 @@ class Checker:
                 table_list tl
                 WHERE isc.table_schema = tl.table_schema
                     AND isc.table_name = tl.table_name
+                    {efp}
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(self.exclude_schema)
+                """.format(wq=with_query,
+                           efp=''.join([" AND column_name NOT LIKE '{p}'".format(p=pattern)
+                                        for pattern in self.exclude_field_pattern]))
 
         return self.__check_equals(query)
 
