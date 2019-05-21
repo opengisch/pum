@@ -152,7 +152,7 @@ class Checker:
             with_query = """WITH table_list AS (
                          SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {}
+                         WHERE table_schema NOT IN {es}
                             AND table_schema NOT LIKE 'pg\_%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
@@ -170,7 +170,7 @@ class Checker:
                     {efp}
                 ORDER BY isc.table_schema, isc.table_name, column_name
                 """.format(wq=with_query,
-                           efp=[' AND column_name NOT LIKE {p}'.format(p=pattern) for pattern in self.exclude_field_pattern])
+                           efp=[" AND column_name NOT LIKE '{p}'".format(p=pattern) for pattern in self.exclude_field_pattern])
 
         return self.__check_equals(query)
 
