@@ -128,6 +128,8 @@ optional arguments:
                         Elements to be ignored
   -N SCHEMA [SCHEMA...], --exclude-schema SCHEMA [SCHEMA...]
                         Schema to be skipped.
+  -P PATTERN, --exclude-field-pattern PATTERN
+                        A field pattern which should be ignored in column checking
   -v VERBOSE_LEVEL, --verbose_level VERBOSE_LEVEL
                         Verbose level (0, 1 or 2)
   -o OUTPUT_FILE, --output_file OUTPUT_FILE
@@ -313,6 +315,8 @@ optional arguments:
                         Assign variable for running SQL deltas. TYPE is one of int, float, str.
   -N SCHEMA, --exclude-schema SCHEMA
                         Schema to be skipped.
+  -P PATTERN, --exclude-field-pattern PATTERN
+                        A field pattern which should be ignored in column checking
 ```
 
 ## Delta files
