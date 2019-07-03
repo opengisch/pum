@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import argparse
+import sys
 
 import yaml
 import psycopg2
@@ -386,13 +387,10 @@ class Pum:
             print(message)
 
 
-if __name__ == "__main__":
+def create_parser() -> argparse.ArgumentParser:
     """
-    Main process
+    Creates the main parser with its sub-parsers
     """
-
-    # TODO refactor and set p1 and p2 as positional args, and uniform args
-
     # create the top-level parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -427,7 +425,8 @@ if __name__ == "__main__":
     parser_check.add_argument(
         '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
     parser_check.add_argument(
-        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.', action='append')
+        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.',
+        action='append')
     parser_check.add_argument(
         '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
     parser_check.add_argument(
@@ -538,7 +537,8 @@ if __name__ == "__main__":
     parser_test_and_upgrade.add_argument(
         '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
     parser_test_and_upgrade.add_argument(
-        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.', action='append')
+        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.',
+        action='append')
     parser_test_and_upgrade.add_argument(
         '-u', '--max-version', help='upper bound limit version')
     parser_test_and_upgrade.add_argument(
@@ -547,6 +547,13 @@ if __name__ == "__main__":
         action='append', required=False)
     parser_test_and_upgrade.add_argument(
         '-vv', '--verbose', action='store_true', help='Display extra information')
+
+    return parser
+
+
+def main():
+    # TODO refactor and set p1 and p2 as positional args, and uniform args
+    parser = create_parser()
 
     args = parser.parse_args()
 
@@ -570,7 +577,7 @@ if __name__ == "__main__":
             else:
                 variables[v[1]] = v[2]
 
-    exitval = 0
+    exit_code = 0
     pum = Pum(args.config_file)
 
     if args.command == 'check':
@@ -578,7 +585,7 @@ if __name__ == "__main__":
                                 exclude_schema=args.exclude_schema, exclude_field_pattern=args.exclude_field_pattern,
                                 verbose_level=args.verbose_level, output_file=args.output_file)
         if not success:
-            exitval = 1
+            exit_code = 1
     elif args.command == 'dump':
         pum.run_dump(args.pg_service, args.file, args.exclude_schema)
     elif args.command == 'restore':
@@ -597,6 +604,17 @@ if __name__ == "__main__":
             args.exclude_schema, args.exclude_field_pattern,
             args.x, variables, args.max_version, args.verbose)
         if not success:
-            exitval = 1
+            exit_code = 1
 
-    exit(exitval)
+    return exit_code
+
+
+if __name__ == "__main__":
+    """
+    Main process
+    """
+    _exit_code = main()
+    exit(_exit_code)
+
+
+

@@ -1,5 +1,6 @@
 from setuptools import setup
 import sys
+
 if sys.version_info < (3,3):
     sys.exit('Pum requires at least Python version 3.3.\nYou are currently running this installation with\n\n{}'.format(sys.version))
 
@@ -10,15 +11,17 @@ setup(
         'pum/core',
         'pum/utils'
     ],
-    scripts = [
-        'scripts/pum'
-    ],
+    entry_points={
+        'console_scripts': [
+            'pum = scripts.pum:main'
+        ]
+    },
     version = '[VERSION]',
     description = 'Postgres upgrade manager',
     author = 'Mario Baranzini',
     author_email = 'mario@opengis.ch',
     url = 'https://github.com/opengisch/pum',
-    download_url = 'https://github.com/opengisch/pum/archive/[VERSION].tar.gz', # I'll explain this in a second
+    download_url = 'https://github.com/opengisch/pum/archive/[VERSION].tar.gz',
     keywords = [
         'postgres',
         'migration',
