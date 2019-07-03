@@ -5,6 +5,8 @@ from __future__ import print_function
 import subprocess
 from distutils.version import LooseVersion
 
+from pum.core.exceptions import PgDumpFailed, PgDumpCommandError, PgRestoreFailed, PgRestoreCommandError
+
 
 class Dumper:
     """This class is used to dump and restore a Postgres database."""
@@ -32,7 +34,12 @@ class Dumper:
         if exclude_schema:
             command.append(' '.join("--exclude-schema={}".format(schema) for schema in exclude_schema))
 
-        subprocess.check_output(command, stderr=subprocess.STDOUT)
+        try:
+            output = subprocess.run(command, capture_output=True, text=True)
+            if output.returncode != 0:
+                raise PgDumpFailed(output.stderr)
+        except TypeError as e:
+            raise PgDumpCommandError('invalid command: {}'.format(' '.join(filter(None, command))))
 
     def pg_restore(self, pg_restore_exe='pg_restore', exclude_schema=None):
         """Call the pg_restore command to restore a db backup
@@ -62,6 +69,8 @@ class Dumper:
         command.append(self.file)
 
         try:
-            subprocess.check_output(command)
-        except subprocess.CalledProcessError as e:
-            print("*** pg_restore failed:\n", command, '\n', e.stderr)
+            output = subprocess.run(command, capture_output=True, text=True)
+            if output.returncode != 0:
+                raise PgRestoreFailed(output.stderr)
+        except TypeError as e:
+            raise PgRestoreCommandError('invalid command: {}'.format(' '.join(filter(None, command))))
