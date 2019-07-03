@@ -1,6 +1,6 @@
 cp .deploy/pypirc_template ~/.pypirc
 
-sed -i scripts/pum -e "s/\[DEV\]/${TRAVIS_TAG}/g"
+sed -i scripts/pum.py -e "s/\[DEV\]/${TRAVIS_TAG}/g"
 
 sed -i ~/.pypirc -e "s/\[PYPI_USER\]/${PYPI_USER}/g"
 sed -i ~/.pypirc -e "s/\[PYPI_PASSWORD\]/${PYPI_PASSWORD}/g"
