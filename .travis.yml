@@ -15,7 +15,7 @@ install: pip install -r requirements.txt
 
 script:
   - ./.ci/setup_db.sh
-  - nosetests -v
+  - nose2 -v
   - ./test/test_pum.sh
 
 deploy:
