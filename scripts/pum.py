@@ -6,7 +6,7 @@ import argparse
 
 import yaml
 import psycopg2
-import subprocess
+import os
 
 from pum.core.checker import Checker
 from pum.core.dumper import Dumper
@@ -22,8 +22,8 @@ class Pum:
         self.delta_dirs = None
         self.backup_file = None
         self.ignore_list = None
-        self.pg_dump_exe = None
-        self.pg_restore_exe = None
+        self.pg_dump_exe = os.environ.get('PG_DUMP_EXE')
+        self.pg_restore_exe = os.environ.get('PG_RESTORE_EXE')
 
         if config_file:
             self.__load_config_file(config_file)
