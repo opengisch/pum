@@ -11,7 +11,9 @@ env:
   global:
     - PGUSER=postgres
 
-install: pip install -r requirements.txt
+install:
+  - pip install -r requirements.txt
+  - python setup.py install
 
 script:
   - ./.ci/setup_db.sh
