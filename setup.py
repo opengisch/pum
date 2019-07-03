@@ -9,7 +9,8 @@ setup(
     packages = [
         'pum',
         'pum/core',
-        'pum/utils'
+        'pum/utils',
+        'scripts'
     ],
     entry_points={
         'console_scripts': [
