@@ -6,11 +6,12 @@ import argparse
 
 import yaml
 import psycopg2
-import subprocess
+import os
 
 from pum.core.checker import Checker
 from pum.core.dumper import Dumper
 from pum.core.upgrader import Upgrader
+from pum.core.exceptions import PgDumpCommandError, PgDumpFailed, PgRestoreCommandError, PgRestoreFailed
 from pum.utils.utils import ask_for_confirmation, Bcolors
 
 
@@ -21,8 +22,8 @@ class Pum:
         self.delta_dirs = None
         self.backup_file = None
         self.ignore_list = None
-        self.pg_dump_exe = None
-        self.pg_restore_exe = None
+        self.pg_dump_exe = os.environ.get('PG_DUMP_EXE')
+        self.pg_restore_exe = os.environ.get('PG_RESTORE_EXE')
 
         if config_file:
             self.__load_config_file(config_file)
@@ -46,17 +47,17 @@ class Pum:
         ----------
         configs: dict
             Dictionary of configurations
-            """
+        """
 
-        if not isinstance(configs['delta_dir'], list):
-            configs['delta_dir'] = [configs['delta_dir']]
+        self.upgrades_table = configs.get('upgrades_table')
+        self.delta_dirs = configs.get('delta_dirs')
+        self.backup_file = configs.get('backup_file')
+        self.ignore_list = configs.get('ignore_elements')
+        self.pg_dump_exe = configs.get('pg_dump_exe')
+        self.pg_restore_exe = configs.get('pg_restore_exe')
 
-        self.upgrades_table = configs['upgrades_table']
-        self.delta_dirs = configs['delta_dirs']
-        self.backup_file = configs['backup_file']
-        self.ignore_list = configs['ignore_elements']
-        self.pg_dump_exe = configs['pg_dump_exe']
-        self.pg_restore_exe = configs['pg_restore_exe']
+        if self.delta_dirs and not isinstance(self.delta_dirs, list):
+            self.delta_dirs = [self.delta_dirs]
 
     def run_check(self, pg_service1, pg_service2, ignore_list,
                   exclude_schema, exclude_field_pattern,
@@ -150,11 +151,7 @@ class Pum:
                 dumper.pg_backup(pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema)
             else:
                 dumper.pg_backup(exclude_schema=exclude_schema)
-        except subprocess.CalledProcessError as e:
-            self.__out('ERROR', 'FAIL')
-            self.__out(e.output)
-            exit(1)
-        except Exception as e:
+        except (PgDumpFailed, PgDumpCommandError) as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0])
             exit(1)
@@ -183,15 +180,15 @@ class Pum:
                 dumper.pg_restore(pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema)
             else:
                 dumper.pg_restore(exclude_schema=exclude_schema)
-        except subprocess.CalledProcessError as e:
+        except PgRestoreFailed as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.output)
-
-            # this is useful for a postgis 2.2.0's bug
+            # one might want to handle exit on error
             if ignore_restore_errors:
                 return
-            exit(1)
-        except Exception as e:
+            else:
+                exit(1)
+        except PgRestoreCommandError as e:
             self.__out('ERROR', 'FAIL')
             self.__out(e.args[0])
             exit(1)
