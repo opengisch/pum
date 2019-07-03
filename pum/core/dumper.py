@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
-
+import sys
 import subprocess
 from distutils.version import LooseVersion
 
@@ -35,7 +34,10 @@ class Dumper:
             command.append(' '.join("--exclude-schema={}".format(schema) for schema in exclude_schema))
 
         try:
-            output = subprocess.run(command, capture_output=True, text=True)
+            if sys.version_info[1] < 7:
+                output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            else:
+                output = subprocess.run(command, capture_output=True, text=True)
             if output.returncode != 0:
                 raise PgDumpFailed(output.stderr)
         except TypeError as e:
@@ -69,7 +71,10 @@ class Dumper:
         command.append(self.file)
 
         try:
-            output = subprocess.run(command, capture_output=True, text=True)
+            if sys.version_info[1] < 7:
+                output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            else:
+                output = subprocess.run(command, capture_output=True, text=True)
             if output.returncode != 0:
                 raise PgRestoreFailed(output.stderr)
         except TypeError as e:
