@@ -182,7 +182,7 @@ class Pum:
                 dumper.pg_restore(exclude_schema=exclude_schema)
         except PgRestoreFailed as e:
             self.__out('ERROR', 'FAIL')
-            self.__out(e.output)
+            self.__out(str(e))
             # one might want to handle exit on error
             if ignore_restore_errors:
                 return
