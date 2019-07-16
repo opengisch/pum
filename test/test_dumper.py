@@ -6,6 +6,8 @@ import psycopg2
 import psycopg2.extras
 
 from pum.core.dumper import Dumper
+from pum.core.exceptions import PgRestoreFailed
+from scripts import pum
 
 
 class TestDumper(unittest.TestCase):
@@ -40,7 +42,7 @@ class TestDumper(unittest.TestCase):
             CREATE SCHEMA test_dumper;
             CREATE TABLE test_dumper.dumper_table
                 (
-                id serial NOT NULL,
+                id serial NOT NULL PRIMARY KEY,
                 version character varying(50),
                 description character varying(200) NOT NULL,
                 type integer NOT NULL
@@ -67,9 +69,39 @@ class TestDumper(unittest.TestCase):
         dumper.pg_restore()
 
         # postgres > 9.4
-        self.cur2.execute(
-            "SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
+        self.cur2.execute("SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
         self.assertIsNotNone(self.cur2.fetchone()[0])
+
+    def test_restore_ignore_errors(self):
+        self.cur2.execute("""CREATE SCHEMA test_dumper;""")
+        self.conn2.commit()
+
+        file = '/tmp/test_dumper/dump_ie.sql'
+
+        dumper = Dumper(self.pg_service1, file)
+        dumper.pg_backup(exclude_schema=['public'])
+
+        dumper = Dumper(self.pg_service2, file)
+        try:
+            dumper.pg_restore()
+            self.assertTrue(False)
+        except PgRestoreFailed:
+            pass
+
+        self.cur2.execute("""DROP SCHEMA IF EXISTS test_dumper CASCADE;""")
+        self.conn2.commit()
+        self.cur2.execute("""CREATE SCHEMA test_dumper;""")
+        self.conn2.commit()
+
+        pum.Pum().run_restore(self.pg_service2, file, True, ['public'])
+
+        self.cur2.execute("SELECT to_regclass('{}');".format('test_dumper.dumper_table'))
+        self.assertIsNotNone(self.cur2.fetchone()[0])
+
+
+
+
+        
 
 if __name__ == '__main__':
     unittest.main()
