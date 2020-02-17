@@ -67,7 +67,7 @@ class Upgrader:
                     d.get_name(), d.get_version(), d.get_type()))
                 print('     Already applied: ', self.__is_applied(d))
                 print('     Version greather or equal than current: ',
-                      d.get_version() >= db_version)
+                      d.get_version() > db_version)
             if not self.__is_applied(d) and d.get_version() > db_version and \
                     (self.max_version is None or d.get_version() <= self.max_version):
                 print('     Applying delta {} {}...'.format(
