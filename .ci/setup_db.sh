@@ -10,7 +10,10 @@ else
 fi
 
 for pgsrv in pum_test_1 pum_test_2 pum_test_3; do
+  echo "DEBUGGING A: $PGSERVICE_FILE"
   printf "[${pgsrv}]\nhost=localhost\ndbname=${pgsrv}\nuser=postgres\n\n" >> "$PGSERVICE_FILE"
+  echo "DEBUGGING B"
+  printf "[${pgsrv}]\nhost=localhost\ndbname=${pgsrv}\nuser=postgres\n\n" >> ~/.pg_service.conf
   dropdb --if-exists ${pgsrv}
   createdb ${pgsrv}
 done
