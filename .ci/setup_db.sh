@@ -4,7 +4,7 @@ export PGUSER=postgres
 
 # determine the pg_service conf file location
 if [ -z "$PGSYSCONFDIR" ]; then
-    PGSERVICE_FILE="~/.pg_service.conf"
+    PGSERVICE_FILE="$HOME/.pg_service.conf"
 else
     PGSERVICE_FILE="$PGSYSCONFDIR/pg_service.conf"
 fi
