@@ -31,7 +31,7 @@ class Dumper:
             'service={}'.format(self.pg_service)
             ]
         if exclude_schema:
-            command.append(' '.join("--exclude-schema={}".format(schema) for schema in exclude_schema))
+            command.insert(-1, ' '.join("--exclude-schema={}".format(schema) for schema in exclude_schema))
 
         try:
             if sys.version_info[1] < 7:

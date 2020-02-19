@@ -1,6 +1,7 @@
 import os
 import shutil
 import unittest
+import tempfile
 
 import psycopg2
 import psycopg2.extras
@@ -26,6 +27,9 @@ class TestDumper(unittest.TestCase):
         self.cur2.execute('DROP SCHEMA IF EXISTS test_dumper CASCADE;')
         self.conn2.commit()
         self.conn2.close()
+
+        self.tmpdir.cleanup()
+        self.tmp = None
 
     def setUp(self):
         self.pg_service1 = 'pum_test_1'
@@ -54,18 +58,16 @@ class TestDumper(unittest.TestCase):
             DROP SCHEMA IF EXISTS test_dumper CASCADE;""")
         self.conn2.commit()
 
-        try:
-            shutil.rmtree('/tmp/test_dumper')
-        except Exception:
-            pass
-
-        os.mkdir('/tmp/test_dumper/')
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.tmp = self.tmpdir.name
 
     def test_dump_restore(self):
-        dumper = Dumper(self.pg_service1, '/tmp/test_dumper/dump.sql')
+        os.makedirs(self.tmp + '/test_dumper/', exist_ok=True)
+
+        dumper = Dumper(self.pg_service1, self.tmp + '/test_dumper/dump.sql')
         dumper.pg_backup(exclude_schema=['public'])
 
-        dumper = Dumper(self.pg_service2, '/tmp/test_dumper/dump.sql')
+        dumper = Dumper(self.pg_service2, self.tmp + '/test_dumper/dump.sql')
         dumper.pg_restore()
 
         # postgres > 9.4
@@ -76,7 +78,9 @@ class TestDumper(unittest.TestCase):
         self.cur2.execute("""CREATE SCHEMA test_dumper;""")
         self.conn2.commit()
 
-        file = '/tmp/test_dumper/dump_ie.sql'
+        os.makedirs(self.tmp + '/test_dumper', exist_ok=True)
+
+        file = self.tmp + '/test_dumper/dump_ie.sql'
 
         dumper = Dumper(self.pg_service1, file)
         dumper.pg_backup(exclude_schema=['public'])
