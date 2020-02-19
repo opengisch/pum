@@ -1,0 +1,67 @@
+name: Testing Windows
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Testing Windows
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        pg_major: [96]
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      PGSYSCONFDIR: .
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: "3.x"
+
+      # Adapted from https://github.com/npgsql/npgsql/actions/runs/33087254/workflow#L28-L66
+      # alternatively we could use postgres-windows docker images (stellirin/postgres-windows:9.6)
+      - name: Start PostgreSQL ${{ matrix.pg_major }} (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          # Find EnterpriseDB version number
+          EDB_VERSION=$(\
+            curl -Ls 'http://sbp.enterprisedb.com/applications.xml' |
+            sed -n '\#<id>postgresql_${{ matrix.pg_major }}</id>#{n;p;n;p;}' |
+            sed -n '\#<platform>windows-x64</platform>#{n;p;}' |
+            sed -E 's#.*<version>([^<]+)</version>#\1#')
+          # Install PostgreSQL
+          echo "Installing PostgreSQL (version: ${EDB_VERSION})"
+          curl -o pgsql.zip -L https://get.enterprisedb.com/postgresql/postgresql-${EDB_VERSION}-windows-x64-binaries.zip
+          unzip pgsql.zip -x 'pgsql/include/**' 'pgsql/doc/**' 'pgsql/pgAdmin 4/**' 'pgsql/StackBuilder/**'
+          # Start PostgreSQL
+          pgsql/bin/initdb -D pgsql/PGDATA -E UTF8 -U postgres
+          pgsql/bin/pg_ctl -D pgsql/PGDATA -l logfile start
+        shell: bash
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pum
+        run: python -m pip install .
+
+      # see https://github.community/t5/GitHub-Actions/Append-PATH-on-Windows/m-p/42873/highlight/true#M5155
+      - name: Add psql/bin path
+        run: echo "##[add-path].\pgsql\bin"
+
+      - name: Setup db
+        shell: bash
+        run: ./.ci/setup_db.sh
+
+      - name: Run base tests
+        run: nose2 -v
+
+      - name: Run migrations tests
+        shell: bash
+        run: ./test/test_pum.sh
