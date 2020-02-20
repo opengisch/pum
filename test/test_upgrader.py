@@ -1,6 +1,7 @@
 import os
 import shutil
 import unittest
+import tempfile
 
 import psycopg2
 import psycopg2.extras
@@ -20,6 +21,9 @@ class TestUpgrader(unittest.TestCase):
         self.cur1.execute('DROP SCHEMA IF EXISTS test_upgrader CASCADE;')
         self.conn1.commit()
         self.conn1.close()
+
+        self.tmpdir.cleanup()
+        self.tmp = None
 
     def setUp(self):
         pg_service1 = 'pum_test_1'
@@ -48,32 +52,29 @@ class TestUpgrader(unittest.TestCase):
             """.format(self.upgrades_table))
         self.conn1.commit()
 
-        try:
-            shutil.rmtree('/tmp/pum_deltas_1')
-            shutil.rmtree('/tmp/pum_deltas_2')
-        except OSError:
-            pass
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.tmp = self.tmpdir.name
 
-        os.mkdir('/tmp/pum_deltas_1/')
-        os.mkdir('/tmp/pum_deltas_2/')
+        os.mkdir(self.tmp + '/pum_deltas_1/')
+        os.mkdir(self.tmp + '/pum_deltas_2/')
 
-        with open('/tmp/pum_deltas_1/delta_0.0.1_0.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_0.sql', 'w+') as f:
             f.write('DROP TABLE IF EXISTS test_upgrader.bar;')
             f.write(
                 'CREATE TABLE test_upgrader.bar '
                 '(id smallint, value integer, name varchar(100));')
 
-        with open('/tmp/pum_deltas_1/delta_0.0.1_a.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_a.sql', 'w+') as f:
             f.write('SELECT 2;')
 
-        with open('/tmp/pum_deltas_1/delta_0.0.1_1.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_1.sql', 'w+') as f:
             f.write('SELECT 1;')
 
-        with open('/tmp/pum_deltas_2/delta_0.0.1_0.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_2/delta_0.0.1_0.sql', 'w+') as f:
             f.write('SELECT 3;')
 
         self.upgrader = Upgrader(
-            pg_service1, self.upgrades_table, ['/tmp/pum_deltas_1/', '/tmp/pum_deltas_2/'])
+            pg_service1, self.upgrades_table, [self.tmp + '/pum_deltas_1/', self.tmp + '/pum_deltas_2/'])
         self.upgrader.set_baseline('0.0.1')
 
     def test_upgrader_run(self):
@@ -163,8 +164,8 @@ class TestUpgrader(unittest.TestCase):
         self.assertEqual(delta.get_name(), 'foo')
 
     def test_delta_get_checksum(self):
-        file = open('/tmp/foo.bar', 'w+')
-        delta = Delta('/tmp/foo.bar')
+        file = open(self.tmp + '/foo.bar', 'w+')
+        delta = Delta(self.tmp + '/foo.bar')
         self.assertEqual(
             delta.get_checksum(), 'd41d8cd98f00b204e9800998ecf8427e')
         file.write('The quick brown fox jumps over the lazy dog')

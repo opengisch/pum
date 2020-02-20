@@ -56,6 +56,10 @@ Whenever you use pum you will need to activate the virtual environment prior to 
 source ~/.venv/pum/bin/activate
 ```
 
+### Dependencies
+
+Pum depends on python3 and postgresql (specifically `pg_restore` and `pg_dump`). Make sure to read the [config file section](#Config%20file) below if you're on Windows.
+
 ## History
 
 Pum has been developed to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
@@ -454,6 +458,8 @@ In the config file db_manager_config.yaml, you have to define, with the YAML syn
 - **backup_file**: the temporary db dump file used to copy the prod db to a test db
 - **ignore_elements**: list of elements to ignore in db compare. Valid elements: tables, columns,
 constraints, views, sequences, indexes, triggers, functions or rules
+- **pg_dump_exe**: the command to run pg_dump, needs to be adjusted if the executable is not in your path
+- **pg_restore_exe**: the command to run pg_restore, needs to be adjusted if the executable is not in your path
 
 For example:               
 ```yaml
@@ -473,3 +479,9 @@ ignore_elements:
 pg_dump_exe: pg_dump
 pg_restore_exe: pg_restore
 ```                                                                              
+
+On Windows, pg_dump and pg_restore aren't on your path by default, so the last two lines would look like this (adjust path to the installation path of PostreSQL) :
+```yaml
+pg_dump_exe: C:\Program Files\PostgreSQL\9.3\bin\pg_dump.exe
+pg_restore_exe: C:\Program Files\PostgreSQL\9.3\bin\pg_restore.exe
+```
