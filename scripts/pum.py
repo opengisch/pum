@@ -7,6 +7,7 @@ import argparse
 import yaml
 import psycopg2
 import os
+import sys
 
 from pum.core.checker import Checker
 from pum.core.dumper import Dumper
@@ -366,19 +367,26 @@ class Pum:
         return True
 
     def __out(self, message, type='DEFAULT'):
-        # print output of the commands
-        if type == 'WAITING':
-            print(Bcolors.WAITING + message + Bcolors.ENDC, end='')
-        elif type == 'OKGREEN':
-            print(Bcolors.OKGREEN + message + Bcolors.ENDC)
-        elif type == 'WARNING':
-            print(Bcolors.WARNING + message + Bcolors.ENDC)
-        elif type == 'FAIL':
-            print(Bcolors.FAIL + message + Bcolors.ENDC)
-        elif type == 'BOLD':
-            print(Bcolors.BOLD + message + Bcolors.ENDC)
-        elif type == 'UNDERLINE':
-            print(Bcolors.UNDERLINE + message + Bcolors.ENDC)
+
+        # taken from django
+        supported_platform = sys.platform != 'win32' or 'ANSICON' in os.environ
+
+            # print output of the commands
+        if supported_platform:
+            if type == 'WAITING':
+                print(Bcolors.WAITING + message + Bcolors.ENDC, end='')
+            elif type == 'OKGREEN':
+                print(Bcolors.OKGREEN + message + Bcolors.ENDC)
+            elif type == 'WARNING':
+                print(Bcolors.WARNING + message + Bcolors.ENDC)
+            elif type == 'FAIL':
+                print(Bcolors.FAIL + message + Bcolors.ENDC)
+            elif type == 'BOLD':
+                print(Bcolors.BOLD + message + Bcolors.ENDC)
+            elif type == 'UNDERLINE':
+                print(Bcolors.UNDERLINE + message + Bcolors.ENDC)
+            else:
+                print(message)
         else:
             print(message)
 
