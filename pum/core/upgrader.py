@@ -7,6 +7,7 @@ import os
 from os import listdir
 from os.path import isfile, join, basename, dirname
 from collections import OrderedDict
+import pkg_resources
 import psycopg2
 import psycopg2.extras
 from hashlib import md5
@@ -46,7 +47,7 @@ class Upgrader:
         self.upgrades_table = upgrades_table
         self.dirs = dirs
         self.variables = variables
-        self.max_version = max_version
+        self.max_version = pkg_resources.parse_version(max_version) if max_version else None
 
     def run(self, verbose=False):
         if not self.exists_table_upgrades():
@@ -477,7 +478,7 @@ class Upgrader:
 
         self.cursor.execute(query)
 
-        return self.cursor.fetchone()[0]
+        return pkg_resources.parse_version(self.cursor.fetchone()[0])
 
 
 class DeltaType:
@@ -537,7 +538,7 @@ class Delta:
 
     def get_version(self):
         """Return the version of the delta file."""
-        return self.match.group(2)
+        return pkg_resources.parse_version(self.match.group(2))
 
     def get_name(self):
         """Return the name (description) of the delta file."""

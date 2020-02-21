@@ -124,13 +124,13 @@ class TestUpgrader(unittest.TestCase):
 
     def test_delta_get_version(self):
         delta = Delta('delta_0.0.0_17072017.sql')
-        self.assertEqual(delta.get_version(), '0.0.0')
+        self.assertEqual(str(delta.get_version()), '0.0.0')
 
         delta = Delta('delta_1.2.3_17072017.pre.sql')
-        self.assertEqual(delta.get_version(), '1.2.3')
+        self.assertEqual(str(delta.get_version()), '1.2.3')
 
         delta = Delta('delta_100.002.9999_17072017.post.sql')
-        self.assertEqual(delta.get_version(), '100.002.9999')
+        self.assertEqual(str(delta.get_version()), '100.2.9999')
 
     def test_delta_get_name(self):
         delta = Delta('delta_0.0.0_17072017.sql')
