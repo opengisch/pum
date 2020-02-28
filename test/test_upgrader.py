@@ -58,19 +58,19 @@ class TestUpgrader(unittest.TestCase):
         os.mkdir(self.tmp + '/pum_deltas_1/')
         os.mkdir(self.tmp + '/pum_deltas_2/')
 
-        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_0.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_1/delta_0.0.2_0.sql', 'w+') as f:
             f.write('DROP TABLE IF EXISTS test_upgrader.bar;')
             f.write(
                 'CREATE TABLE test_upgrader.bar '
                 '(id smallint, value integer, name varchar(100));')
 
-        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_a.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_1/delta_0.0.2_a.sql', 'w+') as f:
             f.write('SELECT 2;')
 
-        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_1.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_1/delta_0.0.2_1.sql', 'w+') as f:
             f.write('SELECT 1;')
 
-        with open(self.tmp + '/pum_deltas_2/delta_0.0.1_0.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_2/delta_0.0.2_0.sql', 'w+') as f:
             f.write('SELECT 3;')
 
         self.upgrader = Upgrader(

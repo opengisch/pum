@@ -60,31 +60,37 @@ class Upgrader:
         if not deltas:
             print('No delta files found')
 
-        db_version = self.current_db_version()
+        db_version, is_baseline = self.current_db_version()
 
         for d in deltas:
             if verbose:
                 print('Found delta {}, version {}, type {}'.format(
                     d.get_name(), d.get_version(), d.get_type()))
                 print('     Already applied: ', self.__is_applied(d))
-                print('     Version greather or equal than current: ',
-                      d.get_version() >= db_version)
-            if not self.__is_applied(d) and d.get_version() >= db_version and \
-                    (self.max_version is None or d.get_version() <= self.max_version):
-                print('     Applying delta {} {}...'.format(
-                    d.get_version(), d.get_name()), end=' ')
+                print('     Database version: ', db_version)
+                print('     Database version is a baseline version: ', is_baseline)
+            if self.__is_applied(d):
+                continue
+            if is_baseline and d.get_version() <= db_version:
+                continue
+            if not is_baseline and d.get_version() < db_version:
+                continue
+            if self.max_version is not None and d.get_version() > self.max_version:
+                continue
+            print('     Applying delta {} {}...'.format(
+                d.get_version(), d.get_name()), end=' ')
 
-                if d.get_type() & DeltaType.SQL:
-                    self.__run_delta_sql(d)
-                    print('OK')
-                elif d.get_type() & DeltaType.PYTHON:
-                    self.__run_delta_py(d)
-                    print('OK')
-                else:
-                    print('Delta not applied')
+            if d.get_type() & DeltaType.SQL:
+                self.__run_delta_sql(d)
+                print('OK')
+            elif d.get_type() & DeltaType.PYTHON:
+                self.__run_delta_py(d)
+                print('OK')
             else:
-                if verbose:
-                    print('Delta not applied')
+                print('Delta not applied')
+        else:
+            if verbose:
+                print('Delta not applied')
 
         self.__run_post_all()
 
@@ -234,8 +240,9 @@ class Upgrader:
             if inspect.isclass(obj) and not obj == DeltaPy and issubclass(
                     obj, DeltaPy):
 
+                db_version, _ = self.current_db_version()
                 delta_py_inst = obj(
-                    self.current_db_version(), dir_, self.dirs, self.pg_service,
+                    db_version, dir_, self.dirs, self.pg_service,
                     self.upgrades_table, variables=self.variables)
                 delta_py_inst.run()
 
@@ -470,15 +477,18 @@ class Upgrader:
         -------
         str
             the current db version
+        bool
+            whether it's a baseline version or not
         """
 
         query = """
-        SELECT version from {} WHERE success = TRUE ORDER BY version DESC
+        SELECT version, type from {} WHERE success = TRUE ORDER BY version DESC, type ASC
         """.format(self.upgrades_table)
 
         self.cursor.execute(query)
+        result = self.cursor.fetchone()
 
-        return pkg_resources.parse_version(self.cursor.fetchone()[0])
+        return pkg_resources.parse_version(result[0]), result[1] == 0
 
 
 class DeltaType:

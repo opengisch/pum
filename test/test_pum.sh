@@ -18,10 +18,10 @@ do
   fi
   PGSERVICE=pum_test_1 psql --quiet -v ON_ERROR_STOP=on -f ${DIR}/data/create_northwind_$base.sql;
   PGSERVICE=pum_test_1 psql --quiet -v ON_ERROR_STOP=on -c "CREATE SCHEMA pum_sys";
-  pum baseline -p pum_test_1 -t pum_sys.pum_info -d ${DIR}/data/delta/ -b $updated
+  pum baseline -p pum_test_1 -t pum_sys.pum_info -d ${DIR}/data/delta/ -b $base
   PGSERVICE=pum_test_2 psql --quiet -v ON_ERROR_STOP=on -f ${DIR}/data/create_northwind_$updated.sql;
   PGSERVICE=pum_test_2 psql --quiet -v ON_ERROR_STOP=on -c "CREATE SCHEMA pum_sys";
-  pum baseline -p pum_test_2 -t pum_sys.pum_info -d ${DIR}/data/delta/ -b $updated
+  pum baseline -p pum_test_2 -t pum_sys.pum_info -d ${DIR}/data/delta/ -b $base
 
   yes | pum test-and-upgrade -pp pum_test_1 -pc pum_test_2 -pt pum_test_3 -t pum_sys.pum_info -d ${DIR}/data/delta/ -f /tmp/pum.dump -u $updated $EXTRA_ARG --exclude-field-pattern 'usr_%'
 
