@@ -115,10 +115,14 @@ class Pum:
             if differences:
                 if output_file:
                     with open(output_file, 'w') as f:
-                        f.write(
-                            yaml.dump(differences, default_flow_style=False))
+                        for k, values in differences.items():
+                            f.write(k)
+                            f.writelines(values)
                 else:
-                    print(yaml.dump(differences, default_flow_style=False))
+                    for k, values in differences.items():
+                        print(k)
+                        for v in values:
+                            print(v)
             return result
 
         except psycopg2.Error as e:
