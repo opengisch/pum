@@ -299,14 +299,15 @@ class Checker:
         """
         query = """
         WITH trigger_list AS (
-            select tgname from pg_trigger
-            GROUP BY tgname
+            select tgname, tgisinternal from pg_trigger
+            GROUP BY tgname, tgisinternal
         )
-        select pp.prosrc, p.relname
+        select p.relname, t.tgname, pp.prosrc
         from pg_trigger t, pg_proc pp, trigger_list tl, pg_class p
         where pp.oid = t.tgfoid
             and t.tgname = tl.tgname
             AND t.tgrelid = p.oid
+            AND NOT tl.tgisinternal
             and  SUBSTR(p.relname, 1, 3) != 'vw_'
             -- We cannot check for vw_ views,
             -- because they are created after that script
