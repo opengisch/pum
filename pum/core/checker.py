@@ -354,6 +354,7 @@ class Checker:
         query = """
         select n.nspname as rule_schema,
         c.relname as rule_table,
+        r.rulename as rule_name,
         case r.ev_type
             when '1' then 'SELECT'
             when '2' then 'UPDATE'
@@ -366,9 +367,8 @@ class Checker:
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
         WHERE n.nspname NOT IN {excl}
-            AND r.rulename != '_RETURN'
             AND n.nspname NOT LIKE 'pg\_%'
-        ORDER BY n.nspname, c.relname, rule_event
+        ORDER BY n.nspname, c.relname, r.rulename, rule_event
         """.format(excl=self.exclude_schema)
 
         return self.__check_equals(query)
