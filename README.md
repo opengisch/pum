@@ -58,7 +58,7 @@ source ~/.venv/pum/bin/activate
 
 ### Dependencies
 
-Pum depends on python3 and postgresql (specifically `pg_restore` and `pg_dump`). Make sure to read the [config file section](#Config%20file) below if you're on Windows.
+Pum depends on python3 and postgresql (specifically `pg_restore` and `pg_dump`). Make sure to read the [config file section](#config-file) below if you're on Windows.
 
 ## History
 
