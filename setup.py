@@ -10,11 +10,10 @@ setup(
         'pum',
         'pum/core',
         'pum/utils',
-        'scripts'
     ],
     entry_points={
         'console_scripts': [
-            'pum = scripts.pum:main'
+            'pum = pum.__main__:main'
         ]
     },
     version = '[VERSION]',
