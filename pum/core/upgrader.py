@@ -250,7 +250,7 @@ class Upgrader:
             print('delta files in dir: ', dir_)
 
             for delta in deltas[dir_]:
-                line = [delta.get_version(), delta.get_name()]
+                line = [str(delta.get_version()), delta.get_name()]
                 if delta.get_type() == DeltaType.PRE_PYTHON:
                     line.append('pre py')
                 elif delta.get_type() == DeltaType.PRE_SQL:
