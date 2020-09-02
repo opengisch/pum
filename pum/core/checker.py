@@ -299,14 +299,15 @@ class Checker:
         """
         query = """
         WITH trigger_list AS (
-            select tgname from pg_trigger
-            GROUP BY tgname
+            select tgname, tgisinternal from pg_trigger
+            GROUP BY tgname, tgisinternal
         )
-        select pp.prosrc, p.relname
+        select p.relname, t.tgname, pp.prosrc
         from pg_trigger t, pg_proc pp, trigger_list tl, pg_class p
         where pp.oid = t.tgfoid
             and t.tgname = tl.tgname
             AND t.tgrelid = p.oid
+            AND NOT tl.tgisinternal
             and  SUBSTR(p.relname, 1, 3) != 'vw_'
             -- We cannot check for vw_ views,
             -- because they are created after that script
@@ -353,6 +354,7 @@ class Checker:
         query = """
         select n.nspname as rule_schema,
         c.relname as rule_table,
+        r.rulename as rule_name,
         case r.ev_type
             when '1' then 'SELECT'
             when '2' then 'UPDATE'
@@ -365,9 +367,8 @@ class Checker:
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
         WHERE n.nspname NOT IN {excl}
-            AND r.rulename != '_RETURN'
             AND n.nspname NOT LIKE 'pg\_%'
-        ORDER BY n.nspname, c.relname, rule_event
+        ORDER BY n.nspname, c.relname, r.rulename, rule_event
         """.format(excl=self.exclude_schema)
 
         return self.__check_equals(query)
