@@ -355,8 +355,9 @@ class Pum:
         self.run_upgrade(pg_service_test, table, delta_dirs, variables, max_version, verbose)
 
         # Compare db test with db comp
+        verbose_level = 2 if verbose else 1
         check_result = self.run_check(
-            pg_service_test, pg_service_comp,
+            pg_service_test, pg_service_comp, verbose_level=verbose_level,
             ignore_list=ignore_list, exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern)
 
         if not check_result:
