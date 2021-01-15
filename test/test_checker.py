@@ -222,6 +222,10 @@ class TestChecker(unittest.TestCase):
         self.conn1.commit()
         self.cur2.execute('DROP FUNCTION IF EXISTS add(integer, integer);')
         self.conn2.commit()
+        self.cur1.execute('DROP FUNCTION IF EXISTS nop();')
+        self.conn1.commit()
+        self.cur2.execute('DROP FUNCTION IF EXISTS nop();')
+        self.conn2.commit()
 
         result, differences = self.checker.check_functions()
         self.assertTrue(result)
@@ -255,7 +259,7 @@ class TestChecker(unittest.TestCase):
             LANGUAGE SQL
             IMMUTABLE
             RETURNS NULL ON NULL INPUT;""")
-        self.conn2.commit()
+        self.conn1.commit()
 
         result, differences = self.checker.check_functions()
         self.assertFalse(result)
@@ -270,8 +274,6 @@ class TestChecker(unittest.TestCase):
 
         result, differences = self.checker.check_functions()
         self.assertTrue(result)
-
-
 
     def test_check_rules(self):
         self.cur1.execute('DROP RULE IF EXISTS foorule ON schema_foo.bar;')
