@@ -249,6 +249,30 @@ class TestChecker(unittest.TestCase):
         result, differences = self.checker.check_functions()
         self.assertTrue(result)
 
+        self.cur1.execute(
+            """CREATE FUNCTION nop() RETURNS integer
+            AS 'select 0;'
+            LANGUAGE SQL
+            IMMUTABLE
+            RETURNS NULL ON NULL INPUT;""")
+        self.conn2.commit()
+
+        result, differences = self.checker.check_functions()
+        self.assertFalse(result)
+
+        self.cur2.execute(
+            """CREATE FUNCTION nop() RETURNS integer
+            AS 'select 0;'
+            LANGUAGE SQL
+            IMMUTABLE
+            RETURNS NULL ON NULL INPUT;""")
+        self.conn2.commit()
+
+        result, differences = self.checker.check_functions()
+        self.assertTrue(result)
+
+
+
     def test_check_rules(self):
         self.cur1.execute('DROP RULE IF EXISTS foorule ON schema_foo.bar;')
         self.conn1.commit()
