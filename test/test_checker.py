@@ -222,6 +222,10 @@ class TestChecker(unittest.TestCase):
         self.conn1.commit()
         self.cur2.execute('DROP FUNCTION IF EXISTS add(integer, integer);')
         self.conn2.commit()
+        self.cur1.execute('DROP FUNCTION IF EXISTS nop();')
+        self.conn1.commit()
+        self.cur2.execute('DROP FUNCTION IF EXISTS nop();')
+        self.conn2.commit()
 
         result, differences = self.checker.check_functions()
         self.assertTrue(result)
@@ -241,6 +245,28 @@ class TestChecker(unittest.TestCase):
         self.cur2.execute(
             """CREATE FUNCTION add(integer, integer) RETURNS integer
             AS 'select $1 + $2;'
+            LANGUAGE SQL
+            IMMUTABLE
+            RETURNS NULL ON NULL INPUT;""")
+        self.conn2.commit()
+
+        result, differences = self.checker.check_functions()
+        self.assertTrue(result)
+
+        self.cur1.execute(
+            """CREATE FUNCTION nop() RETURNS integer
+            AS 'select 0;'
+            LANGUAGE SQL
+            IMMUTABLE
+            RETURNS NULL ON NULL INPUT;""")
+        self.conn1.commit()
+
+        result, differences = self.checker.check_functions()
+        self.assertFalse(result)
+
+        self.cur2.execute(
+            """CREATE FUNCTION nop() RETURNS integer
+            AS 'select 0;'
             LANGUAGE SQL
             IMMUTABLE
             RETURNS NULL ON NULL INPUT;""")
