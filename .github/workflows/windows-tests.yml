@@ -53,6 +53,8 @@ jobs:
 
       # see https://github.community/t5/GitHub-Actions/Append-PATH-on-Windows/m-p/42873/highlight/true#M5155
       - name: Add psql/bin path
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
         run: echo "##[add-path].\pgsql\bin"
 
       - name: Setup db
