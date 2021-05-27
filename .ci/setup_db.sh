@@ -12,5 +12,6 @@ fi
 for pgsrv in pum_test_1 pum_test_2 pum_test_3; do
   echo "Adding service ${pgsrv} to $PGSERVICE_FILE"
   printf "[${pgsrv}]\nhost=localhost\ndbname=${pgsrv}\nuser=postgres\npassword=postgres\n\n" >> "$PGSERVICE_FILE"
-  psql "service=${pgsrv} dbname=postgres" -c "DROP DATABASE IF EXISTS ${pgsrv}; CREATE DATABASE  ${pgsrv};"
+  psql "service=${pgsrv} dbname=postgres" -c "DROP DATABASE IF EXISTS ${pgsrv};"
+  psql "service=${pgsrv} dbname=postgres" -c "CREATE DATABASE  ${pgsrv};"
 done
