@@ -567,7 +567,7 @@ def main():
 
     # print the version and exit
     if args.version:
-        print('pum version {}'.format('[DEV]'))
+        print('pum version {}'.format('[DEV]'))  # don't change this line, it is sedded by deploy_to_pypi.sh
         parser.exit()
 
     # if no command is passed, print the help and exit
