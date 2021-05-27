@@ -52,6 +52,8 @@ class TestChecker(unittest.TestCase):
         result, differences = self.checker.check_tables()
         self.assertFalse(result)
 
+        a = 3 / 0
+
         self.cur2.execute('CREATE TABLE schema_foo.bar (id integer);')
         self.conn2.commit()
 
