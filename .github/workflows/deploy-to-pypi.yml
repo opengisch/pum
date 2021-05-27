@@ -1,0 +1,28 @@
+name: Deploying to pypi
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  build:
+    name: Deploy to pypi
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Get tag name
+        uses: olegtarasov/get-tag@v2.1
+        id: tagName
+
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: "3.6"
+
+      - name: Deploy to pypi
+        env:
+          PYPI_USER: ${{ secrets.PYPI_USER }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: ./.deploy/deploy_to_pypi.sh
