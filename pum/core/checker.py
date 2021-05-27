@@ -327,13 +327,14 @@ class Checker:
                 A list with the differences
         """
         query = """
-        SELECT routines.routine_name, parameters.data_type,
+        SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
             routines.routine_definition
         FROM information_schema.routines
-        JOIN information_schema.parameters
+        LEFT JOIN information_schema.parameters
         ON routines.specific_name=parameters.specific_name
         WHERE routines.specific_schema NOT IN {}
             AND routines.specific_schema NOT LIKE 'pg\_%'
+            AND routines.specific_schema <> 'information_schema'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
             """.format(self.exclude_schema)
