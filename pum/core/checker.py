@@ -308,9 +308,6 @@ class Checker:
             and t.tgname = tl.tgname
             AND t.tgrelid = p.oid
             AND NOT tl.tgisinternal
-            and  SUBSTR(p.relname, 1, 3) != 'vw_'
-            -- We cannot check for vw_ views,
-            -- because they are created after that script
         ORDER BY p.relname, t.tgname, pp.prosrc"""
 
         return self.__check_equals(query)
