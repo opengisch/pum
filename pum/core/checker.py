@@ -186,7 +186,7 @@ class Checker:
             list
                 A list with the differences
         """
-        query = """ select
+        query = f""" select
                         tc.constraint_name,
                         tc.constraint_schema || '.' || tc.table_name || '.' ||
                             kcu.column_name as physical_full_name,
@@ -202,6 +202,7 @@ class Checker:
                         tc.table_name = kcu.table_name)
                     join information_schema.constraint_column_usage as ccu on
                         ccu.constraint_name = tc.constraint_name
+                    WHERE tc.constraint_schema NOT IN {self.exclude_schema}
                     ORDER BY tc.constraint_schema, physical_full_name,
                         tc.constraint_name, foreign_table_name,
                         foreign_column_name  """
@@ -241,10 +242,13 @@ class Checker:
             list
                 A list with the differences
         """
-        query = """
-        SELECT c.relname
+        query = f"""
+        SELECT c.relname,
+               ns.nspname as schema_name
         FROM pg_class c
+        JOIN pg_namespace ns ON c.relnamespace = ns.oid
         WHERE c.relkind = 'S'
+              AND ns.nspname NOT IN {self.exclude_schema}
         ORDER BY c.relname"""
 
         return self.__check_equals(query)
@@ -261,24 +265,28 @@ class Checker:
                 A list with the differences
         """
 
-        query = """
+        query = f"""
         select
             t.relname as table_name,
             i.relname as index_name,
-            a.attname as column_name
+            a.attname as column_name,
+            ns.nspname as schema_name
         from
             pg_class t,
             pg_class i,
             pg_index ix,
-            pg_attribute a
+            pg_attribute a,
+            pg_namespace ns
         where
             t.oid = ix.indrelid
             and i.oid = ix.indexrelid
             and a.attrelid = t.oid
+            and t.relnamespace = ns.oid
             and a.attnum = ANY(ix.indkey)
             and t.relkind = 'r'
             AND t.relname NOT IN ('information_schema')
             AND t.relname NOT LIKE 'pg\_%'
+            AND ns.nspname NOT IN {self.exclude_schema}
         order by
             t.relname,
             i.relname,
