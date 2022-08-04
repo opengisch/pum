@@ -305,20 +305,22 @@ class Checker:
             list
                 A list with the differences
         """
-        query = """
+        query = f"""
         WITH trigger_list AS (
             select tgname, tgisinternal from pg_trigger
             GROUP BY tgname, tgisinternal
         )
-        select p.relname, t.tgname, pp.prosrc
-        from pg_trigger t, pg_proc pp, trigger_list tl, pg_class p
+        select ns.nspname as schema_name, p.relname, t.tgname, pp.prosrc
+        from pg_trigger t, pg_proc pp, trigger_list tl, pg_class p, pg_namespace ns
         where pp.oid = t.tgfoid
             and t.tgname = tl.tgname
             AND t.tgrelid = p.oid
+            AND p.relnamespace = ns.oid
             AND NOT tl.tgisinternal
             and  SUBSTR(p.relname, 1, 3) != 'vw_'
             -- We cannot check for vw_ views,
             -- because they are created after that script
+            AND ns.nspname NOT IN {self.exclude_schema}
         ORDER BY p.relname, t.tgname, pp.prosrc"""
 
         return self.__check_equals(query)
