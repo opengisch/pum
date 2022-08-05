@@ -285,6 +285,8 @@ class Pum:
 
         except Exception as e:
             print(e)
+            if verbose:
+                raise e
             exit(1)
 
         self.__out('OK', 'OKGREEN')
