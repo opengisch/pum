@@ -70,7 +70,7 @@ class TestUpgrader(unittest.TestCase):
         with open(self.tmp + '/pum_deltas_1/delta_0.0.1_1.sql', 'w+') as f:
             f.write('SELECT 1;')
 
-        with open(self.tmp + '/pum_deltas_2/delta_0.0.1_0.sql', 'w+') as f:
+        with open(self.tmp + '/pum_deltas_2/delta_0.0.1_c.sql', 'w+') as f:
             f.write('SELECT 3;')
 
         self.upgrader = Upgrader(
@@ -92,7 +92,7 @@ class TestUpgrader(unittest.TestCase):
         self.assertEqual(results[1][0], '0')
         self.assertEqual(results[2][0], '1')
         self.assertEqual(results[3][0], 'a')
-        self.assertEqual(results[4][0], '0')
+        self.assertEqual(results[4][0], 'c')
 
     def test_delta_valid_name(self):
         self.assertTrue(

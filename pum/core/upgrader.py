@@ -351,14 +351,14 @@ class Upgrader:
             True if the delta is already applied on the db
             False otherwise
         """
-
         query = """
         SELECT id FROM {}
         WHERE version = '{}'
-            AND checksum = '{}'
+            AND description = '{}'
+            AND type = '{}'
             AND success = 'TRUE'
         """.format(
-            self.upgrades_table, delta.get_version(), delta.get_checksum())
+            self.upgrades_table, delta.get_version(), delta.get_name(), delta.get_type())
 
         self.cursor.execute(query)
         if not self.cursor.fetchone():
