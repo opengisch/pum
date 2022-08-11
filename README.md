@@ -335,7 +335,10 @@ command regardless of the current db version.
 - **pre delta**, is executed before the normal delta file. The file's name must be in the form
 `delta_x.x.x_deltaname.pre.py` or `delta_x.x.x_deltaname.pre.sql`
 - **delta**, this is the normal delta file. The file's name must be in the form
-`delta_x.x.x_deltaname.py` or `delta_x.x.x_deltaname.sql`
+`delta_x.x.x_deltaname.py` or `delta_x.x.x_deltaname.sql`. The name of the file is used as an unique
+key to identify the delta. This means that it must be unique (including among separate delta directories)
+otherwise only one of them will be applied (which could likely be used for overriding a specific delta, but
+this is currently not tested/supported).
 - **post delta**, is executed after the normal delta file. The file's name must be in the form
 `delta_x.x.x_deltaname.post.py` or `delta_x.x.x_deltaname.post.sql`
 - **post all**, is executed last thing in an upgrade command. The file must have the name `post-all.py`
