@@ -317,9 +317,6 @@ class Checker:
             AND t.tgrelid = p.oid
             AND p.relnamespace = ns.oid
             AND NOT tl.tgisinternal
-            and  SUBSTR(p.relname, 1, 3) != 'vw_'
-            -- We cannot check for vw_ views,
-            -- because they are created after that script
             AND ns.nspname NOT IN {self.exclude_schema}
         ORDER BY p.relname, t.tgname, pp.prosrc"""
 
