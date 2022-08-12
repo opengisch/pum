@@ -219,6 +219,7 @@ The usage of the command is:
 
 ```commandline
 usage: pum upgrade [-h] -p PG_SERVICE -t TABLE -d DIR [DIR ...]
+                   [-u MAX_VERSION] [-v VAR VAR VAR] [-vv]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -228,10 +229,12 @@ optional arguments:
                         Upgrades information table
   -d DIR [DIR ...], --dir DIR [DIR ...]
                         Delta directories (space-separated)
-  -u VERSION, --max-version VERSION
-                        Upper bound limit version to run the deltas up to.
-  -v TYPE VARIABLE VALUE, --var TYPE VARIABLE VALUE
-                        Assign variable for running SQL deltas. TYPE is one of int, float, str.
+  -u MAX_VERSION, --max-version MAX_VERSION
+                        upper bound limit version
+  -v VAR VAR VAR, --var VAR VAR VAR
+                        Assign variable for running SQL deltas.Format is:
+                        (string|float|int) name value.
+  -vv, --verbose        Display extra information
 ```
 
 ### info
@@ -289,10 +292,12 @@ Only the delta files with version greater or equal than the current version are 
 
 The usage of the command is:
 ```commandline
-usage: pum test-and-upgrade [-h] [-pp PG_SERVICE_PROD]
-                            [-pt PG_SERVICE_TEST] [-pc PG_SERVICE_COMP]
-                            [-t TABLE] -d DIR [DIR ...] [-f FILE]
-                            [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
+usage: pum test-and-upgrade [-h] [-pp PG_SERVICE_PROD] [-pt PG_SERVICE_TEST]
+                            [-pc PG_SERVICE_COMP] [-t TABLE] -d DIR [DIR ...]
+                            [-f FILE] [-x]
+                            [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
+                            [-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN]
+                            [-u MAX_VERSION] [-v VAR VAR VAR] [-vv]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -310,17 +315,19 @@ optional arguments:
                         Delta directories (space-separated)
   -f FILE, --file FILE  The backup file
   -x                    ignore pg_restore errors
-  -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ,
-  --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules}
+  -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...], --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]
                         Elements to be ignored
-  -u VERSION, --max-version VERSION
-                        Upper bound limit version to run the deltas up to.
-  -v TYPE VARIABLE VALUE, --var TYPE VARIABLE VALUE
-                        Assign variable for running SQL deltas. TYPE is one of int, float, str.
-  -N SCHEMA, --exclude-schema SCHEMA
-                        Schema to be skipped.
-  -P PATTERN, --exclude-field-pattern PATTERN
-                        A field pattern which should be ignored in column checking
+  -N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA
+                        Schema to be ignored.
+  -P EXCLUDE_FIELD_PATTERN, --exclude-field-pattern EXCLUDE_FIELD_PATTERN
+                        Fields to be ignored based on a pattern compatible
+                        with SQL LIKE.
+  -u MAX_VERSION, --max-version MAX_VERSION
+                        upper bound limit version
+  -v VAR VAR VAR, --var VAR VAR VAR
+                        Assign variable for running SQL deltas.Format is:
+                        (string|float|int) name value.
+  -vv, --verbose        Display extra information
 ```
 
 ## Delta files
