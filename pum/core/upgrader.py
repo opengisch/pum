@@ -434,7 +434,7 @@ class Upgrader:
             The version of the current database to set in the information
             table. The baseline must be in the format x.x.x where x are numbers.
         """
-        pattern = re.compile(r"^\d+\.\d+\.\d+$")
+        pattern = re.compile(r"^\d*\.\d*\.\d*$")
         if not re.match(pattern, version):
             raise ValueError('Wrong version format')
 
@@ -499,7 +499,7 @@ class Delta:
     """This class represent a delta file."""
 
     FILENAME_PATTERN = (
-        r"^(delta_)(\d+\.\d+\.\d+)(_*)(\w*)\."
+        r"^(delta_)(\d*\.\d*\.\d*)(_*)(\w*)\."
         r"(pre\.sql|sql|post\.sql|pre\.py|py|post\.py)$")
 
     @staticmethod

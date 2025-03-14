@@ -274,7 +274,7 @@ optional arguments:
 ```
 
 The baseline argument receives the version number to be set in the upgrades information table. The version must match
-with the `^\d+\.\d+\.\d+$` regular expression, i.e. must be in the format x.x.x
+with the `^\d*\.\d*\.\d*$` regular expression, i.e. must be in the format x.x.x
 
 ### test-and-upgrade
 
