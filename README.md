@@ -73,7 +73,7 @@ The usage of the pum command is:
 ```commandline
 
 usage: pum [-h] [-v] [-c CONFIG_FILE]
-           {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
+           {check,dump,restore,baseline,info,upgrade,test}
            ...
 
 optional arguments:
@@ -85,15 +85,13 @@ optional arguments:
 commands:
   valid pum commands
 
-  {check,dump,restore,baseline,info,upgrade,test-and-upgrade,test}
+  {check,dump,restore,baseline,info,upgrade,test}
     check               check the differences between two databases
     dump                dump a Postgres database
     restore             restore a Postgres database from a dump file
     baseline            Create upgrade information table and set baseline
     info                show info about upgrades
     upgrade             upgrade db
-    test-and-upgrade    try the upgrade on a test db and if all it's ok, do upgrade
-                        the production db
 
 ```
 
@@ -279,65 +277,13 @@ optional arguments:
 The baseline argument receives the version number to be set in the upgrades information table. The version must match
 with the `^\d+\.\d+\.\d+$` regular expression, i.e. must be in the format x.x.x
 
-### test-and-upgrade
-
-The `test-and-upgrade` command does the following steps:
-
-- creates a dump of the production db
-- restores the db dump into a test db
-- applies the delta files found in the delta directories to the test db.
-- checks if there are differences between the test db and a comparison db
-- if no significant differences are found, after confirmation, applies the delta files to the production dbD.
-Only the delta files with version greater or equal than the current version are applied.
-
-The usage of the command is:
-```commandline
-usage: pum test-and-upgrade [-h] [-pp PG_SERVICE_PROD] [-pt PG_SERVICE_TEST]
-                            [-pc PG_SERVICE_COMP] [-t TABLE] -d DIR [DIR ...]
-                            [-f FILE] [-x]
-                            [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
-                            [-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN]
-                            [-u MAX_VERSION] [-v VAR VAR VAR] [-vv]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -pp PG_SERVICE_PROD, --pg_service_prod PG_SERVICE_PROD
-                        Name of the pg_service related to production db
-  -pt PG_SERVICE_TEST, --pg_service_test PG_SERVICE_TEST
-                        Name of the pg_service related to a test db used to
-                        test the migration
-  -pc PG_SERVICE_COMP, --pg_service_comp PG_SERVICE_COMP
-                        Name of the pg_service related to a db used to compare
-                        the updated db test with the last version of the db
-  -t TABLE, --table TABLE
-                        Upgrades information table
-  -d DIR [DIR ...], --dir DIR [DIR ...]
-                        Delta directories (space-separated)
-  -f FILE, --file FILE  The backup file
-  -x                    ignore pg_restore errors
-  -i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...], --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]
-                        Elements to be ignored
-  -N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA
-                        Schema to be ignored.
-  -P EXCLUDE_FIELD_PATTERN, --exclude-field-pattern EXCLUDE_FIELD_PATTERN
-                        Fields to be ignored based on a pattern compatible
-                        with SQL LIKE.
-  -u MAX_VERSION, --max-version MAX_VERSION
-                        upper bound limit version
-  -v VAR VAR VAR, --var VAR VAR VAR
-                        Assign variable for running SQL deltas.Format is:
-                        (string|float|int) name value.
-  -vv, --verbose        Display extra information
-```
-
 ## Delta files
 
-A delta file can be a SQL file containing one or more SQL statements or a Python module containing a
-class that is a subclass of DeltaPy.
+A delta file must be a SQL file containing one or more SQL statements.
 
 There are 5 kind of delta files:
-- **pre-all**, is executed first thing in an upgrade command. The file must have the name `pre-all.py`
-or `pre-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade
+- **pre-all**, is executed first thing in an upgrade command. The file must have the name `pre-all.sql`.
+The pre-all files doesn't have a version because they are executed for all upgrade
 command regardless of the current db version.
 - **pre delta**, is executed before the normal delta file. The file's name must be in the form
 `delta_x.x.x_deltaname.pre.py` or `delta_x.x.x_deltaname.pre.sql`
@@ -348,8 +294,8 @@ otherwise only one of them will be applied (which could likely be used for overr
 this is currently not tested/supported).
 - **post delta**, is executed after the normal delta file. The file's name must be in the form
 `delta_x.x.x_deltaname.post.py` or `delta_x.x.x_deltaname.post.sql`
-- **post all**, is executed last thing in an upgrade command. The file must have the name `post-all.py`
-or `post-all.sql`. The pre-all files doesn't have a version because they are executed for all upgrade
+- **post all**, is executed last thing in an upgrade command. The file must have the name `post-all.sql`.
+The pre-all files doesn't have a version because they are executed for all upgrade
 command regardless of the current db version.
 
 A Python file is executed before the sql file with the same kind and version.
@@ -357,20 +303,15 @@ A Python file is executed before the sql file with the same kind and version.
 In summary the upgrade workflow is:
 
 ```text
-execute pre-all.py if exists
 execute pre-all.sql if exists
 
 for each file delta_x.x.x_deltaname.* ordered by version number:
-	execute delta_x.x.x_deltaname.pre.py if exists
 	execute delta_x.x.x_deltaname.pre.sql if exists
 
-	execute delta_x.x.x_deltaname.py if exists
 	execute delta_x.x.x_deltaname.sql if exists
 
-	execute delta_x.x.x_deltaname.post.py if exists
 	execute delta_x.x.x_deltaname.post.sql if exists
 
-execute post-all.py if exists
 execute post-all.sql if exists
 ```
 
@@ -380,84 +321,6 @@ If SQL code contains `%` characater, it must be escaped by using `%%`.
 
 If variables are used, it follows `psycopg` rules to [pass Parameters to SQL queries](http://initd.org/psycopg/docs/usage.html#query-parameters).
 For example, a string variable named SRID, will be called in a SQL delta as `%(SRID)s`.
-
-### Python delta files
-
-A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class has the following methods:
-
-```python
-    @abstractmethod
-    def run(self):
-        """This method must be implemented in the subclasses. It is called
-        when the delta.py file is runned by Upgrader class"""
-
-    @property
-    def variables(self):
-        """Return the dictionary of variables"""
-
-    @property
-    def current_db_version(self):
-        """Return the current db version"""
-
-    @property
-    def delta_dir(self):
-        """Return the path of the delta directory including this delta"""
-
-    @property
-    def delta_dirs(self):
-        """Return the paths of the delta directories"""
-
-    @property
-    def pg_service(self):
-        """Return the name of the postgres service"""
-
-    @property
-    def upgrades_table(self):
-        """Return the name of the upgrades information table"""
-
-    def write_message(self, text):
-        """Print a message from the subclass.
-
-        Parameters
-        ----------
-        text: str
-            The message to print
-        """
-```
-
-An example of implementation is:
-```python
-from core.deltapy import DeltaPy
-
-
-class Prova(DeltaPy):
-
-    def run(self):
-
-        # if you want to get the current db version
-        version = self.current_db_version
-
-        # if you want to get the path to the delta directory including that delta file
-        delta_dir = self.delta_dir
-
-        # if you want to get the paths to the delta directories
-        delta_dirs = self.delta_dirs
-
-        # if you want to get the pg_service name
-        pg = self.pg_service
-
-        # if you want to get the upgrade information table name
-        table = self.upgrades_table
-
-        # access to a variable given in command line
-        srid = self.variables.get('srid', 4326)
-
-        # if you want to print a message
-        self.write_message('foo')
-
-        # Here goes all the code of the delta file
-        some_cool_python_command()
-```
 
 
 ## Config file
