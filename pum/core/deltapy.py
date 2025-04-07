@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from abc import ABCMeta, abstractmethod
 
 
@@ -7,7 +5,14 @@ class DeltaPy(metaclass=ABCMeta):
     """This abstract class must be instantiated by the delta.py classes"""
 
     def __init__(
-            self, current_db_version, delta_dir, delta_dirs, pg_service, upgrades_table, variables: dict):
+        self,
+        current_db_version,
+        delta_dir,
+        delta_dirs,
+        pg_service,
+        upgrades_table,
+        variables: dict,
+    ):
         """Constructor, receive some useful parameters accessible from the
         subclasses als properties.
 
@@ -80,4 +85,4 @@ class DeltaPy(metaclass=ABCMeta):
         text: str
             The message to print
         """
-        print('Message from {}: {}'.format(self.__class__.__name__, text))
+        print(f"Message from {self.__class__.__name__}: {text}")

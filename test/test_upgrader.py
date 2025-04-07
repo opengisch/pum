@@ -1,11 +1,12 @@
 import os
 import shutil
-import unittest
 import tempfile
+import unittest
 
 import psycopg2
 import psycopg2.extras
-from pum.core.upgrader import Upgrader, Delta, DeltaType
+
+from pum.core.upgrader import Delta, DeltaType, Upgrader
 
 
 class TestUpgrader(unittest.TestCase):
@@ -18,7 +19,7 @@ class TestUpgrader(unittest.TestCase):
     def tearDown(self):
         del self.upgrader
 
-        self.cur1.execute('DROP SCHEMA IF EXISTS test_upgrader CASCADE;')
+        self.cur1.execute("DROP SCHEMA IF EXISTS test_upgrader CASCADE;")
         self.conn1.commit()
         self.conn1.close()
 
@@ -26,13 +27,14 @@ class TestUpgrader(unittest.TestCase):
         self.tmp = None
 
     def setUp(self):
-        pg_service1 = 'pum_test_1'
-        self.upgrades_table = 'test_upgrader.upgrades'
+        pg_service1 = "pum_test_1"
+        self.upgrades_table = "test_upgrader.upgrades"
 
-        self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
+        self.conn1 = psycopg2.connect(f"service={pg_service1}")
         self.cur1 = self.conn1.cursor()
 
-        self.cur1.execute("""
+        self.cur1.execute(
+            """
             DROP SCHEMA IF EXISTS test_upgrader CASCADE;
             CREATE SCHEMA test_upgrader;
             CREATE TABLE {}
@@ -49,148 +51,144 @@ class TestUpgrader(unittest.TestCase):
                 success boolean NOT NULL,
                 CONSTRAINT upgrades_pk PRIMARY KEY (id)
                 );
-            """.format(self.upgrades_table))
+            """.format(
+                self.upgrades_table
+            )
+        )
         self.conn1.commit()
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
 
-        os.mkdir(self.tmp + '/pum_deltas_1/')
-        os.mkdir(self.tmp + '/pum_deltas_2/')
+        os.mkdir(self.tmp + "/pum_deltas_1/")
+        os.mkdir(self.tmp + "/pum_deltas_2/")
 
-        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_0.sql', 'w+') as f:
-            f.write('DROP TABLE IF EXISTS test_upgrader.bar;')
+        with open(self.tmp + "/pum_deltas_1/delta_0.0.1_0.sql", "w+") as f:
+            f.write("DROP TABLE IF EXISTS test_upgrader.bar;")
             f.write(
-                'CREATE TABLE test_upgrader.bar '
-                '(id smallint, value integer, name varchar(100));')
+                "CREATE TABLE test_upgrader.bar "
+                "(id smallint, value integer, name varchar(100));"
+            )
 
-        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_a.sql', 'w+') as f:
-            f.write('SELECT 2;')
+        with open(self.tmp + "/pum_deltas_1/delta_0.0.1_a.sql", "w+") as f:
+            f.write("SELECT 2;")
 
-        with open(self.tmp + '/pum_deltas_1/delta_0.0.1_1.sql', 'w+') as f:
-            f.write('SELECT 1;')
+        with open(self.tmp + "/pum_deltas_1/delta_0.0.1_1.sql", "w+") as f:
+            f.write("SELECT 1;")
 
-        with open(self.tmp + '/pum_deltas_2/delta_0.0.1_c.sql', 'w+') as f:
-            f.write('SELECT 3;')
+        with open(self.tmp + "/pum_deltas_2/delta_0.0.1_c.sql", "w+") as f:
+            f.write("SELECT 3;")
 
         self.upgrader = Upgrader(
-            pg_service1, self.upgrades_table, [self.tmp + '/pum_deltas_1/', self.tmp + '/pum_deltas_2/'])
-        self.upgrader.set_baseline('0.0.1')
+            pg_service1,
+            self.upgrades_table,
+            [self.tmp + "/pum_deltas_1/", self.tmp + "/pum_deltas_2/"],
+        )
+        self.upgrader.set_baseline("0.0.1")
 
     def test_upgrader_run(self):
         self.upgrader.run()
         # postgres > 9.4
-        self.cur1.execute(
-            "SELECT to_regclass('{}');".format(self.upgrades_table))
+        self.cur1.execute(f"SELECT to_regclass('{self.upgrades_table}');")
         self.assertIsNotNone(self.cur1.fetchone()[0])
 
-        self.cur1.execute(
-            "SELECT description from {};".format(self.upgrades_table))
+        self.cur1.execute(f"SELECT description from {self.upgrades_table};")
         results = self.cur1.fetchall()
         self.assertEqual(len(results), 5)
-        self.assertEqual(results[0][0], 'baseline')
-        self.assertEqual(results[1][0], '0')
-        self.assertEqual(results[2][0], '1')
-        self.assertEqual(results[3][0], 'a')
-        self.assertEqual(results[4][0], 'c')
+        self.assertEqual(results[0][0], "baseline")
+        self.assertEqual(results[1][0], "0")
+        self.assertEqual(results[2][0], "1")
+        self.assertEqual(results[3][0], "a")
+        self.assertEqual(results[4][0], "c")
 
     def test_delta_valid_name(self):
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.py'))
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.sql'))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_17072017.py"))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_17072017.sql"))
 
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.pre.py'))
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.pre.sql'))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_17072017.pre.py"))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_17072017.pre.sql"))
 
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.post.py'))
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_17072017.post.sql'))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_17072017.post.py"))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_17072017.post.sql"))
 
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0.sql'))
-        self.assertTrue(
-            Delta.is_valid_delta_name('delta_1.1.0_blahblah_foo_bar.sql'))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0.sql"))
+        self.assertTrue(Delta.is_valid_delta_name("delta_1.1.0_blahblah_foo_bar.sql"))
 
-        self.assertFalse(Delta.is_valid_delta_name('1.1.0_17072017.sql'))
-        self.assertFalse(Delta.is_valid_delta_name('Delta_1.1.0_17072017.sql'))
-        self.assertFalse(Delta.is_valid_delta_name('delta_1.1.0_17072017'))
-        self.assertFalse(Delta.is_valid_delta_name('delta_1.1.0_17072017.post'))
-        self.assertFalse(Delta.is_valid_delta_name('delta_1.1.0_17072017.pre'))
-        self.assertFalse(Delta.is_valid_delta_name('delta_1.1_17072017.sql'))
+        self.assertFalse(Delta.is_valid_delta_name("1.1.0_17072017.sql"))
+        self.assertFalse(Delta.is_valid_delta_name("Delta_1.1.0_17072017.sql"))
+        self.assertFalse(Delta.is_valid_delta_name("delta_1.1.0_17072017"))
+        self.assertFalse(Delta.is_valid_delta_name("delta_1.1.0_17072017.post"))
+        self.assertFalse(Delta.is_valid_delta_name("delta_1.1.0_17072017.pre"))
+        self.assertFalse(Delta.is_valid_delta_name("delta_1.1_17072017.sql"))
 
     def test_delta_get_version(self):
-        delta = Delta('delta_0.0.0_17072017.sql')
-        self.assertEqual(str(delta.get_version()), '0.0.0')
+        delta = Delta("delta_0.0.0_17072017.sql")
+        self.assertEqual(str(delta.get_version()), "0.0.0")
 
-        delta = Delta('delta_1.2.3_17072017.pre.sql')
-        self.assertEqual(str(delta.get_version()), '1.2.3')
+        delta = Delta("delta_1.2.3_17072017.pre.sql")
+        self.assertEqual(str(delta.get_version()), "1.2.3")
 
-        delta = Delta('delta_100.002.9999_17072017.post.sql')
-        self.assertEqual(str(delta.get_version()), '100.2.9999')
+        delta = Delta("delta_100.002.9999_17072017.post.sql")
+        self.assertEqual(str(delta.get_version()), "100.2.9999")
 
     def test_delta_get_name(self):
-        delta = Delta('delta_0.0.0_17072017.sql')
-        self.assertEqual(delta.get_name(), '17072017')
+        delta = Delta("delta_0.0.0_17072017.sql")
+        self.assertEqual(delta.get_name(), "17072017")
 
-        delta = Delta('delta_0.0.0_17072017.py')
-        self.assertEqual(delta.get_name(), '17072017')
+        delta = Delta("delta_0.0.0_17072017.py")
+        self.assertEqual(delta.get_name(), "17072017")
 
-        delta = Delta('delta_0.0.0_.sql')
-        self.assertEqual(delta.get_name(), '')
+        delta = Delta("delta_0.0.0_.sql")
+        self.assertEqual(delta.get_name(), "")
 
-        delta = Delta('delta_0.0.0_.py')
-        self.assertEqual(delta.get_name(), '')
+        delta = Delta("delta_0.0.0_.py")
+        self.assertEqual(delta.get_name(), "")
 
-        delta = Delta('delta_0.0.0.sql')
-        self.assertEqual(delta.get_name(), '')
+        delta = Delta("delta_0.0.0.sql")
+        self.assertEqual(delta.get_name(), "")
 
-        delta = Delta('delta_0.0.0.py')
-        self.assertEqual(delta.get_name(), '')
+        delta = Delta("delta_0.0.0.py")
+        self.assertEqual(delta.get_name(), "")
 
-        delta = Delta('delta_0.0.0_foo.pre.sql')
-        self.assertEqual(delta.get_name(), 'foo')
+        delta = Delta("delta_0.0.0_foo.pre.sql")
+        self.assertEqual(delta.get_name(), "foo")
 
-        delta = Delta('delta_0.0.0_foo.pre.py')
-        self.assertEqual(delta.get_name(), 'foo')
+        delta = Delta("delta_0.0.0_foo.pre.py")
+        self.assertEqual(delta.get_name(), "foo")
 
-        delta = Delta('delta_0.0.0_foo.post.sql')
-        self.assertEqual(delta.get_name(), 'foo')
+        delta = Delta("delta_0.0.0_foo.post.sql")
+        self.assertEqual(delta.get_name(), "foo")
 
-        delta = Delta('delta_0.0.0_foo.post.py')
-        self.assertEqual(delta.get_name(), 'foo')
+        delta = Delta("delta_0.0.0_foo.post.py")
+        self.assertEqual(delta.get_name(), "foo")
 
     def test_delta_get_checksum(self):
-        file = open(self.tmp + '/foo.bar', 'w+')
-        delta = Delta(self.tmp + '/foo.bar')
-        self.assertEqual(
-            delta.get_checksum(), 'd41d8cd98f00b204e9800998ecf8427e')
-        file.write('The quick brown fox jumps over the lazy dog')
+        file = open(self.tmp + "/foo.bar", "w+")
+        delta = Delta(self.tmp + "/foo.bar")
+        self.assertEqual(delta.get_checksum(), "d41d8cd98f00b204e9800998ecf8427e")
+        file.write("The quick brown fox jumps over the lazy dog")
         file.close()
-        self.assertEqual(
-            delta.get_checksum(), '9e107d9d372bb6826bd81d3542a419d6')
+        self.assertEqual(delta.get_checksum(), "9e107d9d372bb6826bd81d3542a419d6")
 
     def test_delta_get_type(self):
-        delta = Delta('delta_0.0.0_17072017.sql')
+        delta = Delta("delta_0.0.0_17072017.sql")
         self.assertEqual(delta.get_type(), DeltaType.SQL)
 
-        delta = Delta('delta_0.0.0_17072017.py')
+        delta = Delta("delta_0.0.0_17072017.py")
         self.assertEqual(delta.get_type(), DeltaType.PYTHON)
 
-        delta = Delta('delta_0.0.0_17072017.pre.sql')
+        delta = Delta("delta_0.0.0_17072017.pre.sql")
         self.assertEqual(delta.get_type(), DeltaType.PRE_SQL)
 
-        delta = Delta('delta_0.0.0_17072017.pre.py')
+        delta = Delta("delta_0.0.0_17072017.pre.py")
         self.assertEqual(delta.get_type(), DeltaType.PRE_PYTHON)
 
-        delta = Delta('delta_0.0.0_17072017.post.sql')
+        delta = Delta("delta_0.0.0_17072017.post.sql")
         self.assertEqual(delta.get_type(), DeltaType.POST_SQL)
 
-        delta = Delta('delta_0.0.0_17072017.post.py')
+        delta = Delta("delta_0.0.0_17072017.post.py")
         self.assertEqual(delta.get_type(), DeltaType.POST_PYTHON)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

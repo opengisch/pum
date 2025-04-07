@@ -1,6 +1,6 @@
 name: Testing
 
-on: 
+on:
   push:
     branches:
       - master
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: 
+        os:
           - ubuntu-latest
         python:
           - "3.10"

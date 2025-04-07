@@ -390,11 +390,11 @@ A Python delta file must be a subclass of the DeltaPy class. The DeltaPy class h
     def run(self):
         """This method must be implemented in the subclasses. It is called
         when the delta.py file is runned by Upgrader class"""
-        
+
     @property
     def variables(self):
         """Return the dictionary of variables"""
-        
+
     @property
     def current_db_version(self):
         """Return the current db version"""
@@ -448,7 +448,7 @@ class Prova(DeltaPy):
 
         # if you want to get the upgrade information table name
         table = self.upgrades_table
-        
+
         # access to a variable given in command line
         srid = self.variables.get('srid', 4326)
 
@@ -471,7 +471,7 @@ constraints, views, sequences, indexes, triggers, functions or rules
 - **pg_dump_exe**: the command to run pg_dump, needs to be adjusted if the executable is not in your path
 - **pg_restore_exe**: the command to run pg_restore, needs to be adjusted if the executable is not in your path
 
-For example:               
+For example:  
 ```yaml
 
 upgrades_table: qwat_sys.upgrades
@@ -488,7 +488,7 @@ ignore_elements:
   - rules
 pg_dump_exe: pg_dump
 pg_restore_exe: pg_restore
-```                                                                              
+```  
 
 On Windows, pg_dump and pg_restore aren't on your path by default, so the last two lines would look like this (adjust path to the installation path of PostreSQL) :
 ```yaml

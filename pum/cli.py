@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
 
 import argparse
-
-import yaml
-import psycopg2
 import os
 import sys
 
+import psycopg2
+import yaml
+
 from pum.core.checker import Checker
 from pum.core.dumper import Dumper
+from pum.core.exceptions import (
+    PgDumpCommandError,
+    PgDumpFailed,
+    PgRestoreCommandError,
+    PgRestoreFailed,
+)
 from pum.core.upgrader import Upgrader
-from pum.core.exceptions import PgDumpCommandError, PgDumpFailed, PgRestoreCommandError, PgRestoreFailed
-from pum.utils.utils import ask_for_confirmation, Bcolors
+from pum.utils.utils import Bcolors, ask_for_confirmation
 
 
 class Pum:
@@ -23,8 +27,8 @@ class Pum:
         self.delta_dirs = None
         self.backup_file = None
         self.ignore_list = None
-        self.pg_dump_exe = os.environ.get('PG_DUMP_EXE')
-        self.pg_restore_exe = os.environ.get('PG_RESTORE_EXE')
+        self.pg_dump_exe = os.environ.get("PG_DUMP_EXE")
+        self.pg_restore_exe = os.environ.get("PG_RESTORE_EXE")
 
         if config_file:
             self.__load_config_file(config_file)
@@ -50,19 +54,26 @@ class Pum:
             Dictionary of configurations
         """
 
-        self.upgrades_table = configs.get('upgrades_table')
-        self.delta_dirs = configs.get('delta_dirs')
-        self.backup_file = configs.get('backup_file')
-        self.ignore_list = configs.get('ignore_elements')
-        self.pg_dump_exe = configs.get('pg_dump_exe')
-        self.pg_restore_exe = configs.get('pg_restore_exe')
+        self.upgrades_table = configs.get("upgrades_table")
+        self.delta_dirs = configs.get("delta_dirs")
+        self.backup_file = configs.get("backup_file")
+        self.ignore_list = configs.get("ignore_elements")
+        self.pg_dump_exe = configs.get("pg_dump_exe")
+        self.pg_restore_exe = configs.get("pg_restore_exe")
 
         if self.delta_dirs and not isinstance(self.delta_dirs, list):
             self.delta_dirs = [self.delta_dirs]
 
-    def run_check(self, pg_service1, pg_service2, ignore_list,
-                  exclude_schema, exclude_field_pattern,
-                  verbose_level=1, output_file=None):
+    def run_check(
+        self,
+        pg_service1,
+        pg_service2,
+        ignore_list,
+        exclude_schema,
+        exclude_field_pattern,
+        verbose_level=1,
+        output_file=None,
+    ):
         """Run the check command
 
         Parameters
@@ -91,7 +102,7 @@ class Pum:
         True if no differences are found, False otherwise.
         """
 
-        self.__out('Check...', type='WAITING')
+        self.__out("Check...", type="WAITING")
         if not verbose_level:
             verbose_level = 1
         if not ignore_list:
@@ -102,19 +113,23 @@ class Pum:
             exclude_field_pattern = []
         try:
             checker = Checker(
-                pg_service1, pg_service2,
-                exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern,
-                ignore_list=ignore_list, verbose_level=verbose_level)
+                pg_service1,
+                pg_service2,
+                exclude_schema=exclude_schema,
+                exclude_field_pattern=exclude_field_pattern,
+                ignore_list=ignore_list,
+                verbose_level=verbose_level,
+            )
             result, differences = checker.run_checks()
 
             if result:
-                self.__out('OK', 'OKGREEN')
+                self.__out("OK", "OKGREEN")
             else:
-                self.__out('DIFFERENCES FOUND', 'WARNING')
+                self.__out("DIFFERENCES FOUND", "WARNING")
 
             if differences:
                 if output_file:
-                    with open(output_file, 'w') as f:
+                    with open(output_file, "w") as f:
                         for k, values in differences.items():
                             f.write(k)
                             f.writelines(values)
@@ -126,12 +141,12 @@ class Pum:
             return result
 
         except psycopg2.Error as e:
-            self.__out('ERROR', 'FAIL')
-            self.__out(e.args[0], 'FAIL')
+            self.__out("ERROR", "FAIL")
+            self.__out(e.args[0], "FAIL")
             exit(1)
 
         except Exception as e:
-            self.__out('ERROR', 'FAIL')
+            self.__out("ERROR", "FAIL")
             self.__out(e.args[0])
             exit(1)
 
@@ -148,19 +163,21 @@ class Pum:
             The path of the desired backup file
         """
 
-        self.__out('Dump...', type='WAITING')
+        self.__out("Dump...", type="WAITING")
 
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_dump_exe:
-                dumper.pg_backup(pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema)
+                dumper.pg_backup(
+                    pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema
+                )
             else:
                 dumper.pg_backup(exclude_schema=exclude_schema)
         except (PgDumpFailed, PgDumpCommandError) as e:
-            self.__out('ERROR', 'FAIL')
+            self.__out("ERROR", "FAIL")
             self.__out(e.args[0])
             exit(1)
-        self.__out('OK', 'OKGREEN')
+        self.__out("OK", "OKGREEN")
 
     def run_restore(self, pg_service, file, ignore_restore_errors, exclude_schema=None):
         """
@@ -177,16 +194,18 @@ class Pum:
             If true the pg_restore errors don't cause the exit of the program
         """
 
-        self.__out('Restore...', type='WAITING')
+        self.__out("Restore...", type="WAITING")
 
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_restore_exe:
-                dumper.pg_restore(pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema)
+                dumper.pg_restore(
+                    pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema
+                )
             else:
                 dumper.pg_restore(exclude_schema=exclude_schema)
         except PgRestoreFailed as e:
-            self.__out('ERROR', 'FAIL')
+            self.__out("ERROR", "FAIL")
             self.__out(str(e))
             # one might want to handle exit on error
             if ignore_restore_errors:
@@ -194,10 +213,10 @@ class Pum:
             else:
                 exit(1)
         except PgRestoreCommandError as e:
-            self.__out('ERROR', 'FAIL')
+            self.__out("ERROR", "FAIL")
             self.__out(e.args[0])
             exit(1)
-        self.__out('OK', 'OKGREEN')
+        self.__out("OK", "OKGREEN")
 
     def run_baseline(self, pg_service, table, delta_dirs, baseline):
         """
@@ -220,7 +239,7 @@ class Pum:
 
         """
 
-        self.__out('Set baseline...', type='WAITING')
+        self.__out("Set baseline...", type="WAITING")
 
         try:
             upgrader = Upgrader(pg_service, table, delta_dirs)
@@ -228,11 +247,11 @@ class Pum:
             upgrader.set_baseline(baseline)
 
         except ValueError as e:
-            self.__out('ERROR', 'FAIL')
+            self.__out("ERROR", "FAIL")
             self.__out(e)
             exit(1)
 
-        self.__out('OK', 'OKGREEN')
+        self.__out("OK", "OKGREEN")
 
     def run_info(self, pg_service, table, delta_dirs):
         """Print info about delta file and about already made upgrade
@@ -257,7 +276,9 @@ class Pum:
             print(e)
             exit(1)
 
-    def run_upgrade(self, pg_service, table, delta_dirs, variables, max_version, verbose):
+    def run_upgrade(
+        self, pg_service, table, delta_dirs, variables, max_version, verbose
+    ):
         """Apply the delta files to upgrade the database
 
         Parameters
@@ -277,10 +298,16 @@ class Pum:
             Whether to display extra information
         """
 
-        self.__out('Upgrade...', type='WAITING')
+        self.__out("Upgrade...", type="WAITING")
 
         try:
-            upgrader = Upgrader(pg_service, table, delta_dirs, variables=variables, max_version=max_version)
+            upgrader = Upgrader(
+                pg_service,
+                table,
+                delta_dirs,
+                variables=variables,
+                max_version=max_version,
+            )
             upgrader.run(verbose=verbose)
 
         except Exception as e:
@@ -289,12 +316,24 @@ class Pum:
                 raise e
             exit(1)
 
-        self.__out('OK', 'OKGREEN')
+        self.__out("OK", "OKGREEN")
 
     def run_test_and_upgrade(
-            self, pg_service_prod, pg_service_test, pg_service_comp, file,
-            table, delta_dirs, ignore_list, exclude_schema, exclude_field_pattern,
-            ignore_restore_errors, variables, max_version, verbose):
+        self,
+        pg_service_prod,
+        pg_service_test,
+        pg_service_comp,
+        file,
+        table,
+        delta_dirs,
+        ignore_list,
+        exclude_schema,
+        exclude_field_pattern,
+        ignore_restore_errors,
+        variables,
+        max_version,
+        verbose,
+    ):
         """
         Do the following steps:
             - creates a dump of the production db
@@ -345,7 +384,7 @@ class Pum:
         differences between the test and comp databases.
         """
 
-        self.__out('Test and upgrade...', type='WAITING')
+        self.__out("Test and upgrade...", type="WAITING")
 
         # Backup of db prod
         self.run_dump(pg_service_prod, file, exclude_schema)
@@ -354,43 +393,51 @@ class Pum:
         self.run_restore(pg_service_test, file, ignore_restore_errors)
 
         # Apply deltas on db test
-        self.run_upgrade(pg_service_test, table, delta_dirs, variables, max_version, verbose)
+        self.run_upgrade(
+            pg_service_test, table, delta_dirs, variables, max_version, verbose
+        )
 
         # Compare db test with db comp
         verbose_level = 2 if verbose else 1
         check_result = self.run_check(
-            pg_service_test, pg_service_comp, verbose_level=verbose_level,
-            ignore_list=ignore_list, exclude_schema=exclude_schema, exclude_field_pattern=exclude_field_pattern)
+            pg_service_test,
+            pg_service_comp,
+            verbose_level=verbose_level,
+            ignore_list=ignore_list,
+            exclude_schema=exclude_schema,
+            exclude_field_pattern=exclude_field_pattern,
+        )
 
         if not check_result:
             return False
 
-        if ask_for_confirmation(prompt='Apply deltas to {}?'.format(
-                pg_service_prod)):
-            self.run_upgrade(pg_service_prod, table, delta_dirs, variables, max_version, verbose)
+        if ask_for_confirmation(prompt=f"Apply deltas to {pg_service_prod}?"):
+            self.run_upgrade(
+                pg_service_prod, table, delta_dirs, variables, max_version, verbose
+            )
 
-        self.__out('OK', 'OKGREEN')
+        self.__out("OK", "OKGREEN")
 
         return True
 
-    def __out(self, message, type='DEFAULT'):
+    def __out(self, message, type="DEFAULT"):
 
         # taken from django
-        supported_platform = sys.platform != 'win32' or 'ANSICON' in os.environ
+        supported_platform = sys.platform != "win32" or "ANSICON" in os.environ
 
-            # print output of the commands
+        # print output of the commands
         if supported_platform:
-            if type == 'WAITING':
-                print(Bcolors.WAITING + message + Bcolors.ENDC, end='')
-            elif type == 'OKGREEN':
+            if type == "WAITING":
+                print(Bcolors.WAITING + message + Bcolors.ENDC, end="")
+            elif type == "OKGREEN":
                 print(Bcolors.OKGREEN + message + Bcolors.ENDC)
-            elif type == 'WARNING':
+            elif type == "WARNING":
                 print(Bcolors.WARNING + message + Bcolors.ENDC)
-            elif type == 'FAIL':
+            elif type == "FAIL":
                 print(Bcolors.FAIL + message + Bcolors.ENDC)
-            elif type == 'BOLD':
+            elif type == "BOLD":
                 print(Bcolors.BOLD + message + Bcolors.ENDC)
-            elif type == 'UNDERLINE':
+            elif type == "UNDERLINE":
                 print(Bcolors.UNDERLINE + message + Bcolors.ENDC)
             else:
                 print(message)
@@ -405,159 +452,229 @@ def create_parser() -> argparse.ArgumentParser:
     # create the top-level parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-v", "--version", help="print the version and exit",
-        action='store_true')
+        "-v", "--version", help="print the version and exit", action="store_true"
+    )
     parser.add_argument("-c", "--config_file", help="set the config file")
 
     subparsers = parser.add_subparsers(
-        title='commands', description='valid pum commands', dest='command')
+        title="commands", description="valid pum commands", dest="command"
+    )
 
     # create the parser for the "check" command
 
     parser_check = subparsers.add_parser(
-        'check', help='check the differences between two databases')
+        "check", help="check the differences between two databases"
+    )
     parser_check.add_argument(
-        '-p1', '--pg_service1', help='Name of the first postgres service',
-        required=True)
+        "-p1", "--pg_service1", help="Name of the first postgres service", required=True
+    )
     parser_check.add_argument(
-        '-p2', '--pg_service2', help='Name of the second postgres service',
-        required=True)
+        "-p2",
+        "--pg_service2",
+        help="Name of the second postgres service",
+        required=True,
+    )
     parser_check.add_argument(
-        '-i', '--ignore', help='Elements to be ignored', nargs='+',
-        choices=['tables',
-                 'columns',
-                 'constraints',
-                 'views',
-                 'sequences',
-                 'indexes',
-                 'triggers',
-                 'functions',
-                 'rules'])
+        "-i",
+        "--ignore",
+        help="Elements to be ignored",
+        nargs="+",
+        choices=[
+            "tables",
+            "columns",
+            "constraints",
+            "views",
+            "sequences",
+            "indexes",
+            "triggers",
+            "functions",
+            "rules",
+        ],
+    )
     parser_check.add_argument(
-        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
+        "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
+    )
     parser_check.add_argument(
-        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.',
-        action='append')
+        "-P",
+        "--exclude-field-pattern",
+        help="Fields to be ignored based on a pattern compatible with SQL LIKE.",
+        action="append",
+    )
     parser_check.add_argument(
-        '-v', '--verbose_level', help='Verbose level (0, 1 or 2)', type=int)
-    parser_check.add_argument(
-        '-o', '--output_file', help='Output file')
+        "-v", "--verbose_level", help="Verbose level (0, 1 or 2)", type=int
+    )
+    parser_check.add_argument("-o", "--output_file", help="Output file")
 
     # create the parser for the "dump" command
-    parser_dump = subparsers.add_parser('dump', help='dump a Postgres database')
+    parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
 
     parser_dump.add_argument(
-        '-p', '--pg_service', help='Name of the postgres service',
-        required=True)
+        "-p", "--pg_service", help="Name of the postgres service", required=True
+    )
     parser_dump.add_argument(
-        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
-    parser_dump.add_argument('file', help='The backup file')
+        "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
+    )
+    parser_dump.add_argument("file", help="The backup file")
 
     # create the parser for the "restore" command
     parser_restore = subparsers.add_parser(
-        'restore', help='restore a Postgres database from a dump file')
+        "restore", help="restore a Postgres database from a dump file"
+    )
     parser_restore.add_argument(
-        '-p', '--pg_service', help='Name of the postgres service',
-        required=True)
+        "-p", "--pg_service", help="Name of the postgres service", required=True
+    )
     parser_restore.add_argument(
-        '-x', help='ignore pg_restore errors', action="store_true")
+        "-x", help="ignore pg_restore errors", action="store_true"
+    )
     parser_restore.add_argument(
-        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
-    parser_restore.add_argument('file', help='The backup file')
+        "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
+    )
+    parser_restore.add_argument("file", help="The backup file")
 
     # create the parser for the "baseline" command
     parser_baseline = subparsers.add_parser(
-        'baseline', help='Create upgrade information table and set baseline')
+        "baseline", help="Create upgrade information table and set baseline"
+    )
     parser_baseline.add_argument(
-        '-p', '--pg_service', help='Name of the postgres service',
-        required=True)
+        "-p", "--pg_service", help="Name of the postgres service", required=True
+    )
     parser_baseline.add_argument(
-        '-t', '--table', help='Upgrades information table', required=True)
+        "-t", "--table", help="Upgrades information table", required=True
+    )
     parser_baseline.add_argument(
-        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
-        required=True)
+        "-d",
+        "--dir",
+        nargs="+",
+        help="Delta directories (space-separated)",
+        required=True,
+    )
     parser_baseline.add_argument(
-        '-b', '--baseline', help='Set baseline in the format x.x.x',
-        required=True)
+        "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
+    )
 
     # create the parser for the "info" command
-    parser_info = subparsers.add_parser('info', help='show info about upgrades')
+    parser_info = subparsers.add_parser("info", help="show info about upgrades")
     parser_info.add_argument(
-        '-p', '--pg_service', help='Name of the postgres service',
-        required=True)
+        "-p", "--pg_service", help="Name of the postgres service", required=True
+    )
     parser_info.add_argument(
-        '-t', '--table', help='Upgrades information table', required=True)
+        "-t", "--table", help="Upgrades information table", required=True
+    )
     parser_info.add_argument(
-        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
-        required=True)
+        "-d",
+        "--dir",
+        nargs="+",
+        help="Delta directories (space-separated)",
+        required=True,
+    )
 
     # create the parser for the "upgrade" command
-    parser_upgrade = subparsers.add_parser('upgrade', help='upgrade db')
+    parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
     parser_upgrade.add_argument(
-        '-p', '--pg_service', help='Name of the postgres service',
-        required=True)
+        "-p", "--pg_service", help="Name of the postgres service", required=True
+    )
     parser_upgrade.add_argument(
-        '-t', '--table', help='Upgrades information table', required=True)
+        "-t", "--table", help="Upgrades information table", required=True
+    )
     parser_upgrade.add_argument(
-        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
-        required=True)
+        "-d",
+        "--dir",
+        nargs="+",
+        help="Delta directories (space-separated)",
+        required=True,
+    )
+    parser_upgrade.add_argument("-u", "--max-version", help="upper bound limit version")
     parser_upgrade.add_argument(
-        '-u', '--max-version', help='upper bound limit version')
+        "-v",
+        "--var",
+        nargs=3,
+        help="Assign variable for running SQL deltas."
+        "Format is: (string|float|int) name value. ",
+        action="append",
+        required=False,
+    )
     parser_upgrade.add_argument(
-        '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
-                                     'Format is: (string|float|int) name value. ',
-        action='append', required=False)
-    parser_upgrade.add_argument(
-        '-vv', '--verbose', action='store_true', help='Display extra information')
+        "-vv", "--verbose", action="store_true", help="Display extra information"
+    )
 
     # create the parser for the "test-and-upgrade" command
     parser_test_and_upgrade = subparsers.add_parser(
-        'test-and-upgrade',
-        help='try the upgrade on a test db and if all it\'s ok, do upgrade '
-             'the production db')
+        "test-and-upgrade",
+        help="try the upgrade on a test db and if all it's ok, do upgrade "
+        "the production db",
+    )
     parser_test_and_upgrade.add_argument(
-        '-pp', '--pg_service_prod',
-        help='Name of the pg_service related to production db')
+        "-pp",
+        "--pg_service_prod",
+        help="Name of the pg_service related to production db",
+    )
     parser_test_and_upgrade.add_argument(
-        '-pt', '--pg_service_test',
-        help='Name of the pg_service related to a test db used to test the '
-             'migration')
+        "-pt",
+        "--pg_service_test",
+        help="Name of the pg_service related to a test db used to test the "
+        "migration",
+    )
     parser_test_and_upgrade.add_argument(
-        '-pc', '--pg_service_comp',
-        help='Name of the pg_service related to a db used to compare the '
-             'updated db test with the last version of the db')
+        "-pc",
+        "--pg_service_comp",
+        help="Name of the pg_service related to a db used to compare the "
+        "updated db test with the last version of the db",
+    )
     parser_test_and_upgrade.add_argument(
-        '-t', '--table', help='Upgrades information table')
+        "-t", "--table", help="Upgrades information table"
+    )
     parser_test_and_upgrade.add_argument(
-        '-d', '--dir', nargs='+', help='Delta directories (space-separated)',
-        required=True)
-    parser_test_and_upgrade.add_argument('-f', '--file', help='The backup file')
+        "-d",
+        "--dir",
+        nargs="+",
+        help="Delta directories (space-separated)",
+        required=True,
+    )
+    parser_test_and_upgrade.add_argument("-f", "--file", help="The backup file")
     parser_test_and_upgrade.add_argument(
-        '-x', help='ignore pg_restore errors', action="store_true")
+        "-x", help="ignore pg_restore errors", action="store_true"
+    )
     parser_test_and_upgrade.add_argument(
-        '-i', '--ignore', help='Elements to be ignored', nargs='+',
-        choices=['tables',
-                 'columns',
-                 'constraints',
-                 'views',
-                 'sequences',
-                 'indexes',
-                 'triggers',
-                 'functions',
-                 'rules'])
+        "-i",
+        "--ignore",
+        help="Elements to be ignored",
+        nargs="+",
+        choices=[
+            "tables",
+            "columns",
+            "constraints",
+            "views",
+            "sequences",
+            "indexes",
+            "triggers",
+            "functions",
+            "rules",
+        ],
+    )
     parser_test_and_upgrade.add_argument(
-        '-N', '--exclude-schema', help='Schema to be ignored.', action='append')
+        "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
+    )
     parser_test_and_upgrade.add_argument(
-        '-P', '--exclude-field-pattern', help='Fields to be ignored based on a pattern compatible with SQL LIKE.',
-        action='append')
+        "-P",
+        "--exclude-field-pattern",
+        help="Fields to be ignored based on a pattern compatible with SQL LIKE.",
+        action="append",
+    )
     parser_test_and_upgrade.add_argument(
-        '-u', '--max-version', help='upper bound limit version')
+        "-u", "--max-version", help="upper bound limit version"
+    )
     parser_test_and_upgrade.add_argument(
-        '-v', '--var', nargs=3, help='Assign variable for running SQL deltas.'
-                                     'Format is: (string|float|int) name value.',
-        action='append', required=False)
+        "-v",
+        "--var",
+        nargs=3,
+        help="Assign variable for running SQL deltas."
+        "Format is: (string|float|int) name value.",
+        action="append",
+        required=False,
+    )
     parser_test_and_upgrade.add_argument(
-        '-vv', '--verbose', action='store_true', help='Display extra information')
+        "-vv", "--verbose", action="store_true", help="Display extra information"
+    )
 
     return parser
 
@@ -570,7 +687,9 @@ def cli():
 
     # print the version and exit
     if args.version:
-        print('pum version {}'.format('[DEV]'))  # don't change this line, it is sedded by deploy_to_pypi.sh
+        print(
+            "pum version {}".format("[DEV]")
+        )  # don't change this line, it is sedded by deploy_to_pypi.sh
         parser.exit()
 
     # if no command is passed, print the help and exit
@@ -579,11 +698,11 @@ def cli():
         parser.exit()
 
     variables = {}
-    if args.command in ('upgrade', 'test-and-upgrade'):
+    if args.command in ("upgrade", "test-and-upgrade"):
         for v in args.var or ():
-            if v[0] == 'float':
+            if v[0] == "float":
                 variables[v[1]] = float(v[2])
-            elif v[0] == 'int':
+            elif v[0] == "int":
                 variables[v[1]] = int(v[2])
             else:
                 variables[v[1]] = v[2]
@@ -591,31 +710,52 @@ def cli():
     exit_code = 0
     pum = Pum(args.config_file)
 
-    if args.command == 'check':
-        success = pum.run_check(args.pg_service1, args.pg_service2, ignore_list=args.ignore,
-                                exclude_schema=args.exclude_schema, exclude_field_pattern=args.exclude_field_pattern,
-                                verbose_level=args.verbose_level, output_file=args.output_file)
+    if args.command == "check":
+        success = pum.run_check(
+            args.pg_service1,
+            args.pg_service2,
+            ignore_list=args.ignore,
+            exclude_schema=args.exclude_schema,
+            exclude_field_pattern=args.exclude_field_pattern,
+            verbose_level=args.verbose_level,
+            output_file=args.output_file,
+        )
         if not success:
             exit_code = 1
-    elif args.command == 'dump':
+    elif args.command == "dump":
         pum.run_dump(args.pg_service, args.file, args.exclude_schema)
-    elif args.command == 'restore':
+    elif args.command == "restore":
         pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
-    elif args.command == 'baseline':
+    elif args.command == "baseline":
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
-    elif args.command == 'info':
+    elif args.command == "info":
         pum.run_info(args.pg_service, args.table, args.dir)
-    elif args.command == 'upgrade':
-        pum.run_upgrade(args.pg_service, args.table, args.dir, variables, args.max_version,
-                        args.verbose)
-    elif args.command == 'test-and-upgrade':
+    elif args.command == "upgrade":
+        pum.run_upgrade(
+            args.pg_service,
+            args.table,
+            args.dir,
+            variables,
+            args.max_version,
+            args.verbose,
+        )
+    elif args.command == "test-and-upgrade":
         success = pum.run_test_and_upgrade(
-            args.pg_service_prod, args.pg_service_test, args.pg_service_comp,
-            args.file, args.table, args.dir, args.ignore,
-            args.exclude_schema, args.exclude_field_pattern,
-            args.x, variables, args.max_version, args.verbose)
+            args.pg_service_prod,
+            args.pg_service_test,
+            args.pg_service_comp,
+            args.file,
+            args.table,
+            args.dir,
+            args.ignore,
+            args.exclude_schema,
+            args.exclude_field_pattern,
+            args.x,
+            variables,
+            args.max_version,
+            args.verbose,
+        )
         if not success:
             exit_code = 1
 
     return exit_code
-

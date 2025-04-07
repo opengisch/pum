@@ -1,4 +1,3 @@
-
 class PgDumpCommandError(Exception):
     pass
 

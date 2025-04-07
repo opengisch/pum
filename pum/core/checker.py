@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
+import difflib
 
-from __future__ import print_function
 import psycopg2
 import psycopg2.extras
-import difflib
 
 
 class Checker:
@@ -11,9 +9,14 @@ class Checker:
     differences."""
 
     def __init__(
-            self, pg_service1, pg_service2,
-            exclude_schema=None, exclude_field_pattern=None,
-            ignore_list=None, verbose_level=1):
+        self,
+        pg_service1,
+        pg_service2,
+        exclude_schema=None,
+        exclude_field_pattern=None,
+        ignore_list=None,
+        verbose_level=1,
+    ):
         """Constructor
 
         Parameters
@@ -36,17 +39,17 @@ class Checker:
             difference, 2 -> print all the difference details
         """
 
-        self.conn1 = psycopg2.connect("service={0}".format(pg_service1))
+        self.conn1 = psycopg2.connect(f"service={pg_service1}")
         self.cur1 = self.conn1.cursor()
 
-        self.conn2 = psycopg2.connect("service={0}".format(pg_service2))
+        self.conn2 = psycopg2.connect(f"service={pg_service2}")
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list
         self.exclude_schema = "('information_schema'"
         if exclude_schema is not None:
             for schema in exclude_schema:
-                self.exclude_schema += ", '{}'".format(schema)
+                self.exclude_schema += f", '{schema}'"
         self.exclude_schema += ")"
         self.exclude_field_pattern = exclude_field_pattern or []
 
@@ -55,46 +58,46 @@ class Checker:
     def run_checks(self):
         """Run all the checks functions.
 
-            Returns
-            -------
-            bool
-                True if all the checks are true
-                False otherwise
-            dict
-                Dictionary of lists of differences
+        Returns
+        -------
+        bool
+            True if all the checks are true
+            False otherwise
+        dict
+            Dictionary of lists of differences
         """
 
         result = True
         differences_dict = {}
 
-        if 'tables' not in self.ignore_list:
-            tmp_result, differences_dict['tables'] = self.check_tables()
+        if "tables" not in self.ignore_list:
+            tmp_result, differences_dict["tables"] = self.check_tables()
             result = False if not tmp_result else result
-        if 'columns' not in self.ignore_list:
-            tmp_result, differences_dict['columns'] = self.check_columns(
-                'views' not in self.ignore_list)
+        if "columns" not in self.ignore_list:
+            tmp_result, differences_dict["columns"] = self.check_columns(
+                "views" not in self.ignore_list
+            )
             result = False if not tmp_result else result
-        if 'constraints' not in self.ignore_list:
-            tmp_result, differences_dict['constraints'] = \
-                self.check_constraints()
+        if "constraints" not in self.ignore_list:
+            tmp_result, differences_dict["constraints"] = self.check_constraints()
             result = False if not tmp_result else result
-        if 'views' not in self.ignore_list:
-            tmp_result, differences_dict['views'] = self.check_views()
+        if "views" not in self.ignore_list:
+            tmp_result, differences_dict["views"] = self.check_views()
             result = False if not tmp_result else result
-        if 'sequences' not in self.ignore_list:
-            tmp_result, differences_dict['sequences'] = self.check_sequences()
+        if "sequences" not in self.ignore_list:
+            tmp_result, differences_dict["sequences"] = self.check_sequences()
             result = False if not tmp_result else result
-        if 'indexes' not in self.ignore_list:
-            tmp_result, differences_dict['indexes'] = self.check_indexes()
+        if "indexes" not in self.ignore_list:
+            tmp_result, differences_dict["indexes"] = self.check_indexes()
             result = False if not tmp_result else result
-        if 'triggers' not in self.ignore_list:
-            tmp_result, differences_dict['triggers'] = self.check_triggers()
+        if "triggers" not in self.ignore_list:
+            tmp_result, differences_dict["triggers"] = self.check_triggers()
             result = False if not tmp_result else result
-        if 'functions' not in self.ignore_list:
-            tmp_result, differences_dict['functions'] = self.check_functions()
+        if "functions" not in self.ignore_list:
+            tmp_result, differences_dict["functions"] = self.check_functions()
             result = False if not tmp_result else result
-        if 'rules' not in self.ignore_list:
-            tmp_result, differences_dict['rules'] = self.check_rules()
+        if "rules" not in self.ignore_list:
+            tmp_result, differences_dict["rules"] = self.check_rules()
             result = False if not tmp_result else result
         if self.verbose_level == 0:
             differences_dict = None
@@ -103,60 +106,66 @@ class Checker:
     def check_tables(self):
         """Check if the tables are equals.
 
-            Returns
-            -------
-            bool
-                True if the tables are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the tables are the same
+            False otherwise
+        list
+            A list with the differences
         """
-        query = """SELECT table_schema, table_name
+        query = r"""SELECT table_schema, table_name
                 FROM information_schema.tables
                 WHERE table_schema NOT IN {}
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name
-                """.format(self.exclude_schema)
+                """.format(
+            self.exclude_schema
+        )
 
         return self.__check_equals(query)
 
     def check_columns(self, check_views=True):
         """Check if the columns in all tables are equals.
 
-            Parameters
-            ----------
-            check_views: bool
-                if True, check the columns of all the tables and views, if
-                False check only the columns of the tables
+        Parameters
+        ----------
+        check_views: bool
+            if True, check the columns of all the tables and views, if
+            False check only the columns of the tables
 
-            Returns
-            -------
-            bool
-                True if the columns are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the columns are the same
+            False otherwise
+        list
+            A list with the differences
         """
         with_query = None
         if check_views:
-            with_query = """WITH table_list AS (
+            with_query = r"""WITH table_list AS (
                          SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE table_schema NOT IN {es}
                             AND table_schema NOT LIKE 'pg\_%'
                          ORDER BY table_schema,table_name
-                         )""".format(es=self.exclude_schema)
+                         )""".format(
+                es=self.exclude_schema
+            )
 
         else:
-            with_query = """WITH table_list AS (
+            with_query = r"""WITH table_list AS (
                          SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE table_schema NOT IN {es}
                             AND table_schema NOT LIKE 'pg\_%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
-                         )""".format(es=self.exclude_schema)
+                         )""".format(
+                es=self.exclude_schema
+            )
 
         query = """{wq}
                 SELECT isc.table_schema, isc.table_name, column_name,
@@ -169,22 +178,28 @@ class Checker:
                     AND isc.table_name = tl.table_name
                     {efp}
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(wq=with_query,
-                           efp=''.join([" AND column_name NOT LIKE '{p}'".format(p=pattern)
-                                        for pattern in self.exclude_field_pattern]))
+                """.format(
+            wq=with_query,
+            efp="".join(
+                [
+                    f" AND column_name NOT LIKE '{pattern}'"
+                    for pattern in self.exclude_field_pattern
+                ]
+            ),
+        )
 
         return self.__check_equals(query)
 
     def check_constraints(self):
         """Check if the constraints are equals.
 
-            Returns
-            -------
-            bool
-                True if the constraints are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the constraints are the same
+            False otherwise
+        list
+            A list with the differences
         """
         query = f""" select
                         tc.constraint_name,
@@ -212,35 +227,37 @@ class Checker:
     def check_views(self):
         """Check if the views are equals.
 
-            Returns
-            -------
-            bool
-                True if the views are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the views are the same
+            False otherwise
+        list
+            A list with the differences
         """
-        query = """
+        query = r"""
         SELECT table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
         WHERE table_schema NOT IN {}
         AND table_schema NOT LIKE 'pg\_%'
         AND table_name not like 'vw_export_%'
         ORDER BY table_schema, table_name
-        """.format(self.exclude_schema)
+        """.format(
+            self.exclude_schema
+        )
 
         return self.__check_equals(query)
 
     def check_sequences(self):
         """Check if the sequences are equals.
 
-            Returns
-            -------
-            bool
-                True if the sequences are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the sequences are the same
+            False otherwise
+        list
+            A list with the differences
         """
         query = f"""
         SELECT c.relname,
@@ -256,13 +273,13 @@ class Checker:
     def check_indexes(self):
         """Check if the indexes are equals.
 
-            Returns
-            -------
-            bool
-                True if the indexes are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the indexes are the same
+            False otherwise
+        list
+            A list with the differences
         """
 
         query = f"""
@@ -297,13 +314,13 @@ class Checker:
     def check_triggers(self) -> dict:
         """Check if the triggers are equals.
 
-            Returns
-            -------
-            bool
-                True if the triggers are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the triggers are the same
+            False otherwise
+        list
+            A list with the differences
         """
         query = f"""
         WITH trigger_list AS (
@@ -325,15 +342,15 @@ class Checker:
     def check_functions(self):
         """Check if the functions are equals.
 
-            Returns
-            -------
-            bool
-                True if the functions are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the functions are the same
+            False otherwise
+        list
+            A list with the differences
         """
-        query = """
+        query = r"""
         SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
             routines.routine_definition
         FROM information_schema.routines
@@ -344,22 +361,24 @@ class Checker:
             AND routines.specific_schema <> 'information_schema'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
-            """.format(self.exclude_schema)
+            """.format(
+            self.exclude_schema
+        )
 
         return self.__check_equals(query)
 
     def check_rules(self):
         """Check if the rules are equals.
 
-            Returns
-            -------
-            bool
-                True if the rules are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the rules are the same
+            False otherwise
+        list
+            A list with the differences
         """
-        query = """
+        query = r"""
         select n.nspname as rule_schema,
         c.relname as rule_table,
         r.rulename as rule_name,
@@ -377,20 +396,22 @@ class Checker:
         WHERE n.nspname NOT IN {excl}
             AND n.nspname NOT LIKE 'pg\_%'
         ORDER BY n.nspname, c.relname, r.rulename, rule_event
-        """.format(excl=self.exclude_schema)
+        """.format(
+            excl=self.exclude_schema
+        )
 
         return self.__check_equals(query)
 
     def __check_equals(self, query):
         """Check if the query results on the two databases are equals.
 
-            Returns
-            -------
-            bool
-                True if the results are the same
-                False otherwise
-            list
-                A list with the differences
+        Returns
+        -------
+        bool
+            True if the results are the same
+            False otherwise
+        list
+            A list with the differences
         """
         self.cur1.execute(query)
         records1 = self.cur1.fetchall()
@@ -406,7 +427,7 @@ class Checker:
         records2 = [str(x) for x in records2]
 
         for line in d.compare(records1, records2):
-            if line[0] in ('-', '+'):
+            if line[0] in ("-", "+"):
                 result = False
                 if self.verbose_level == 1:
                     differences.append(line[0:79])
