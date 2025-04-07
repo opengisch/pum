@@ -1,8 +1,11 @@
 name: Testing
 
 on: 
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+      - v2
+  pull_request:
 
 jobs:
   build:
@@ -12,18 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         os: 
-          - "ubuntu-20.04"
+          - ubuntu-latest
         python:
-          - "3.6"
-          # - "3.7"
-          # - "3.8"
-          # - "3.9"
+          - "3.10"
         postgres: # dockerhub tags
-          - "9.6"
-          # - "10"
-          # - "11"
-          # - "12"
-          # - "13"
+          - "13"
 
     runs-on: ${{ matrix.os }}
 
