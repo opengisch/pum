@@ -13,8 +13,6 @@ import pkg_resources
 import psycopg2
 import psycopg2.extras
 
-from .deltapy import DeltaPy
-
 
 class Upgrader:
     """This class is used to upgrade an existing database using sql delta files.
@@ -165,12 +163,6 @@ class Upgrader:
         self.__run_sql_file(delta.get_file())
         self.__update_upgrades_table(delta)
 
-    def __run_delta_py(self, delta):
-        """Execute the delta py file"""
-
-        self.__run_py_file(delta.get_file(), delta.get_name())
-        self.__update_upgrades_table(delta)
-
     def __run_pre_all(self):
         """Execute the pre-all.py and pre-all.sql files if they exist"""
 
@@ -178,12 +170,6 @@ class Upgrader:
         # executed before the pre scripts of delta1
 
         for d in reversed(self.dirs):
-            pre_all_py_path = os.path.join(d, "pre-all.py")
-            if os.path.isfile(pre_all_py_path):
-                print("     Applying pre-all.py...", end=" ")
-                self.__run_py_file(pre_all_py_path, "pre-all")
-                print("OK")
-
             pre_all_sql_path = os.path.join(d, "pre-all.sql")
             if os.path.isfile(pre_all_sql_path):
                 print("     Applying pre-all.sql...", end=" ")
@@ -197,12 +183,6 @@ class Upgrader:
         # executed before the post scripts of delta2
 
         for d in self.dirs:
-            post_all_py_path = os.path.join(d, "post-all.py")
-            if os.path.isfile(post_all_py_path):
-                print("     Applying post-all.py...", end=" ")
-                self.__run_py_file(post_all_py_path, "post-all")
-                print("OK")
-
             post_all_sql_path = os.path.join(d, "post-all.sql")
             if os.path.isfile(post_all_sql_path):
                 print("     Applying post-all.sql...", end=" ")
@@ -224,42 +204,6 @@ class Upgrader:
             else:
                 self.cursor.execute(sql)
             self.connection.commit()
-
-    def __run_py_file(self, filepath, module_name):
-        """Execute the python file at the passed path
-
-        Parameters
-        ----------
-        filepath: str
-            the path of the file to execute
-        module_name: str
-            the name of the python module
-        """
-
-        # Import the module
-        spec = importlib.util.spec_from_file_location(module_name, filepath)
-        delta_py = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(delta_py)
-
-        # Get the python file's directory path
-        # Note: we add a separator for backward compatibility, as existing DeltaPy subclasses
-        # may assume that delta_dir ends with a separator
-        dir_ = dirname(filepath) + os.sep
-
-        # Search for subclasses of DeltaPy
-        for name in dir(delta_py):
-            obj = getattr(delta_py, name)
-            if inspect.isclass(obj) and not obj == DeltaPy and issubclass(obj, DeltaPy):
-
-                delta_py_inst = obj(
-                    self.current_db_version(),
-                    dir_,
-                    self.dirs,
-                    self.pg_service,
-                    self.upgrades_table,
-                    variables=self.variables,
-                )
-                delta_py_inst.run()
 
     def show_info(self):
         """Print info about found delta files and about already made upgrades"""
