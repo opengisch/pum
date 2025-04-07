@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-
 import argparse
 import os
 import sys
+from typing import Any, Dict, List, Optional, Tuple
 
 import psycopg2
 import yaml
@@ -21,19 +21,18 @@ from pum.utils.utils import Bcolors, ask_for_confirmation
 
 
 class Pum:
-    def __init__(self, config_file=None):
-
-        self.upgrades_table = None
-        self.delta_dirs = None
-        self.backup_file = None
-        self.ignore_list = None
-        self.pg_dump_exe = os.environ.get("PG_DUMP_EXE")
-        self.pg_restore_exe = os.environ.get("PG_RESTORE_EXE")
+    def __init__(self, config_file: str | None = None) -> None:
+        self.upgrades_table: str | None = None
+        self.delta_dirs: list[str] | None = None
+        self.backup_file: str | None = None
+        self.ignore_list: list[str] | None = None
+        self.pg_dump_exe: str | None = os.environ.get("PG_DUMP_EXE")
+        self.pg_restore_exe: str | None = os.environ.get("PG_RESTORE_EXE")
 
         if config_file:
             self.__load_config_file(config_file)
 
-    def __load_config_file(self, config_file):
+    def __load_config_file(self, config_file: str) -> None:
         """Load the configurations from yaml configuration file and store it
         to instance variables.
 
@@ -42,10 +41,15 @@ class Pum:
         config_file: string
             The path of the config file
         """
-        configs = yaml.safe_load(open(config_file))
-        self.set_configs(configs)
+        try:
+            with open(config_file) as f:
+                configs = yaml.safe_load(f)
+            self.set_configs(configs)
+        except Exception as e:
+            self.__out(f"Failed to load config file: {e}", "FAIL")
+            sys.exit(1)
 
-    def set_configs(self, configs):
+    def set_configs(self, configs: dict[str, Any]) -> None:
         """Save the configuration values into the instance variables.
 
         Parameters
@@ -53,27 +57,26 @@ class Pum:
         configs: dict
             Dictionary of configurations
         """
-
         self.upgrades_table = configs.get("upgrades_table")
         self.delta_dirs = configs.get("delta_dirs")
         self.backup_file = configs.get("backup_file")
         self.ignore_list = configs.get("ignore_elements")
-        self.pg_dump_exe = configs.get("pg_dump_exe")
-        self.pg_restore_exe = configs.get("pg_restore_exe")
+        self.pg_dump_exe = configs.get("pg_dump_exe", self.pg_dump_exe)
+        self.pg_restore_exe = configs.get("pg_restore_exe", self.pg_restore_exe)
 
         if self.delta_dirs and not isinstance(self.delta_dirs, list):
             self.delta_dirs = [self.delta_dirs]
 
     def run_check(
         self,
-        pg_service1,
-        pg_service2,
-        ignore_list,
-        exclude_schema,
-        exclude_field_pattern,
-        verbose_level=1,
-        output_file=None,
-    ):
+        pg_service1: str,
+        pg_service2: str,
+        ignore_list: list[str] | None,
+        exclude_schema: list[str] | None,
+        exclude_field_pattern: list[str] | None,
+        verbose_level: int = 1,
+        output_file: str | None = None,
+    ) -> bool:
         """Run the check command
 
         Parameters
@@ -101,16 +104,11 @@ class Pum:
         -------
         True if no differences are found, False otherwise.
         """
-
         self.__out("Check...", type="WAITING")
-        if not verbose_level:
-            verbose_level = 1
-        if not ignore_list:
-            ignore_list = []
-        if not exclude_schema:
-            exclude_schema = []
-        if not exclude_field_pattern:
-            exclude_field_pattern = []
+        verbose_level = verbose_level or 1
+        ignore_list = ignore_list or []
+        exclude_schema = exclude_schema or []
+        exclude_field_pattern = exclude_field_pattern or []
         try:
             checker = Checker(
                 pg_service1,
@@ -131,8 +129,8 @@ class Pum:
                 if output_file:
                     with open(output_file, "w") as f:
                         for k, values in differences.items():
-                            f.write(k)
-                            f.writelines(values)
+                            f.write(k + "\n")
+                            f.writelines(f"{v}\n" for v in values)
                 else:
                     for k, values in differences.items():
                         print(k)
@@ -142,15 +140,18 @@ class Pum:
 
         except psycopg2.Error as e:
             self.__out("ERROR", "FAIL")
-            self.__out(e.args[0], "FAIL")
-            exit(1)
+            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            sys.exit(1)
 
         except Exception as e:
             self.__out("ERROR", "FAIL")
-            self.__out(e.args[0])
-            exit(1)
+            # if e.args is empty then use str(e)
+            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            sys.exit(1)
 
-    def run_dump(self, pg_service, file, exclude_schema):
+    def run_dump(
+        self, pg_service: str, file: str, exclude_schema: list[str] | None
+    ) -> None:
         """
         Run the dump command
 
@@ -162,9 +163,7 @@ class Pum:
         file: string
             The path of the desired backup file
         """
-
         self.__out("Dump...", type="WAITING")
-
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_dump_exe:
@@ -175,11 +174,17 @@ class Pum:
                 dumper.pg_backup(exclude_schema=exclude_schema)
         except (PgDumpFailed, PgDumpCommandError) as e:
             self.__out("ERROR", "FAIL")
-            self.__out(e.args[0])
-            exit(1)
+            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            sys.exit(1)
         self.__out("OK", "OKGREEN")
 
-    def run_restore(self, pg_service, file, ignore_restore_errors, exclude_schema=None):
+    def run_restore(
+        self,
+        pg_service: str,
+        file: str,
+        ignore_restore_errors: bool,
+        exclude_schema: list[str] | None = None,
+    ) -> None:
         """
         Run the dump command
 
@@ -193,9 +198,7 @@ class Pum:
         ignore_restore_errors: Boolean
             If true the pg_restore errors don't cause the exit of the program
         """
-
         self.__out("Restore...", type="WAITING")
-
         try:
             dumper = Dumper(pg_service, file)
             if self.pg_restore_exe:
@@ -206,19 +209,20 @@ class Pum:
                 dumper.pg_restore(exclude_schema=exclude_schema)
         except PgRestoreFailed as e:
             self.__out("ERROR", "FAIL")
-            self.__out(str(e))
-            # one might want to handle exit on error
+            self.__out(str(e), "FAIL")
             if ignore_restore_errors:
                 return
             else:
-                exit(1)
+                sys.exit(1)
         except PgRestoreCommandError as e:
             self.__out("ERROR", "FAIL")
-            self.__out(e.args[0])
-            exit(1)
+            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            sys.exit(1)
         self.__out("OK", "OKGREEN")
 
-    def run_baseline(self, pg_service, table, delta_dirs, baseline):
+    def run_baseline(
+        self, pg_service: str, table: str, delta_dirs: list[str], baseline: str
+    ) -> None:
         """
         Run the baseline command. Set the current database version
         (baseline) into the specified table.
@@ -236,24 +240,19 @@ class Pum:
         baseline: str
             The version of the current database to set in the information
             table. The baseline must be in the format x.x.x where x are numbers.
-
         """
-
         self.__out("Set baseline...", type="WAITING")
-
         try:
             upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.create_upgrades_table()
             upgrader.set_baseline(baseline)
-
         except ValueError as e:
             self.__out("ERROR", "FAIL")
-            self.__out(e)
-            exit(1)
-
+            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            sys.exit(1)
         self.__out("OK", "OKGREEN")
 
-    def run_info(self, pg_service, table, delta_dirs):
+    def run_info(self, pg_service: str, table: str, delta_dirs: list[str]) -> None:
         """Print info about delta file and about already made upgrade
 
         Parameters
@@ -264,21 +263,25 @@ class Pum:
         table: str
             The name of the upgrades information table in the format
             schema.table
-        delta_dir: list(str)
+        delta_dirs: list(str)
             The paths to the delta directories
         """
-
         try:
             upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.show_info()
-
         except Exception as e:
-            print(e)
-            exit(1)
+            self.__out(str(e), "FAIL")
+            sys.exit(1)
 
     def run_upgrade(
-        self, pg_service, table, delta_dirs, variables, max_version, verbose
-    ):
+        self,
+        pg_service: str,
+        table: str,
+        delta_dirs: list[str],
+        variables: dict[str, Any],
+        max_version: str,
+        verbose: bool,
+    ) -> None:
         """Apply the delta files to upgrade the database
 
         Parameters
@@ -297,9 +300,7 @@ class Pum:
         verbose: bool
             Whether to display extra information
         """
-
         self.__out("Upgrade...", type="WAITING")
-
         try:
             upgrader = Upgrader(
                 pg_service,
@@ -309,31 +310,29 @@ class Pum:
                 max_version=max_version,
             )
             upgrader.run(verbose=verbose)
-
         except Exception as e:
             print(e)
             if verbose:
                 raise e
-            exit(1)
-
+            sys.exit(1)
         self.__out("OK", "OKGREEN")
 
     def run_test_and_upgrade(
         self,
-        pg_service_prod,
-        pg_service_test,
-        pg_service_comp,
-        file,
-        table,
-        delta_dirs,
-        ignore_list,
-        exclude_schema,
-        exclude_field_pattern,
-        ignore_restore_errors,
-        variables,
-        max_version,
-        verbose,
-    ):
+        pg_service_prod: str,
+        pg_service_test: str,
+        pg_service_comp: str,
+        file: str,
+        table: str,
+        delta_dirs: list[str],
+        ignore_list: list[str],
+        exclude_schema: list[str],
+        exclude_field_pattern: list[str],
+        ignore_restore_errors: bool,
+        variables: dict[str, Any],
+        max_version: str,
+        verbose: bool,
+    ) -> bool:
         """
         Do the following steps:
             - creates a dump of the production db
@@ -343,8 +342,7 @@ class Pum:
             - checks if there are differences between the test db and a
                 comparison db
             - if no significant differences are found, after confirmation,
-            applies the delta files to the production dbD.
-
+            applies the delta files to the production db.
 
         pg_service_prod: str
             The name of the postgres service (defined in pg_service.conf)
@@ -383,49 +381,47 @@ class Pum:
         False if the prod database cannot be upgraded because there are
         differences between the test and comp databases.
         """
-
         self.__out("Test and upgrade...", type="WAITING")
-
-        # Backup of db prod
+        # Backup of production db
         self.run_dump(pg_service_prod, file, exclude_schema)
-
-        # Restore db dump on db test
+        # Restore dump on test db
         self.run_restore(pg_service_test, file, ignore_restore_errors)
-
-        # Apply deltas on db test
+        # Apply deltas on test db
         self.run_upgrade(
             pg_service_test, table, delta_dirs, variables, max_version, verbose
         )
-
-        # Compare db test with db comp
+        # Compare test db with comparison db
         verbose_level = 2 if verbose else 1
         check_result = self.run_check(
             pg_service_test,
             pg_service_comp,
-            verbose_level=verbose_level,
             ignore_list=ignore_list,
             exclude_schema=exclude_schema,
             exclude_field_pattern=exclude_field_pattern,
+            verbose_level=verbose_level,
         )
-
         if not check_result:
             return False
-
         if ask_for_confirmation(prompt=f"Apply deltas to {pg_service_prod}?"):
             self.run_upgrade(
                 pg_service_prod, table, delta_dirs, variables, max_version, verbose
             )
-
         self.__out("OK", "OKGREEN")
-
         return True
 
-    def __out(self, message, type="DEFAULT"):
+    def __out(self, message: str, type: str = "DEFAULT") -> None:
+        """
+        Print output messages with optional formatting.
 
-        # taken from django
+        Parameters
+        ----------
+        message : str
+            The message to display.
+        type : str, optional (default: "DEFAULT")
+            The type of message which determines the formatting.
+            Options include: WAITING, OKGREEN, WARNING, FAIL, BOLD, UNDERLINE.
+        """
         supported_platform = sys.platform != "win32" or "ANSICON" in os.environ
-
-        # print output of the commands
         if supported_platform:
             if type == "WAITING":
                 print(Bcolors.WAITING + message + Bcolors.ENDC, end="")
@@ -449,7 +445,6 @@ def create_parser() -> argparse.ArgumentParser:
     """
     Creates the main parser with its sub-parsers
     """
-    # create the top-level parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-v", "--version", help="print the version and exit", action="store_true"
@@ -460,8 +455,7 @@ def create_parser() -> argparse.ArgumentParser:
         title="commands", description="valid pum commands", dest="command"
     )
 
-    # create the parser for the "check" command
-
+    # Parser for the "check" command
     parser_check = subparsers.add_parser(
         "check", help="check the differences between two databases"
     )
@@ -505,9 +499,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_check.add_argument("-o", "--output_file", help="Output file")
 
-    # create the parser for the "dump" command
+    # Parser for the "dump" command
     parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
-
     parser_dump.add_argument(
         "-p", "--pg_service", help="Name of the postgres service", required=True
     )
@@ -516,7 +509,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_dump.add_argument("file", help="The backup file")
 
-    # create the parser for the "restore" command
+    # Parser for the "restore" command
     parser_restore = subparsers.add_parser(
         "restore", help="restore a Postgres database from a dump file"
     )
@@ -531,7 +524,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_restore.add_argument("file", help="The backup file")
 
-    # create the parser for the "baseline" command
+    # Parser for the "baseline" command
     parser_baseline = subparsers.add_parser(
         "baseline", help="Create upgrade information table and set baseline"
     )
@@ -552,7 +545,7 @@ def create_parser() -> argparse.ArgumentParser:
         "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
     )
 
-    # create the parser for the "info" command
+    # Parser for the "info" command
     parser_info = subparsers.add_parser("info", help="show info about upgrades")
     parser_info.add_argument(
         "-p", "--pg_service", help="Name of the postgres service", required=True
@@ -568,7 +561,7 @@ def create_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
-    # create the parser for the "upgrade" command
+    # Parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
     parser_upgrade.add_argument(
         "-p", "--pg_service", help="Name of the postgres service", required=True
@@ -588,20 +581,17 @@ def create_parser() -> argparse.ArgumentParser:
         "-v",
         "--var",
         nargs=3,
-        help="Assign variable for running SQL deltas."
-        "Format is: (string|float|int) name value. ",
+        help="Assign variable for running SQL deltas. Format is: (string|float|int) name value.",
         action="append",
-        required=False,
     )
     parser_upgrade.add_argument(
         "-vv", "--verbose", action="store_true", help="Display extra information"
     )
 
-    # create the parser for the "test-and-upgrade" command
+    # Parser for the "test-and-upgrade" command
     parser_test_and_upgrade = subparsers.add_parser(
         "test-and-upgrade",
-        help="try the upgrade on a test db and if all it's ok, do upgrade "
-        "the production db",
+        help="try the upgrade on a test db and if all it's ok, do upgrade the production db",
     )
     parser_test_and_upgrade.add_argument(
         "-pp",
@@ -611,14 +601,12 @@ def create_parser() -> argparse.ArgumentParser:
     parser_test_and_upgrade.add_argument(
         "-pt",
         "--pg_service_test",
-        help="Name of the pg_service related to a test db used to test the "
-        "migration",
+        help="Name of the pg_service related to a test db used to test the migration",
     )
     parser_test_and_upgrade.add_argument(
         "-pc",
         "--pg_service_comp",
-        help="Name of the pg_service related to a db used to compare the "
-        "updated db test with the last version of the db",
+        help="Name of the pg_service related to a db used to compare the updated db test with the last version of the db",
     )
     parser_test_and_upgrade.add_argument(
         "-t", "--table", help="Upgrades information table"
@@ -667,10 +655,8 @@ def create_parser() -> argparse.ArgumentParser:
         "-v",
         "--var",
         nargs=3,
-        help="Assign variable for running SQL deltas."
-        "Format is: (string|float|int) name value.",
+        help="Assign variable for running SQL deltas. Format is: (string|float|int) name value.",
         action="append",
-        required=False,
     )
     parser_test_and_upgrade.add_argument(
         "-vv", "--verbose", action="store_true", help="Display extra information"
@@ -679,10 +665,9 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def cli():
+def cli() -> int:
     # TODO refactor and set p1 and p2 as positional args, and uniform args
     parser = create_parser()
-
     args = parser.parse_args()
 
     # print the version and exit
@@ -697,7 +682,8 @@ def cli():
         parser.print_help()
         parser.exit()
 
-    variables = {}
+    # Build variables dict for upgrade/test-and-upgrade commands
+    variables: dict[str, Any] = {}
     if args.command in ("upgrade", "test-and-upgrade"):
         for v in args.var or ():
             if v[0] == "float":
@@ -707,8 +693,8 @@ def cli():
             else:
                 variables[v[1]] = v[2]
 
-    exit_code = 0
     pum = Pum(args.config_file)
+    exit_code = 0
 
     if args.command == "check":
         success = pum.run_check(
@@ -759,3 +745,7 @@ def cli():
             exit_code = 1
 
     return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(cli())
