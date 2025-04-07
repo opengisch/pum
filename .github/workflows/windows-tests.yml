@@ -1,5 +1,3 @@
-name: Testing Windows
-
 on: [push, pull_request]
 
 jobs:
@@ -10,7 +8,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        pg_major: [96]
+        pg_major: [13]
 
     runs-on: ${{ matrix.os }}
 
@@ -33,8 +31,8 @@ jobs:
           # Find EnterpriseDB version number
           EDB_VERSION=$(\
             curl -Ls 'http://sbp.enterprisedb.com/applications.xml' |
-            sed -n '\#<id>postgresql_${{ matrix.pg_major }}</id>#{n;p;n;p;}' |
-            sed -n '\#<platform>windows-x64</platform>#{n;p;}' |
+            sed -n "\#<id>postgresql_${{ matrix.pg_major }}</id>#{n;p;n;p;}" |
+            sed -n "\#<platform>windows-x64</platform>#{n;p;}" |
             sed -E 's#.*<version>([^<]+)</version>#\1#')
           # Install PostgreSQL
           echo "Installing PostgreSQL (version: ${EDB_VERSION})"
@@ -46,7 +44,7 @@ jobs:
         shell: bash
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install -r requirements/base.txt
 
       - name: Install pum
         run: python -m pip install .
