@@ -1,0 +1,12 @@
+# Develoment dependencies
+# -----------------------
+
+# tooling
+black
+flake8-builtins
+flake8-isort
+flake8-print
+pre-commit
+
+# for testing
+nose2
