@@ -8,7 +8,7 @@ import psycopg2.extras
 
 from pum.core.dumper import Dumper
 from pum.core.exceptions import PgRestoreFailed
-from pum import __main__ as pum
+from pum import cli as pum
 
 
 class TestDumper(unittest.TestCase):

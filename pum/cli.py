@@ -562,7 +562,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main():
+def cli():
     # TODO refactor and set p1 and p2 as positional args, and uniform args
     parser = create_parser()
 
@@ -618,14 +618,4 @@ def main():
             exit_code = 1
 
     return exit_code
-
-
-if __name__ == "__main__":
-    """
-    Main process
-    """
-    _exit_code = main()
-    exit(_exit_code)
-
-
 

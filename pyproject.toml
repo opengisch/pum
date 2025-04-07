@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm", "wheel", "setuptools-git-versioning"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pum"
+dynamic = ["version", "readme", "dependencies", "optional-dependencies"]
+authors = [
+    {name = "Denis Rouzaud", email = "denis@opengis.ch"},
+]
+description = 'Pum stands for "Postgres Upgrades Manager". It is a Database migration management tool very similar to flyway-db or Liquibase, based on metadata tables.'
+requires-python = ">=3.10"
+keywords = ["postgres", "database", "versioning"]
+license = "GPL-2.0-or-later"
+classifiers = [
+        'Topic :: Database',
+        'Intended Audience :: System Administrators',
+        'Intended Audience :: Information Technology',
+        'Topic :: Software Development :: Version Control',
+        'Development Status :: 5 - Production/Stable',
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+]
+
+[project.scripts]
+pum = "pum.cli:cli"
+
+[project.urls]
+homepage = "https://opengisch.github.io/pum/"
+documentation = "https://opengisch.github.io/pum/"
+repository = "https://github.com/opengisch/pum/"
+tracker = "https://github.com/opengisch/pum/issues"
+
+[tool.setuptools]
+packages = ["pum"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.md"], content-type = "text/markdown"}
+dependencies = {file = ["requirements/base.txt"]}
+#optional-dependencies.dev = {file = ["requirements/development.txt"]}
