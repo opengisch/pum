@@ -9,7 +9,6 @@ from hashlib import md5
 from os import listdir
 from os.path import basename, dirname, isfile, join
 
-import pkg_resources
 import psycopg2
 import psycopg2.extras
 

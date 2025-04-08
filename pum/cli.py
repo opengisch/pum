@@ -8,46 +8,36 @@ from typing import Any, Dict, List, Optional, Tuple
 import psycopg2
 import yaml
 
-from pum.core.checker import Checker
-from pum.core.dumper import Dumper
-from pum.core.exceptions import (
+from pum.checker import Checker
+from pum.config import PumConfig
+
+# from pum.dumper import Dumper
+from pum.exceptions import (
     PgDumpCommandError,
     PgDumpFailed,
     PgRestoreCommandError,
     PgRestoreFailed,
 )
-from pum.core.upgrader import Upgrader
+from pum.schema_migrations import SchemaMigrations
+from pum.upgrader import Upgrader
 from pum.utils.utils import Bcolors, ask_for_confirmation
 
 
 class Pum:
-    def __init__(self, config_file: str | None = None) -> None:
-        self.upgrades_table: str | None = None
-        self.delta_dirs: list[str] | None = None
-        self.backup_file: str | None = None
-        self.ignore_list: list[str] | None = None
-        self.pg_dump_exe: str | None = os.environ.get("PG_DUMP_EXE")
-        self.pg_restore_exe: str | None = os.environ.get("PG_RESTORE_EXE")
-
-        if config_file:
-            self.__load_config_file(config_file)
-
-    def __load_config_file(self, config_file: str) -> None:
-        """Load the configurations from yaml configuration file and store it
-        to instance variables.
-
-        Parameters
-        ----------
-        config_file: string
-            The path of the config file
+    def __init__(self, pg_service: str, config: str | PumConfig = None) -> None:
         """
-        try:
-            with open(config_file) as f:
-                configs = yaml.safe_load(f)
-            self.set_configs(configs)
-        except Exception as e:
-            self.__out(f"Failed to load config file: {e}", "FAIL")
-            sys.exit(1)
+        Initialize the PUM class with a database connection and configuration.
+
+        Args:
+            pg_service (str): The name of the postgres service (defined in pg_service.conf)
+            config (str | PumConfig): The configuration file path or a PumConfig object.
+        """
+        self.pg_service = pg_service
+
+        if isinstance(config, str):
+            self.config = PumConfig.from_yaml(config)
+        else:
+            self.config = config
 
     def set_configs(self, configs: dict[str, Any]) -> None:
         """Save the configuration values into the instance variables.
@@ -149,76 +139,76 @@ class Pum:
             self.__out(e.args[0] if e.args else str(e), "FAIL")
             sys.exit(1)
 
-    def run_dump(
-        self, pg_service: str, file: str, exclude_schema: list[str] | None
-    ) -> None:
-        """
-        Run the dump command
+    # def run_dump(
+    #     self, pg_service: str, file: str, exclude_schema: list[str] | None
+    # ) -> None:
+    #     """
+    #     Run the dump command
 
-        Parameters
-        ----------
-        pg_service: string
-            The name of the postgres service (defined in
-            pg_service.conf) related to the first db to be compared
-        file: string
-            The path of the desired backup file
-        """
-        self.__out("Dump...", type="WAITING")
-        try:
-            dumper = Dumper(pg_service, file)
-            if self.pg_dump_exe:
-                dumper.pg_backup(
-                    pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema
-                )
-            else:
-                dumper.pg_backup(exclude_schema=exclude_schema)
-        except (PgDumpFailed, PgDumpCommandError) as e:
-            self.__out("ERROR", "FAIL")
-            self.__out(e.args[0] if e.args else str(e), "FAIL")
-            sys.exit(1)
-        self.__out("OK", "OKGREEN")
+    #     Parameters
+    #     ----------
+    #     pg_service: string
+    #         The name of the postgres service (defined in
+    #         pg_service.conf) related to the first db to be compared
+    #     file: string
+    #         The path of the desired backup file
+    #     """
+    #     self.__out("Dump...", type="WAITING")
+    #     try:
+    #         dumper = Dumper(pg_service, file)
+    #         if self.pg_dump_exe:
+    #             dumper.pg_backup(
+    #                 pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema
+    #             )
+    #         else:
+    #             dumper.pg_backup(exclude_schema=exclude_schema)
+    #     except (PgDumpFailed, PgDumpCommandError) as e:
+    #         self.__out("ERROR", "FAIL")
+    #         self.__out(e.args[0] if e.args else str(e), "FAIL")
+    #         sys.exit(1)
+    #     self.__out("OK", "OKGREEN")
 
-    def run_restore(
-        self,
-        pg_service: str,
-        file: str,
-        ignore_restore_errors: bool,
-        exclude_schema: list[str] | None = None,
-    ) -> None:
-        """
-        Run the dump command
+    # def run_restore(
+    #     self,
+    #     pg_service: str,
+    #     file: str,
+    #     ignore_restore_errors: bool,
+    #     exclude_schema: list[str] | None = None,
+    # ) -> None:
+    #     """
+    #     Run the dump command
 
-        Parameters
-        ----------
-        pg_service: string
-            The name of the postgres service (defined in
-            pg_service.conf) related to the first db to be compared
-        file: string
-            The path of the desired backup file
-        ignore_restore_errors: Boolean
-            If true the pg_restore errors don't cause the exit of the program
-        """
-        self.__out("Restore...", type="WAITING")
-        try:
-            dumper = Dumper(pg_service, file)
-            if self.pg_restore_exe:
-                dumper.pg_restore(
-                    pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema
-                )
-            else:
-                dumper.pg_restore(exclude_schema=exclude_schema)
-        except PgRestoreFailed as e:
-            self.__out("ERROR", "FAIL")
-            self.__out(str(e), "FAIL")
-            if ignore_restore_errors:
-                return
-            else:
-                sys.exit(1)
-        except PgRestoreCommandError as e:
-            self.__out("ERROR", "FAIL")
-            self.__out(e.args[0] if e.args else str(e), "FAIL")
-            sys.exit(1)
-        self.__out("OK", "OKGREEN")
+    #     Parameters
+    #     ----------
+    #     pg_service: string
+    #         The name of the postgres service (defined in
+    #         pg_service.conf) related to the first db to be compared
+    #     file: string
+    #         The path of the desired backup file
+    #     ignore_restore_errors: Boolean
+    #         If true the pg_restore errors don't cause the exit of the program
+    #     """
+    #     self.__out("Restore...", type="WAITING")
+    #     try:
+    #         dumper = Dumper(pg_service, file)
+    #         if self.pg_restore_exe:
+    #             dumper.pg_restore(
+    #                 pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema
+    #             )
+    #         else:
+    #             dumper.pg_restore(exclude_schema=exclude_schema)
+    #     except PgRestoreFailed as e:
+    #         self.__out("ERROR", "FAIL")
+    #         self.__out(str(e), "FAIL")
+    #         if ignore_restore_errors:
+    #             return
+    #         else:
+    #             sys.exit(1)
+    #     except PgRestoreCommandError as e:
+    #         self.__out("ERROR", "FAIL")
+    #         self.__out(e.args[0] if e.args else str(e), "FAIL")
+    #         sys.exit(1)
+    #     self.__out("OK", "OKGREEN")
 
     def run_baseline(
         self, pg_service: str, table: str, delta_dirs: list[str], baseline: str
@@ -252,23 +242,15 @@ class Pum:
             sys.exit(1)
         self.__out("OK", "OKGREEN")
 
-    def run_info(self, pg_service: str, table: str, delta_dirs: list[str]) -> None:
-        """Print info about delta file and about already made upgrade
-
-        Parameters
-        -----------
-        pg_service: str
-            The name of the postgres service (defined in
-            pg_service.conf)
-        table: str
-            The name of the upgrades information table in the format
-            schema.table
-        delta_dirs: list(str)
-            The paths to the delta directories
-        """
+    def run_info(self) -> None:
+        """Prints info about the schema migrations"""
         try:
-            upgrader = Upgrader(pg_service, table, delta_dirs)
-            upgrader.show_info()
+            schema_migrations = SchemaMigrations(self.pg_service, self.config)
+            if schema_migrations.exists():
+                self.__out(
+                    "", f"No migrations found in {self.config.schema_migrations_table}"
+                )
+
         except Exception as e:
             self.__out(str(e), "FAIL")
             sys.exit(1)
@@ -357,7 +339,16 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-v", "--version", help="print the version and exit", action="store_true"
     )
-    parser.add_argument("-c", "--config_file", help="set the config file")
+    parser.add_argument(
+        "-c", "--config_file", help="set the config file. Default: .pum-config.yaml"
+    )
+    parser.add_argument(
+        "-s", "--pg-service", help="Name of the postgres service", required=True
+    )
+
+    parser.add_argument(
+        "-d", "--dir", nargs="+", help="Delta directories (space-separated)"
+    )
 
     subparsers = parser.add_subparsers(
         title="commands", description="valid pum commands", dest="command"
@@ -367,15 +358,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_check = subparsers.add_parser(
         "check", help="check the differences between two databases"
     )
-    parser_check.add_argument(
-        "-p1", "--pg_service1", help="Name of the first postgres service", required=True
-    )
-    parser_check.add_argument(
-        "-p2",
-        "--pg_service2",
-        help="Name of the second postgres service",
-        required=True,
-    )
+
     parser_check.add_argument(
         "-i",
         "--ignore",
@@ -454,19 +437,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Parser for the "info" command
-    parser_info = subparsers.add_parser("info", help="show info about upgrades")
-    parser_info.add_argument(
-        "-p", "--pg_service", help="Name of the postgres service", required=True
-    )
-    parser_info.add_argument(
-        "-t", "--table", help="Upgrades information table", required=True
-    )
-    parser_info.add_argument(
-        "-d",
-        "--dir",
-        nargs="+",
-        help="Delta directories (space-separated)",
-        required=True,
+    parser_info = subparsers.add_parser(
+        "info", help="show info about schema migrations history."
     )
 
     # Parser for the "upgrade" command
@@ -500,9 +472,14 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def cli() -> int:
-    # TODO refactor and set p1 and p2 as positional args, and uniform args
     parser = create_parser()
     args = parser.parse_args()
+
+    if args.config_file:
+        config = PumConfig.from_yaml(args.config_file)
+    else:
+        args_dict = vars(args)
+        config = PumConfig(**args_dict)
 
     # print the version and exit
     if args.version:
@@ -527,7 +504,7 @@ def cli() -> int:
             else:
                 variables[v[1]] = v[2]
 
-    pum = Pum(args.config_file)
+    pum = Pum(args.pg_service, config)
     exit_code = 0
 
     if args.command == "check":
@@ -549,7 +526,7 @@ def cli() -> int:
     elif args.command == "baseline":
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
     elif args.command == "info":
-        pum.run_info(args.pg_service, args.table, args.dir)
+        pum.run_info()
     elif args.command == "upgrade":
         pum.run_upgrade(
             args.pg_service,
@@ -559,24 +536,6 @@ def cli() -> int:
             args.max_version,
             args.verbose,
         )
-    elif args.command == "test-and-upgrade":
-        success = pum.run_test_and_upgrade(
-            args.pg_service_prod,
-            args.pg_service_test,
-            args.pg_service_comp,
-            args.file,
-            args.table,
-            args.dir,
-            args.ignore,
-            args.exclude_schema,
-            args.exclude_field_pattern,
-            args.x,
-            variables,
-            args.max_version,
-            args.verbose,
-        )
-        if not success:
-            exit_code = 1
 
     return exit_code
 
