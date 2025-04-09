@@ -18,9 +18,11 @@ from pum.exceptions import (
     PgRestoreCommandError,
     PgRestoreFailed,
 )
+from pum.info import run_info
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
-from pum.utils.utils import Bcolors, ask_for_confirmation
+from pum.utils.message_type import MessageType
+from pum.utils.utils import Bcolors, __out, ask_for_confirmation
 
 
 class Pum:
@@ -94,7 +96,7 @@ class Pum:
         -------
         True if no differences are found, False otherwise.
         """
-        self.__out("Check...", type="WAITING")
+        self.__out("Check...", type=MessageType.WAITING)
         verbose_level = verbose_level or 1
         ignore_list = ignore_list or []
         exclude_schema = exclude_schema or []
@@ -111,9 +113,9 @@ class Pum:
             result, differences = checker.run_checks()
 
             if result:
-                self.__out("OK", "OKGREEN")
+                self.__out("OK", MessageType.OKGREEN)
             else:
-                self.__out("DIFFERENCES FOUND", "WARNING")
+                self.__out("DIFFERENCES FOUND", MessageType.WARNING)
 
             if differences:
                 if output_file:
@@ -129,14 +131,14 @@ class Pum:
             return result
 
         except psycopg2.Error as e:
-            self.__out("ERROR", "FAIL")
-            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            self.__out("ERROR", MessageType.FAIL)
+            self.__out(e.args[0] if e.args else str(e), MessageType.FAIL)
             sys.exit(1)
 
         except Exception as e:
-            self.__out("ERROR", "FAIL")
+            self.__out("ERROR", MessageType.FAIL)
             # if e.args is empty then use str(e)
-            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            self.__out(e.args[0] if e.args else str(e), MessageType.FAIL)
             sys.exit(1)
 
     # def run_dump(
@@ -231,29 +233,16 @@ class Pum:
             The version of the current database to set in the information
             table. The baseline must be in the format x.x.x where x are numbers.
         """
-        self.__out("Set baseline...", type="WAITING")
+        self.__out("Set baseline...", type=MessageType.WAITING)
         try:
             upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.create_upgrades_table()
             upgrader.set_baseline(baseline)
         except ValueError as e:
-            self.__out("ERROR", "FAIL")
-            self.__out(e.args[0] if e.args else str(e), "FAIL")
+            self.__out("ERROR", MessageType.FAIL)
+            self.__out(e.args[0] if e.args else str(e), MessageType.FAIL)
             sys.exit(1)
-        self.__out("OK", "OKGREEN")
-
-    def run_info(self) -> None:
-        """Prints info about the schema migrations"""
-        try:
-            schema_migrations = SchemaMigrations(self.pg_service, self.config)
-            if schema_migrations.exists():
-                self.__out(
-                    "", f"No migrations found in {self.config.schema_migrations_table}"
-                )
-
-        except Exception as e:
-            self.__out(str(e), "FAIL")
-            sys.exit(1)
+        self.__out("OK", MessageType.OKGREEN)
 
     def run_upgrade(
         self,
@@ -282,7 +271,7 @@ class Pum:
         verbose: bool
             Whether to display extra information
         """
-        self.__out("Upgrade...", type="WAITING")
+        self.__out("Upgrade...", type=MessageType.WAITING)
         try:
             upgrader = Upgrader(
                 pg_service,
@@ -297,9 +286,9 @@ class Pum:
             if verbose:
                 raise e
             sys.exit(1)
-        self.__out("OK", "OKGREEN")
+        self.__out("OK", MessageType.OKGREEN)
 
-    def __out(self, message: str, type: str = "DEFAULT") -> None:
+    def __out(self, message: str, type: MessageType = MessageType.DEFAULT) -> None:
         """
         Print output messages with optional formatting.
 
@@ -307,23 +296,22 @@ class Pum:
         ----------
         message : str
             The message to display.
-        type : str, optional (default: "DEFAULT")
+        type : MessageType, optional (default: MessageType.DEFAULT)
             The type of message which determines the formatting.
-            Options include: WAITING, OKGREEN, WARNING, FAIL, BOLD, UNDERLINE.
         """
         supported_platform = sys.platform != "win32" or "ANSICON" in os.environ
         if supported_platform:
-            if type == "WAITING":
+            if type == MessageType.WAITING:
                 print(Bcolors.WAITING + message + Bcolors.ENDC, end="")
-            elif type == "OKGREEN":
+            elif type == MessageType.OKGREEN:
                 print(Bcolors.OKGREEN + message + Bcolors.ENDC)
-            elif type == "WARNING":
+            elif type == MessageType.WARNING:
                 print(Bcolors.WARNING + message + Bcolors.ENDC)
-            elif type == "FAIL":
+            elif type == MessageType.FAIL:
                 print(Bcolors.FAIL + message + Bcolors.ENDC)
-            elif type == "BOLD":
+            elif type == MessageType.BOLD:
                 print(Bcolors.BOLD + message + Bcolors.ENDC)
-            elif type == "UNDERLINE":
+            elif type == MessageType.UNDERLINE:
                 print(Bcolors.UNDERLINE + message + Bcolors.ENDC)
             else:
                 print(message)
@@ -353,6 +341,14 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(
         title="commands", description="valid pum commands", dest="command"
     )
+
+    # Parser for the "info" command
+    parser_info = subparsers.add_parser(
+        "info", help="show info about schema migrations history."
+    )
+
+    # Parser for the "install" command
+    parser_install = subparsers.add_parser("install", help="Installs the module.")
 
     # Parser for the "check" command
     parser_check = subparsers.add_parser(
@@ -434,11 +430,6 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_baseline.add_argument(
         "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
-    )
-
-    # Parser for the "info" command
-    parser_info = subparsers.add_parser(
-        "info", help="show info about schema migrations history."
     )
 
     # Parser for the "upgrade" command
@@ -526,7 +517,7 @@ def cli() -> int:
     elif args.command == "baseline":
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
     elif args.command == "info":
-        pum.run_info()
+        run_info(args.pg_service, config, __out)
     elif args.command == "upgrade":
         pum.run_upgrade(
             args.pg_service,

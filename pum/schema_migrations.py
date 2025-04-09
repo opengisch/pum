@@ -9,23 +9,25 @@ in the database.
 
 import re
 
-from psycopg import Connection, sql
+from psycopg import connect, sql
 
 from pum.config import PumConfig
 from pum.exceptions import PumException
 
 
 class SchemaMigrations:
-    def __init__(self, connection: Connection, pum_config: PumConfig):
+    def __init__(self, pg_service: str, pum_config: PumConfig):
         """
         Initialize the SchemaMigrations class with a database connection and configuration.
 
         Args:
-            connection (psycopg.Connection): A psycopg database connection object used to execute queries.
+            pg_service (str): The name of the PostgreSQL service to connect to.
             pum_config (PumConfig): An instance of the PumConfig class containing configuration settings for the PUM system.
         """
-        self.connection = connection
-        self.cursor = connection.cursor()
+        ...
+        self.connection = connect(f"service='{pg_service}'")
+        self.pum_config = pum_config
+        self.cursor = self.connection.cursor()
 
     def exists(self) -> bool:
         """Checks if the schema_migrations information table exists"""
@@ -35,7 +37,7 @@ class SchemaMigrations:
             SELECT EXISTS (
                 SELECT 1
                 FROM information_schema.tables
-                WHERE table_name = {schema_migrations_table}
+                WHERE table_name = '{schema_migrations_table}'
             )
         """
         ).format(
@@ -45,6 +47,25 @@ class SchemaMigrations:
         )
         self.cursor.execute(query)
         return self.cursor.fetchone()[0]
+
+    def installed_modules(self):
+        query = sql.SQL(
+            """
+            SELECT module, version
+            FROM (
+            SELECT module, version,
+                   ROW_NUMBER() OVER (PARTITION BY module ORDER BY date_installed DESC) AS rn
+            FROM {schema_migrations_table}
+            ) t
+            WHERE t.rn = 1;
+            """
+        ).format(
+            schema_migrations_table=sql.Identifier(
+                self.pum_config.schema_migrations_table
+            )
+        )
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
 
     def create(self):
         """Creates the schema_migrations information table"""
