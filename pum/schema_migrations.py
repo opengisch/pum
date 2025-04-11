@@ -142,16 +142,24 @@ class SchemaMigrations:
             conn.commit()
 
     def set_baseline(
-        self, version: Version | str, beta_testing: bool = False, commit: bool = True
+        self,
+        conn: Connection,
+        version: Version | str,
+        beta_testing: bool = False,
+        commit: bool = True,
     ):
-        """Sets the baseline into the migration table
+        """
+        Sets the baseline into the migration table
 
-        version: Version | str
-            The version of the current database to set in the information.
-        beta_testing: bool
-            If true, the baseline is set to beta testing mode. The default is false.
-        commit: bool
-            If true, the transaction is committed. The default is true.
+        Args:
+            conn: Connection
+                The database connection to set the baseline version.
+            version: Version | str
+                The version of the current database to set in the information.
+            beta_testing: bool
+                If true, the baseline is set to beta testing mode. The default is false.
+            commit: bool
+                If true, the transaction is committed. The default is true.
         """
         if isinstance(version, Version):
             version = str(version)
@@ -182,6 +190,6 @@ class SchemaMigrations:
         logger.info(
             f"Setting baseline version {version} in {self.config.schema_migrations_table}"
         )
-        self.cursor.execute(query)
+        conn.execute(query)
         if commit:
-            self.connection.commit()
+            conn.commit()

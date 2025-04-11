@@ -82,7 +82,10 @@ class Upgrader:
             for changelog in self.changelogs(after_current_version=False):
                 self.__apply_changelog(conn, changelog, commit=False)
                 self.schema_migrations.set_baseline(
-                    conn, version=changelog.version, beta_testing=False, commit=False
+                    conn=conn,
+                    version=changelog.version,
+                    beta_testing=False,
+                    commit=False,
                 )
 
     def run(self, verbose=False):
