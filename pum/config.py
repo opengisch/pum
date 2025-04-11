@@ -22,6 +22,9 @@ class PumConfig:
         self.schema_migrations_table: str = (
             kwargs.get("schema_migrations_table") or "public.pum_migrations"
         )
+        self.changelogs_directory: str = (
+            kwargs.get("changelogs_directory") or "changelogs"
+        )
 
     def get(self, key, default=None):
         """

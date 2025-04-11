@@ -4,13 +4,18 @@ import importlib.util
 import inspect
 import os
 import re
-from collections import OrderedDict
 from hashlib import md5
 from os import listdir
-from os.path import basename, dirname, isfile, join
+from os.path import basename, dirname, isdir, isfile, join
+from pathlib import Path
 
-import psycopg2
-import psycopg2.extras
+import psycopg
+from packaging.version import parse as parse_version
+
+from pum.config import PumConfig
+from pum.exceptions import PumException
+from pum.schema_migrations import SchemaMigrations
+from pum.utils.execute_sql import execute_sql
 
 
 class Upgrader:
@@ -19,7 +24,7 @@ class Upgrader:
     Stores the info about the upgrade in a table on the database."""
 
     def __init__(
-        self, pg_service, upgrades_table, dirs, variables=None, max_version=None
+        self, pg_service: str, config: PumConfig, variables=None, max_version=None
     ):
         """Constructor
 
@@ -28,25 +33,30 @@ class Upgrader:
         pg_service: str
             The name of the postgres service (defined in pg_service.conf)
             related to the db
-        upgrades_table: str
-            The name of the table (int the format schema.name) where the
-            informations about the upgrades are stored
-        dirs: list(str)
-            The paths to directories where delta files are stored
+        config: PumConfig
+            The configuration object
         variables: dict
             dictionary for variables to be used in SQL deltas ( name => value )
         max_version: str
             Maximum (including) version to run the deltas up to.
         """
         self.pg_service = pg_service
-        self.connection = psycopg2.connect(f"service={pg_service}")
+        self.config = config
+        self.connection = psycopg.connect(f"service={pg_service}")
         self.cursor = self.connection.cursor()
-        self.upgrades_table = upgrades_table
-        self.dirs = dirs
         self.variables = variables
-        self.max_version = (
-            pkg_resources.parse_version(max_version) if max_version else None
-        )
+        self.max_version = parse_version(max_version) if max_version else None
+        self.schema_migrations = SchemaMigrations(self.pg_service, self.config)
+
+    def install(self):
+        """Installs the given module"""
+        if self.schema_migrations.exists():
+            raise PumException(
+                "Schema migrations table already exists. Use upgrade() to upgrade the db."
+            )
+        self.schema_migrations.create()
+        for changelog in self.changelogs():
+            self.__apply_changelog(changelog)
 
     def run(self, verbose=False):
         if not self.exists_table_upgrades():
@@ -99,30 +109,6 @@ class Upgrader:
 
         self.__run_post_all()
 
-    def exists_table_upgrades(self):
-        """Return if the upgrades table exists
-
-        Returns
-        -------
-        bool
-            True if the table exists
-            False if the table don't exists"""
-
-        query = """
-            SELECT EXISTS (
-            SELECT 1
-            FROM   information_schema.tables
-            WHERE  table_schema = '{}'
-            AND    table_name = '{}'
-            );
-        """.format(
-            self.upgrades_table[: self.upgrades_table.index(".")],
-            self.upgrades_table[self.upgrades_table.index(".") + 1 :],
-        )
-
-        self.cursor.execute(query)
-        return self.cursor.fetchone()[0]
-
     def __get_dbname(self):
         """Return the db name."""
         return self.connection.get_dsn_parameters()["dbname"]
@@ -131,30 +117,50 @@ class Upgrader:
         """Return the db user"""
         return self.connection.get_dsn_parameters()["user"]
 
-    def __get_delta_files(self):
-        """Search for delta files and return a dict of Delta objects, keyed by directory names."""
-        files = [(d, f) for d in self.dirs for f in listdir(d) if isfile(join(d, f))]
+    def changelogs(self, after_current_version: bool = True) -> list[str]:
+        """
+        Get the list of changelogs and return a list of changelogs.
+        If after_current_version is True, only return changelogs
+        that are after the current version.
+        """
+        path = self.config.changelogs_directory
 
-        deltas = OrderedDict()
-        for d, f in files:
-            file_ = join(d, f)
+        changelogs = [join(path, d) for d in os.listdir(path) if isdir(join(path, d))]
 
-            if not Delta.is_valid_delta_name(file_):
-                continue
+        if after_current_version:
+            changelogs = [
+                c
+                for c in changelogs
+                if parse_version(os.path.basename(c))
+                > self.schema_migrations.current_version()
+            ]
+        changelogs.sort(key=lambda c: parse_version(os.path.basename(c)))
+        return changelogs
 
-            delta = Delta(file_)
+    def changelog_files(self, changelog: str) -> list[Path]:
+        """
+        Get the list of changelogs and return a list of pathes.
+        This is not recursive, it only returns the files in the given changelog directory.
+        """
+        files = [
+            Path(changelog) / f
+            for f in os.listdir(changelog)
+            if (Path(changelog) / f).is_file()
+        ]
+        files.sort()
+        return files
 
-            if d not in deltas:
-                deltas[d] = []
-            deltas[d].append(delta)
+    def __apply_changelog(self, changelog: str):
+        """Apply a changelog
 
-        # sort delta objects in each bucket
-        for d in deltas:
-            deltas[d].sort(
-                key=lambda x: (x.get_version(), x.get_priority(), x.get_name())
-            )
-
-        return deltas
+        Parameters
+        ----------
+        changelog: str
+            The path to the changelog directory
+        """
+        files = self.changelog_files(changelog)
+        for file in files:
+            execute_sql(file)
 
     def __run_delta_sql(self, delta):
         """Execute the delta sql file on the database"""
@@ -391,87 +397,6 @@ class Upgrader:
 
         self.cursor.execute(query)
         self.connection.commit()
-
-    def create_upgrades_table(self):
-        """Create the upgrades information table"""
-
-        query = """CREATE TABLE IF NOT EXISTS {}
-                (
-                id serial NOT NULL,
-                version character varying(50) NOT NULL,
-                description character varying(200) NOT NULL,
-                type integer NOT NULL,
-                script character varying(1000) NOT NULL,
-                checksum character varying(32) NOT NULL,
-                installed_by character varying(100) NOT NULL,
-                installed_on timestamp without time zone NOT NULL DEFAULT now(),
-                execution_time integer NOT NULL,
-                success boolean NOT NULL,
-                PRIMARY KEY (id),
-                EXCLUDE (version WITH =) WHERE (type = 0)
-                )
-        """.format(
-            self.upgrades_table
-        )
-
-        self.cursor.execute(query)
-        self.connection.commit()
-
-    def set_baseline(self, version):
-        """Set the baseline into the creation information table
-
-        version: str
-            The version of the current database to set in the information
-            table. The baseline must be in the format x.x.x where x are numbers.
-        """
-        pattern = re.compile(r"^\d+\.\d+\.\d+$")
-        if not re.match(pattern, version):
-            raise ValueError("Wrong version format")
-
-        query = """
-                INSERT INTO {} (
-                    version,
-                    description,
-                    type,
-                    script,
-                    checksum,
-                    installed_by,
-                    execution_time,
-                    success
-                ) VALUES(
-                    '{}',
-                    '{}',
-                    {},
-                    '{}',
-                    '{}',
-                    '{}',
-                    1,
-                    TRUE
-                ) """.format(
-            self.upgrades_table, version, "baseline", 0, "", "", self.__get_dbuser()
-        )
-        self.cursor.execute(query)
-        self.connection.commit()
-
-    def current_db_version(self):
-        """Read the upgrades information table and return the current db
-        version
-
-        Returns
-        -------
-        str
-            the current db version
-        """
-
-        query = """
-        SELECT version from {} WHERE success = TRUE ORDER BY version DESC
-        """.format(
-            self.upgrades_table
-        )
-
-        self.cursor.execute(query)
-
-        return pkg_resources.parse_version(self.cursor.fetchone()[0])
 
 
 class DeltaType:

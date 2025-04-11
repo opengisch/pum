@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
-import psycopg2
+import psycopg
 import yaml
 
 from pum.checker import Checker
@@ -21,8 +22,23 @@ from pum.exceptions import (
 from pum.info import run_info
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
-from pum.utils.message_type import MessageType
-from pum.utils.utils import Bcolors, __out, ask_for_confirmation
+from pum.utils.utils import ask_for_confirmation
+
+
+def setup_logging(verbosity: int = 0):
+    """Setup logging based on verbosity level (0=WARNING, 1=INFO, 2+=DEBUG)"""
+    level = logging.WARNING  # default
+
+    if verbosity == 1:
+        level = logging.INFO
+    elif verbosity >= 2:
+        level = logging.DEBUG
+
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",  # clean output for CLI
+        stream=sys.stderr,
+    )
 
 
 class Pum:
@@ -96,7 +112,7 @@ class Pum:
         -------
         True if no differences are found, False otherwise.
         """
-        self.__out("Check...", type=MessageType.WAITING)
+        # self.__out("Check...")
         verbose_level = verbose_level or 1
         ignore_list = ignore_list or []
         exclude_schema = exclude_schema or []
@@ -113,9 +129,9 @@ class Pum:
             result, differences = checker.run_checks()
 
             if result:
-                self.__out("OK", MessageType.OKGREEN)
+                self.__out("OK")
             else:
-                self.__out("DIFFERENCES FOUND", MessageType.WARNING)
+                self.__out("DIFFERENCES FOUND")
 
             if differences:
                 if output_file:
@@ -130,15 +146,15 @@ class Pum:
                             print(v)
             return result
 
-        except psycopg2.Error as e:
-            self.__out("ERROR", MessageType.FAIL)
-            self.__out(e.args[0] if e.args else str(e), MessageType.FAIL)
+        except psycopg.Error as e:
+            self.__out("ERROR")
+            self.__out(e.args[0] if e.args else str(e))
             sys.exit(1)
 
         except Exception as e:
-            self.__out("ERROR", MessageType.FAIL)
+            self.__out("ERROR")
             # if e.args is empty then use str(e)
-            self.__out(e.args[0] if e.args else str(e), MessageType.FAIL)
+            self.__out(e.args[0] if e.args else str(e))
             sys.exit(1)
 
     # def run_dump(
@@ -233,16 +249,16 @@ class Pum:
             The version of the current database to set in the information
             table. The baseline must be in the format x.x.x where x are numbers.
         """
-        self.__out("Set baseline...", type=MessageType.WAITING)
+        self.__out("Set baseline...")
         try:
             upgrader = Upgrader(pg_service, table, delta_dirs)
             upgrader.create_upgrades_table()
             upgrader.set_baseline(baseline)
         except ValueError as e:
-            self.__out("ERROR", MessageType.FAIL)
-            self.__out(e.args[0] if e.args else str(e), MessageType.FAIL)
+            self.__out("ERROR")
+            self.__out(e.args[0] if e.args else str(e))
             sys.exit(1)
-        self.__out("OK", MessageType.OKGREEN)
+        self.__out("OK")
 
     def run_upgrade(
         self,
@@ -271,7 +287,7 @@ class Pum:
         verbose: bool
             Whether to display extra information
         """
-        self.__out("Upgrade...", type=MessageType.WAITING)
+        self.__out("Upgrade...")
         try:
             upgrader = Upgrader(
                 pg_service,
@@ -286,37 +302,7 @@ class Pum:
             if verbose:
                 raise e
             sys.exit(1)
-        self.__out("OK", MessageType.OKGREEN)
-
-    def __out(self, message: str, type: MessageType = MessageType.DEFAULT) -> None:
-        """
-        Print output messages with optional formatting.
-
-        Parameters
-        ----------
-        message : str
-            The message to display.
-        type : MessageType, optional (default: MessageType.DEFAULT)
-            The type of message which determines the formatting.
-        """
-        supported_platform = sys.platform != "win32" or "ANSICON" in os.environ
-        if supported_platform:
-            if type == MessageType.WAITING:
-                print(Bcolors.WAITING + message + Bcolors.ENDC, end="")
-            elif type == MessageType.OKGREEN:
-                print(Bcolors.OKGREEN + message + Bcolors.ENDC)
-            elif type == MessageType.WARNING:
-                print(Bcolors.WARNING + message + Bcolors.ENDC)
-            elif type == MessageType.FAIL:
-                print(Bcolors.FAIL + message + Bcolors.ENDC)
-            elif type == MessageType.BOLD:
-                print(Bcolors.BOLD + message + Bcolors.ENDC)
-            elif type == MessageType.UNDERLINE:
-                print(Bcolors.UNDERLINE + message + Bcolors.ENDC)
-            else:
-                print(message)
-        else:
-            print(message)
+        self.__out("OK")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -325,9 +311,6 @@ def create_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-v", "--version", help="print the version and exit", action="store_true"
-    )
-    parser.add_argument(
         "-c", "--config_file", help="set the config file. Default: .pum-config.yaml"
     )
     parser.add_argument(
@@ -335,7 +318,15 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "-d", "--dir", nargs="+", help="Delta directories (space-separated)"
+        "-d", "--dir", help="Directory or URL of the module. Default: .", default="."
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase output verbosity (e.g. -v, -vv)",
     )
 
     subparsers = parser.add_subparsers(
@@ -381,16 +372,11 @@ def create_parser() -> argparse.ArgumentParser:
         help="Fields to be ignored based on a pattern compatible with SQL LIKE.",
         action="append",
     )
-    parser_check.add_argument(
-        "-v", "--verbose_level", help="Verbose level (0, 1 or 2)", type=int
-    )
+
     parser_check.add_argument("-o", "--output_file", help="Output file")
 
     # Parser for the "dump" command
     parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
-    parser_dump.add_argument(
-        "-p", "--pg_service", help="Name of the postgres service", required=True
-    )
     parser_dump.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
     )
@@ -399,9 +385,6 @@ def create_parser() -> argparse.ArgumentParser:
     # Parser for the "restore" command
     parser_restore = subparsers.add_parser(
         "restore", help="restore a Postgres database from a dump file"
-    )
-    parser_restore.add_argument(
-        "-p", "--pg_service", help="Name of the postgres service", required=True
     )
     parser_restore.add_argument(
         "-x", help="ignore pg_restore errors", action="store_true"
@@ -414,9 +397,6 @@ def create_parser() -> argparse.ArgumentParser:
     # Parser for the "baseline" command
     parser_baseline = subparsers.add_parser(
         "baseline", help="Create upgrade information table and set baseline"
-    )
-    parser_baseline.add_argument(
-        "-p", "--pg_service", help="Name of the postgres service", required=True
     )
     parser_baseline.add_argument(
         "-t", "--table", help="Upgrades information table", required=True
@@ -435,9 +415,6 @@ def create_parser() -> argparse.ArgumentParser:
     # Parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
     parser_upgrade.add_argument(
-        "-p", "--pg_service", help="Name of the postgres service", required=True
-    )
-    parser_upgrade.add_argument(
         "-t", "--table", help="Upgrades information table", required=True
     )
     parser_upgrade.add_argument(
@@ -449,14 +426,11 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_upgrade.add_argument("-u", "--max-version", help="upper bound limit version")
     parser_upgrade.add_argument(
-        "-v",
-        "--var",
+        "-p",
+        "--parameter",
         nargs=3,
         help="Assign variable for running SQL deltas. Format is: (string|float|int) name value.",
         action="append",
-    )
-    parser_upgrade.add_argument(
-        "-vv", "--verbose", action="store_true", help="Display extra information"
     )
 
     return parser
@@ -465,19 +439,13 @@ def create_parser() -> argparse.ArgumentParser:
 def cli() -> int:
     parser = create_parser()
     args = parser.parse_args()
+    setup_logging(args.verbose)
 
     if args.config_file:
         config = PumConfig.from_yaml(args.config_file)
     else:
         args_dict = vars(args)
         config = PumConfig(**args_dict)
-
-    # print the version and exit
-    if args.version:
-        print(
-            "pum version {}".format("[DEV]")
-        )  # don't change this line, it is sedded by deploy_to_pypi.sh
-        parser.exit()
 
     # if no command is passed, print the help and exit
     if not args.command:
@@ -498,7 +466,11 @@ def cli() -> int:
     pum = Pum(args.pg_service, config)
     exit_code = 0
 
-    if args.command == "check":
+    if args.command == "info":
+        run_info(args.pg_service, config)
+    elif args.command == "install":
+        Upgrader(args.pg_service, config).install()
+    elif args.command == "check":
         success = pum.run_check(
             args.pg_service1,
             args.pg_service2,
@@ -516,8 +488,6 @@ def cli() -> int:
         pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
     elif args.command == "baseline":
         pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
-    elif args.command == "info":
-        run_info(args.pg_service, config, __out)
     elif args.command == "upgrade":
         pum.run_upgrade(
             args.pg_service,

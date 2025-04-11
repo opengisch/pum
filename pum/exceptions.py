@@ -20,6 +20,12 @@ class PumException(Exception):
     pass
 
 
+class PumSqlException(Exception):
+    """Exception raised for SQL-related errors in PUM."""
+
+    pass
+
+
 class PumConfigError(PumException):
     """Exception raised for errors in the PUM configuration."""
 

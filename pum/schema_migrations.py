@@ -7,16 +7,19 @@ It provides methods to create the baseline table and set the baseline version
 in the database.
 """
 
+import logging
 import re
 
 from psycopg import connect, sql
 
 from pum.config import PumConfig
-from pum.exceptions import PumException
+from pum.utils.execute_sql import execute_sql
+
+logger = logging.getLogger(__name__)
 
 
 class SchemaMigrations:
-    def __init__(self, pg_service: str, pum_config: PumConfig):
+    def __init__(self, pg_service: str, config: PumConfig):
         """
         Initialize the SchemaMigrations class with a database connection and configuration.
 
@@ -26,26 +29,37 @@ class SchemaMigrations:
         """
         ...
         self.connection = connect(f"service='{pg_service}'")
-        self.pum_config = pum_config
+        self.config = config
         self.cursor = self.connection.cursor()
 
     def exists(self) -> bool:
         """Checks if the schema_migrations information table exists"""
+        schema = "public"
+        table = None
+        table_identifiers = self.config.schema_migrations_table.split(".")
+        if len(table_identifiers) > 2:
+            raise ValueError(
+                "The schema_migrations_table must be in the format 'schema.table'"
+            )
+        elif len(table_identifiers) == 2:
+            schema = table_identifiers[0]
+            table = table_identifiers[1]
+        else:
+            table = table_identifiers[0]
 
         query = sql.SQL(
             """
             SELECT EXISTS (
                 SELECT 1
                 FROM information_schema.tables
-                WHERE table_name = '{schema_migrations_table}'
+                WHERE table_name = {table} AND table_schema = {schema}
             )
         """
         ).format(
-            schema_migrations_table=sql.Identifier(
-                self.pum_config.schema_migrations_table
-            )
+            schema=sql.Literal(schema),
+            table=sql.Literal(table),
         )
-        self.cursor.execute(query)
+        execute_sql(self.cursor, query)
         return self.cursor.fetchone()[0]
 
     def installed_modules(self):
@@ -61,44 +75,59 @@ class SchemaMigrations:
             """
         ).format(
             schema_migrations_table=sql.Identifier(
-                self.pum_config.schema_migrations_table
+                *self.config.schema_migrations_table.split(".")
             )
         )
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
-    def create(self):
-        """Creates the schema_migrations information table"""
+    def create(self, commit: bool = True):
+        """
+        Creates the schema_migrations information table
+        Args:
+            commit (bool): If true, the transaction is committed. The default is true.
+        """
+
+        if self.exists():
+            logger.info(f"{self.config.schema_migrations_table} table already exists")
+            return
 
         version = 1
 
         create_query = sql.SQL(
-            """CREATE TABLE IF NOT EXISTS {schema_migrations_table} (
+            """CREATE TABLE IF NOT EXISTS {schema_migrations_table}
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             date_installed timestamp without time zone NOT NULL DEFAULT now(),
             module character varying(50) NOT NULL,
             version character varying(50) NOT NULL,
             beta_testing boolean NOT NULL DEFAULT false,
-            schema_migrations_version integer NOT NULL DEFAULT {version},
+            changelog_files text[],
+            schema_migrations_version integer NOT NULL DEFAULT {version}
             );
         """
         ).format(
-            baseline_table=sql.Identifier(self.pum_config.schema_migrations_table),
+            schema_migrations_table=sql.Identifier(
+                *self.config.schema_migrations_table.split(".")
+            ),
             version=sql.Literal(version),
         )
 
         comment_query = sql.SQL(
             """COMMENT ON TABLE {schema_migrations_table} IS 'version: 1 --  schema_migration table version';"""
-        ).format(baseline_table=sql.Identifier(self.pum_config.schema_migrations_table))
+        ).format(
+            schema_migrations_table=sql.Identifier(
+                *self.config.schema_migrations_table.split(".")
+            )
+        )
 
-        try:
-            self.cursor.execute(create_query)
-            self.cursor.execute(comment_query)
-        except PumException as e:
-            raise PumException(f"Error creating schema migrations table: {e}")
+        execute_sql(self.cursor, create_query)
+        execute_sql(self.cursor, comment_query)
 
-        self.connection.commit()
+        logger.info(f"Created {self.config.schema_migrations_table} table")
+
+        if commit:
+            self.connection.commit()
 
     def set_baseline(self, version, beta_testing: bool = False):
         """Sets the baseline into the creation information table
