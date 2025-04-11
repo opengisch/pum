@@ -469,7 +469,7 @@ def cli() -> int:
     if args.command == "info":
         run_info(args.pg_service, config)
     elif args.command == "install":
-        Upgrader(args.pg_service, config).install()
+        Upgrader(args.pg_service, config=config, dir=args.dir).install()
     elif args.command == "check":
         success = pum.run_check(
             args.pg_service1,

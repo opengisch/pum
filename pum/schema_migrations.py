@@ -10,30 +10,34 @@ in the database.
 import logging
 import re
 
-from psycopg import connect, sql
+from packaging.version import Version
+from psycopg import Connection, connect, sql
 
 from pum.config import PumConfig
 from pum.utils.execute_sql import execute_sql
 
 logger = logging.getLogger(__name__)
 
+migration_table_version = "2025.0"
+
 
 class SchemaMigrations:
-    def __init__(self, pg_service: str, config: PumConfig):
+    def __init__(self, config: PumConfig):
         """
         Initialize the SchemaMigrations class with a database connection and configuration.
 
         Args:
-            pg_service (str): The name of the PostgreSQL service to connect to.
-            pum_config (PumConfig): An instance of the PumConfig class containing configuration settings for the PUM system.
+            config (PumConfig): An instance of the PumConfig class containing configuration settings for the PUM system.
         """
-        ...
-        self.connection = connect(f"service='{pg_service}'")
         self.config = config
-        self.cursor = self.connection.cursor()
 
-    def exists(self) -> bool:
-        """Checks if the schema_migrations information table exists"""
+    def exists(self, conn: Connection) -> bool:
+        """
+        Checks if the schema_migrations information table exists
+        Args:
+            conn (Connection): The database connection to check for the existence of the table.
+            Returns:
+                bool: True if the table exists, False otherwise."""
         schema = "public"
         table = None
         table_identifiers = self.config.schema_migrations_table.split(".")
@@ -59,10 +63,18 @@ class SchemaMigrations:
             schema=sql.Literal(schema),
             table=sql.Literal(table),
         )
-        execute_sql(self.cursor, query)
-        return self.cursor.fetchone()[0]
 
-    def installed_modules(self):
+        cursor = execute_sql(conn, query)
+        return cursor.fetchone()[0]
+
+    def installed_modules(self, conn: Connection) -> list[tuple[str, str]]:
+        """
+        Returns the installed modules and their versions from the schema_migrations table.
+        Args:
+            conn (Connection): The database connection to fetch the installed modules and versions.
+        Returns:
+            list[tuple[str, str]]: A list of tuples containing the module name and version.
+        """
         query = sql.SQL(
             """
             SELECT module, version
@@ -78,39 +90,39 @@ class SchemaMigrations:
                 *self.config.schema_migrations_table.split(".")
             )
         )
-        self.cursor.execute(query)
-        return self.cursor.fetchall()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        return cursor.fetchall()
 
-    def create(self, commit: bool = True):
+    def create(self, conn: Connection, commit: bool = True):
         """
         Creates the schema_migrations information table
         Args:
+            conn (Connection): The database connection to create the table.
             commit (bool): If true, the transaction is committed. The default is true.
         """
 
-        if self.exists():
-            logger.info(f"{self.config.schema_migrations_table} table already exists")
+        if self.exists(conn):
+            logger.debug(f"{self.config.schema_migrations_table} table already exists")
             return
-
-        version = 1
 
         create_query = sql.SQL(
             """CREATE TABLE IF NOT EXISTS {schema_migrations_table}
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             date_installed timestamp without time zone NOT NULL DEFAULT now(),
-            module character varying(50) NOT NULL,
+            module character varying(50), -- TODO: NOT NULL,
             version character varying(50) NOT NULL,
             beta_testing boolean NOT NULL DEFAULT false,
             changelog_files text[],
-            schema_migrations_version integer NOT NULL DEFAULT {version}
+            migration_table_version character varying(50) NOT NULL DEFAULT {version}
             );
         """
         ).format(
             schema_migrations_table=sql.Identifier(
                 *self.config.schema_migrations_table.split(".")
             ),
-            version=sql.Literal(version),
+            version=sql.Literal(migration_table_version),
         )
 
         comment_query = sql.SQL(
@@ -121,38 +133,55 @@ class SchemaMigrations:
             )
         )
 
-        execute_sql(self.cursor, create_query)
-        execute_sql(self.cursor, comment_query)
+        execute_sql(conn, create_query)
+        execute_sql(conn, comment_query)
 
         logger.info(f"Created {self.config.schema_migrations_table} table")
 
         if commit:
-            self.connection.commit()
+            conn.commit()
 
-    def set_baseline(self, version, beta_testing: bool = False):
-        """Sets the baseline into the creation information table
+    def set_baseline(
+        self, version: Version | str, beta_testing: bool = False, commit: bool = True
+    ):
+        """Sets the baseline into the migration table
 
-        version: str
-            The version of the current database to set in the information
-            table. The baseline must be in the format x.x.x where x are numbers.
+        version: Version | str
+            The version of the current database to set in the information.
         beta_testing: bool
             If true, the baseline is set to beta testing mode. The default is false.
+        commit: bool
+            If true, the transaction is committed. The default is true.
         """
+        if isinstance(version, Version):
+            version = str(version)
         pattern = re.compile(r"^\d+\.\d+\.\d+$")
         if not re.match(pattern, version):
-            raise ValueError("Wrong version format")
+            raise ValueError(f"Wrong version format: {version}. Must be x.x.x")
 
         query = sql.SQL(
             """
-            INSERT INTO {upgrades_table} (
+            INSERT INTO {schema_migrations_table} (
                 version,
-                module,
                 beta_testing,
+                migration_table_version
             ) VALUES (
-                %s, %s, %s
+                {version},
+                {beta_testing},
+                {migration_table_version}
             )
         """
-        ).format(upgrades_table=sql.Identifier(self.upgrades_table))
-        self.cursor.execute(query, (version, self.pum_config.module, beta_testing))
+        ).format(
+            version=sql.Literal(version),
+            beta_testing=sql.Literal(beta_testing),
+            migration_table_version=sql.Literal(migration_table_version),
+            schema_migrations_table=sql.Identifier(
+                *self.config.schema_migrations_table.split(".")
+            ),
+        )
+        logger.info(
+            f"Setting baseline version {version} in {self.config.schema_migrations_table}"
+        )
         self.cursor.execute(query)
-        self.connection.commit()
+        if commit:
+            self.connection.commit()

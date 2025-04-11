@@ -11,11 +11,23 @@ from pathlib import Path
 
 import psycopg
 from packaging.version import parse as parse_version
+from psycopg import Connection
 
 from pum.config import PumConfig
 from pum.exceptions import PumException
 from pum.schema_migrations import SchemaMigrations
 from pum.utils.execute_sql import execute_sql
+
+
+class Changelog:
+    """This class represent a changelog directory."""
+
+    def __init__(self, dir):
+        self.dir = dir
+        self.version = parse_version(basename(dir))
+
+    def __repr__(self):
+        return f"<dir: {self.dir} (v: {self.version})>"
 
 
 class Upgrader:
@@ -24,12 +36,20 @@ class Upgrader:
     Stores the info about the upgrade in a table on the database."""
 
     def __init__(
-        self, pg_service: str, config: PumConfig, variables=None, max_version=None
+        self,
+        pg_service: str,
+        config: PumConfig,
+        variables=None,
+        dir: str | Path = ".",
+        max_version=None,
     ):
-        """Constructor
+        """
+        Initialize the Upgrader class.
+        This class is used to install a new instance or to upgrade an existing instance of a module.
+        Stores the info about the upgrade in a table on the database.
+        The table is created in the schema defined in the config file if it does not exist.
 
-        Parameters
-        ----------
+        Args:
         pg_service: str
             The name of the postgres service (defined in pg_service.conf)
             related to the db
@@ -37,26 +57,33 @@ class Upgrader:
             The configuration object
         variables: dict
             dictionary for variables to be used in SQL deltas ( name => value )
+        dir: str | Path
+            The directory where the module is located.
         max_version: str
             Maximum (including) version to run the deltas up to.
         """
+
         self.pg_service = pg_service
         self.config = config
-        self.connection = psycopg.connect(f"service={pg_service}")
-        self.cursor = self.connection.cursor()
         self.variables = variables
         self.max_version = parse_version(max_version) if max_version else None
-        self.schema_migrations = SchemaMigrations(self.pg_service, self.config)
+        self.schema_migrations = SchemaMigrations(self.config)
+        self.dir = dir
 
     def install(self):
         """Installs the given module"""
-        if self.schema_migrations.exists():
-            raise PumException(
-                "Schema migrations table already exists. Use upgrade() to upgrade the db."
-            )
-        self.schema_migrations.create()
-        for changelog in self.changelogs():
-            self.__apply_changelog(changelog)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            if self.schema_migrations.exists(conn):
+                raise PumException(
+                    "Schema migrations table already exists. Use upgrade() to upgrade the db."
+                )
+            self.schema_migrations.create(conn, commit=False)
+            for changelog in self.changelogs(after_current_version=False):
+                self.__apply_changelog(conn, changelog, commit=False)
+                self.schema_migrations.set_baseline(
+                    conn, version=changelog.version, beta_testing=False, commit=False
+                )
 
     def run(self, verbose=False):
         if not self.exists_table_upgrades():
@@ -117,24 +144,32 @@ class Upgrader:
         """Return the db user"""
         return self.connection.get_dsn_parameters()["user"]
 
-    def changelogs(self, after_current_version: bool = True) -> list[str]:
+    def changelogs(self, after_current_version: bool = True) -> list[Changelog]:
         """
-        Get the list of changelogs and return a list of changelogs.
-        If after_current_version is True, only return changelogs
-        that are after the current version.
+        Return a list of changelogs.
+        The changelogs are sorted by version.
+        If after_current_version is True, only the changelogs that are after the current version will be returned.
+        If after_current_version is False, all changelogs will be returned.
         """
-        path = self.config.changelogs_directory
+        path = Path(self.dir)
+        if not path.is_dir():
+            raise PumException(f"Module directory `{path}` does not exist.")
+        path = path / self.config.changelogs_directory
+        if not path.is_dir():
+            raise PumException(f"Changelogs directory `{path}` does not exist.")
 
-        changelogs = [join(path, d) for d in os.listdir(path) if isdir(join(path, d))]
+        changelogs = [
+            Changelog(path / d) for d in os.listdir(path) if isdir(join(path, d))
+        ]
 
         if after_current_version:
             changelogs = [
                 c
                 for c in changelogs
-                if parse_version(os.path.basename(c))
-                > self.schema_migrations.current_version()
+                if c.version > self.schema_migrations.current_version()
             ]
-        changelogs.sort(key=lambda c: parse_version(os.path.basename(c)))
+
+        changelogs.sort(key=lambda c: c.version)
         return changelogs
 
     def changelog_files(self, changelog: str) -> list[Path]:
@@ -143,24 +178,32 @@ class Upgrader:
         This is not recursive, it only returns the files in the given changelog directory.
         """
         files = [
-            Path(changelog) / f
-            for f in os.listdir(changelog)
-            if (Path(changelog) / f).is_file()
+            changelog.dir / f
+            for f in os.listdir(changelog.dir)
+            if (changelog.dir / f).is_file()
         ]
         files.sort()
         return files
 
-    def __apply_changelog(self, changelog: str):
-        """Apply a changelog
+    def __apply_changelog(
+        self, conn: Connection, changelog: Changelog, commit: bool = True
+    ):
+        """
+        Apply a changelog
+        This will execute all the files in the changelog directory.
+        The changelog directory is the one that contains the delta files.
 
-        Parameters
-        ----------
-        changelog: str
-            The path to the changelog directory
+        Args:
+            conn: Connection
+                The connection to the database
+            changelog: Changelog
+                The changelog to apply
+            commit: bool
+                If true, the transaction is committed. The default is true.
         """
         files = self.changelog_files(changelog)
         for file in files:
-            execute_sql(file)
+            execute_sql(conn=conn, sql=file, commit=commit)
 
     def __run_delta_sql(self, delta):
         """Execute the delta sql file on the database"""
