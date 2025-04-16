@@ -50,7 +50,9 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Install dependencies
-        run: python -m pip install -r requirements/base.txt
+        run: |
+          python -m pip install -r requirements/base.txt
+          python -m pip install -r requirements/development.txt
 
       - name: Install pum
         run: python -m pip install .
