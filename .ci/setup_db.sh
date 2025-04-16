@@ -9,9 +9,9 @@ else
     PGSERVICE_FILE="$PGSYSCONFDIR/pg_service.conf"
 fi
 
-for pgsrv in pum_test_1 pum_test_2 pum_test_3; do
-  echo "Adding service ${pgsrv} to $PGSERVICE_FILE"
-  printf "[${pgsrv}]\nhost=localhost\ndbname=${pgsrv}\nuser=postgres\npassword=postgres\n\n" >> "$PGSERVICE_FILE"
-  psql -c "DROP DATABASE IF EXISTS ${pgsrv};" "service=${pgsrv} dbname=postgres"
-  psql -c "CREATE DATABASE  ${pgsrv};" "service=${pgsrv} dbname=postgres"
-done
+pgsrv="pum_test"
+echo "Adding service ${pgsrv} to $PGSERVICE_FILE"
+printf "[${pgsrv}]\nhost=localhost\ndbname=${pgsrv}\nuser=postgres\npassword=postgres\n\n" >> "$PGSERVICE_FILE"
+
+psql -c "DROP DATABASE IF EXISTS ${pgsrv};" "service=${pgsrv} dbname=postgres"
+psql -c "CREATE DATABASE  ${pgsrv};" "service=${pgsrv} dbname=postgres"

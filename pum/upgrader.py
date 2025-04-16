@@ -2,6 +2,7 @@
 
 import importlib.util
 import inspect
+import logging
 import os
 import re
 from hashlib import md5
@@ -17,6 +18,8 @@ from pum.config import PumConfig
 from pum.exceptions import PumException
 from pum.schema_migrations import SchemaMigrations
 from pum.utils.execute_sql import execute_sql
+
+logger = logging.getLogger(__name__)
 
 
 class Changelog:
@@ -76,7 +79,7 @@ class Upgrader:
         with psycopg.connect(f"service={self.pg_service}") as conn:
             if self.schema_migrations.exists(conn):
                 raise PumException(
-                    "Schema migrations table already exists. Use upgrade() to upgrade the db."
+                    "Schema migrations table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
             self.schema_migrations.create(conn, commit=False)
             for changelog in self.changelogs(after_current_version=False):
@@ -87,6 +90,7 @@ class Upgrader:
                     beta_testing=False,
                     commit=False,
                 )
+            logger
 
     def run(self, verbose=False):
         if not self.exists_table_upgrades():

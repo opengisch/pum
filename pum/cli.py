@@ -36,8 +36,7 @@ def setup_logging(verbosity: int = 0):
 
     logging.basicConfig(
         level=level,
-        format="%(message)s",  # clean output for CLI
-        stream=sys.stderr,
+        format="%(message)s",
     )
 
 
@@ -56,24 +55,6 @@ class Pum:
             self.config = PumConfig.from_yaml(config)
         else:
             self.config = config
-
-    def set_configs(self, configs: dict[str, Any]) -> None:
-        """Save the configuration values into the instance variables.
-
-        Parameters
-        ----------
-        configs: dict
-            Dictionary of configurations
-        """
-        self.upgrades_table = configs.get("upgrades_table")
-        self.delta_dirs = configs.get("delta_dirs")
-        self.backup_file = configs.get("backup_file")
-        self.ignore_list = configs.get("ignore_elements")
-        self.pg_dump_exe = configs.get("pg_dump_exe", self.pg_dump_exe)
-        self.pg_restore_exe = configs.get("pg_restore_exe", self.pg_restore_exe)
-
-        if self.delta_dirs and not isinstance(self.delta_dirs, list):
-            self.delta_dirs = [self.delta_dirs]
 
     def run_check(
         self,
