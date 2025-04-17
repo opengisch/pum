@@ -68,7 +68,10 @@ class TestUpgrader(unittest.TestCase):
         )
         upgrader.install(parameters={"SRID": 2056})
         self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(sm.migration_details(self.conn)["parameters"], "{}")
+        self.assertEqual(sm.migration_details(self.conn)["parameters"], "{'SRID': 2056}")
+        self.cur.execute("SELECT Find_SRID('public', 'pum_migrations', 'geometry_column_name');")
+        srid = self.cur.fetchone()[0]
+        self.assertEqual(srid, 2056)
 
     def test_install_custom_directory(self):
         cfg = PumConfig.from_yaml("test/data/custom_directory/.pum-config.yaml")
