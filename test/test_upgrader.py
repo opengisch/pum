@@ -47,6 +47,19 @@ class TestUpgrader(unittest.TestCase):
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
+        self.assertEqual(sm.installed_modules(self.conn)[0][1], "1.2.3")
+
+    def test_install_custom_directory(self):
+        cfg = PumConfig.from_yaml("test/data/custom_directory/.pum-config.yaml")
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service,
+            config=cfg,
+            dir="test/data/custom_directory",
+        )
+        upgrader.install()
+        self.assertTrue(sm.exists(self.conn))
 
 
 if __name__ == "__main__":
