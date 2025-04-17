@@ -1,69 +1,46 @@
-# Pum
+** - PostgreSQL Upgrades Manager (PUM)**
 
-Pum stands for "Postgres Upgrades Manager". It is a Database migration management tool very similar to flyway-db or Liquibase, based on metadata tables.
+PUM is a robust database migration management tool designed to streamline the process of managing PostgreSQL database upgrades. Inspired by tools like FlywayDB and Liquibase, PUM leverages metadata tables to ensure seamless database versioning and migration.
 
+### Key Features
 
-## Features
-Pum is python program that can be used via command line or directly from another python program.
+- **Command-line and Python Integration**: Use PUM as a standalone CLI tool or integrate it into your Python projects.
+- **Database Versioning**: Automatically manage database versioning with metadata tables.
+- **Database Comparison**: Compare two databases to identify differences in tables, columns, constraints, and more.
+- **Backup and Restore**: Create and restore database backups with ease.
+- **Changelog Management**: Apply and track SQL delta files for database upgrades.
 
-Pum permits the followings operations on Postgres databases:
+### Why PUM?
 
-- check the differences between two databases
-- create a backup (dump file) of a database
-- restore a database from a backup
-- upgrade a database applying delta files
+Managing database migrations in a Version Control System (VCS) can be challenging, especially for production databases. PUM simplifies this process by embedding version metadata directly into the database, enabling efficient tracking and application of migrations.
 
-and some other useful operations.
+### Getting Started
 
-## General purpose and workflow
+1. **Install PUM**:
+  ```sh
+  pip install pum
+  ```
+  Ensure you have Python 3 and PostgreSQL utilities (`pg_restore` and `pg_dump`) installed.
 
-Good practices regarding database versioning and migration are not so easy to handle in a VCS (Version Control System). Initial development is easy, using pure Git, and sometimes some meta SQL generation scripts. But when it comes to maintaining databases already in production, good practices differ a lot since SQL patches can't be handled the same way as Git diffs.
+2. **Baseline Your Database**:
+  Use the `baseline` command to initialize metadata in your database.
 
-We recommend reading some of those great articles to get a clearer view on what could, and should (or not) be done:
+3. **Apply Migrations**:
+  Use the `upgrade` command to apply SQL delta files and keep your database up-to-date.
 
-- https://blog.codinghorror.com/get-your-database-under-version-control/
-- http://petereisentraut.blogspot.fr/2012/05/my-anti-take-on-database-schema-version.html
+### Best Practices
 
-The worklow involves having version metadata written INSIDE the database and using that to check current state, old migrations, new migrations to apply, etc..
+- **Separate Schemas**: Isolate data and business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
+- **Read More**: Explore articles like [Get Your Database Under Version Control](https://blog.codinghorror.com/get-your-database-under-version-control/) for insights into database versioning.
 
-The first thing to do is use the "baseline" command to create metadata in your database, and then you are good to go.
+### Learn More
 
-## Installation
+- [Command Line Usage](#command-line)
+- [Delta Files](#delta-files)
+- [Configuration](#config-file)
 
-### System-wide
+PUM was developed to address challenges in the [TEKSI](https://github.com/TESKI) project, an open-source GIS for network management based on [QGIS](http://qgis.org/fr/site/).
 
-This is the easiest way to install pum for every user on a system
-
-```sh
-sudo pip3 install pum
-```
-
-### Local user
-
-Alternatively, to install pum to a virtual environment without requiring sudo access
-
-```sh
-mkdir -p ~/.venv
-virtualenv -p python3 ~/.venv/pum
-source ~/.venv/pum/bin/activate
-pip install pum
-```
-
-Whenever you use pum you will need to activate the virtual environment prior to using pum
-
-
-```sh
-source ~/.venv/pum/bin/activate
-```
-
-### Dependencies
-
-Pum depends on python3 and postgresql (specifically `pg_restore` and `pg_dump`). Make sure to read the [config file section](#config-file) below if you're on Windows.
-
-## History
-
-Pum has been developed to solve issues encountered in the [QWAT](https://github.com/qwat) and [QGEP](https://github.com/QGEP/QGEP) project, which are open source Geographic Information System for network management based on [QGIS](http://qgis.org/fr/site/).
-QWAT already developed a dedicated migration tool, allowing to both work on the data model using git AND use delta file for migrations. QGEP needed something also so the group decided to make a more generic tool, yet a simple one to handle that.
 
 ## Command line
 
