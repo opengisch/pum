@@ -47,7 +47,28 @@ class TestUpgrader(unittest.TestCase):
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(sm.installed_modules(self.conn)[0][1], "1.2.3")
+        self.assertEqual(sm.baseline(self.conn), "1.2.3")
+        self.assertEqual(
+            sm.migration_details(self.conn), sm.migration_details(self.conn, "1.2.3")
+        )
+        self.assertEqual(sm.migration_details(self.conn)["version"], "1.2.3")
+        self.assertEqual(
+            sm.migration_details(self.conn)["changelog_files"],
+            ["test/data/simple/changelogs/1.2.3/create_northwind.sql"],
+        )
+
+    def test_parameters(self):
+        cfg = PumConfig()
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service,
+            config=cfg,
+            dir="test/data/parameters",
+        )
+        upgrader.install(parameters={"SRID": 2056})
+        self.assertTrue(sm.exists(self.conn))
+        self.assertEqual(sm.migration_details(self.conn)["parameters"], "{}")
 
     def test_install_custom_directory(self):
         cfg = PumConfig.from_yaml("test/data/custom_directory/.pum-config.yaml")

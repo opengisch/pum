@@ -73,8 +73,18 @@ class Upgrader:
         self.schema_migrations = SchemaMigrations(self.config)
         self.dir = dir
 
-    def install(self):
-        """Installs the given module"""
+    def install(self, parameters: dict | None = None):
+        """
+        Installs the given module
+        This will create the schema_migrations table if it does not exist.
+        This will also apply all the changelogs that are after the current version.
+        The changelogs are applied in the order they are found in the directory.
+        It will also set the baseline version to the current version of the module.
+
+        args:
+            parameters: dict
+                The parameters to pass to the SQL files
+        """
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
             if self.schema_migrations.exists(conn):
@@ -83,12 +93,17 @@ class Upgrader:
                 )
             self.schema_migrations.create(conn, commit=False)
             for changelog in self.changelogs(after_current_version=False):
-                self.__apply_changelog(conn, changelog, commit=False)
+                changelog_files = self.__apply_changelog(
+                    conn, changelog, commit=False, parameters=parameters
+                )
+                changelog_files = [str(f) for f in changelog_files]
                 self.schema_migrations.set_baseline(
                     conn=conn,
                     version=changelog.version,
                     beta_testing=False,
                     commit=False,
+                    changelog_files=changelog_files,
+                    parameters=parameters,
                 )
             logger
 
@@ -193,8 +208,12 @@ class Upgrader:
         return files
 
     def __apply_changelog(
-        self, conn: Connection, changelog: Changelog, commit: bool = True
-    ):
+        self,
+        conn: Connection,
+        changelog: Changelog,
+        parameters: dict | None = None,
+        commit: bool = True,
+    ) -> list[Path]:
         """
         Apply a changelog
         This will execute all the files in the changelog directory.
@@ -205,12 +224,19 @@ class Upgrader:
                 The connection to the database
             changelog: Changelog
                 The changelog to apply
+            parameters: dict
+                The parameters to pass to the SQL files
             commit: bool
                 If true, the transaction is committed. The default is true.
+
+        Returns:
+            list[Path]
+                The list of changelogs that were executed
         """
         files = self.changelog_files(changelog)
         for file in files:
-            execute_sql(conn=conn, sql=file, commit=commit)
+            execute_sql(conn=conn, sql=file, commit=commit, parameters=parameters)
+        return files
 
     def __run_delta_sql(self, delta):
         """Execute the delta sql file on the database"""

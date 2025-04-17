@@ -7,6 +7,7 @@ It provides methods to create the baseline table and set the baseline version
 in the database.
 """
 
+import json
 import logging
 import re
 
@@ -54,11 +55,11 @@ class SchemaMigrations:
         query = sql.SQL(
             """
             SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_name = {table} AND table_schema = {schema}
-            )
-        """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_name = {table} AND table_schema = {schema}
+            );
+            """
         ).format(
             schema=sql.Literal(schema),
             table=sql.Literal(table),
@@ -66,33 +67,6 @@ class SchemaMigrations:
 
         cursor = execute_sql(conn, query)
         return cursor.fetchone()[0]
-
-    def installed_modules(self, conn: Connection) -> list[tuple[str, str]]:
-        """
-        Returns the installed modules and their versions from the schema_migrations table.
-        Args:
-            conn (Connection): The database connection to fetch the installed modules and versions.
-        Returns:
-            list[tuple[str, str]]: A list of tuples containing the module name and version.
-        """
-        query = sql.SQL(
-            """
-            SELECT module, version
-            FROM (
-            SELECT module, version,
-                   ROW_NUMBER() OVER (PARTITION BY module ORDER BY date_installed DESC) AS rn
-            FROM {schema_migrations_table}
-            ) t
-            WHERE t.rn = 1;
-            """
-        ).format(
-            schema_migrations_table=sql.Identifier(
-                *self.config.schema_migrations_table.split(".")
-            )
-        )
-        cursor = conn.cursor()
-        cursor.execute(query)
-        return cursor.fetchall()
 
     def create(self, conn: Connection, commit: bool = True):
         """
@@ -115,6 +89,7 @@ class SchemaMigrations:
             version character varying(50) NOT NULL,
             beta_testing boolean NOT NULL DEFAULT false,
             changelog_files text[],
+            parameters jsonb,
             migration_table_version character varying(50) NOT NULL DEFAULT {version}
             );
         """
@@ -147,6 +122,8 @@ class SchemaMigrations:
         version: Version | str,
         beta_testing: bool = False,
         commit: bool = True,
+        changelog_files: list[str] = None,
+        parameters: dict = None,
     ):
         """
         Sets the baseline into the migration table
@@ -170,13 +147,17 @@ class SchemaMigrations:
         query = sql.SQL(
             """
             INSERT INTO {schema_migrations_table} (
-                version,
-                beta_testing,
-                migration_table_version
+            version,
+            beta_testing,
+            migration_table_version,
+            changelog_files,
+            parameters
             ) VALUES (
-                {version},
-                {beta_testing},
-                {migration_table_version}
+            {version},
+            {beta_testing},
+            {migration_table_version},
+            {changelog_files},
+            {parameters}
             )
         """
         ).format(
@@ -186,6 +167,8 @@ class SchemaMigrations:
             schema_migrations_table=sql.Identifier(
                 *self.config.schema_migrations_table.split(".")
             ),
+            changelog_files=sql.Literal(changelog_files or []),
+            parameters=sql.Literal(json.dumps(parameters or {})),
         )
         logger.info(
             f"Setting baseline version {version} in {self.config.schema_migrations_table}"
@@ -193,3 +176,80 @@ class SchemaMigrations:
         conn.execute(query)
         if commit:
             conn.commit()
+
+    def baseline(self, conn: Connection) -> str:
+        """
+        Returns the baseline version from the migration table
+        Args:
+            conn: Connection
+                The database connection to get the baseline version.
+        Returns:
+            str: The baseline version.
+        """
+        query = sql.SQL(
+            """
+            SELECT version
+            FROM {schema_migrations_table}
+            WHERE id = (
+                SELECT id
+                FROM {schema_migrations_table}
+                ORDER BY date_installed DESC
+                LIMIT 1
+            )
+        """
+        ).format(
+            schema_migrations_table=sql.Identifier(
+                *self.config.schema_migrations_table.split(".")
+            )
+        )
+        cursor = execute_sql(conn, query)
+        return cursor.fetchone()[0]
+
+    def migration_details(self, conn: Connection, version: str = None) -> dict:
+        """
+        Returns the migration details from the migration table
+        Args:
+            conn: Connection
+                The database connection to get the migration details.
+            version: str
+                The version of the migration to get details for. If None, last migration is returned.
+        Returns:
+            dict: The migration details.
+        """
+        query = None
+        if version is None:
+            query = sql.SQL(
+                """
+                SELECT *
+                FROM {schema_migrations_table}
+                WHERE id = (
+                        SELECT id
+                        FROM {schema_migrations_table}
+                        ORDER BY date_installed DESC
+                        LIMIT 1
+                    )
+                ORDER BY date_installed DESC
+            """
+            ).format(
+                schema_migrations_table=sql.Identifier(
+                    *self.config.schema_migrations_table.split(".")
+                ),
+            )
+        else:
+            query = sql.SQL(
+                """
+                SELECT *
+                FROM {schema_migrations_table}
+                WHERE version = {version}
+            """
+            ).format(
+                schema_migrations_table=sql.Identifier(
+                    *self.config.schema_migrations_table.split(".")
+                ),
+                version=sql.Literal(version),
+            )
+        cursor = execute_sql(conn, query)
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return dict(zip([desc[0] for desc in cursor.description], row))

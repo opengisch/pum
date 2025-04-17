@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 def execute_sql(
-    conn: Connection, sql: str | Path, params: tuple = (), commit: bool = False
+    conn: Connection,
+    sql: str | Path,
+    parameters: dict | None = None,
+    commit: bool = False,
 ) -> Cursor:
     """
     Execute a SQL statement with optional parameters.
@@ -18,21 +21,27 @@ def execute_sql(
     Args:
         conn (Connection): The database connection to execute the SQL statement.
         sql (str | Path): The SQL statement to execute or a path to a SQL file.
-        params (tuple, optional): Parameters to bind to the SQL statement. Defaults to ().
+        parameters (dict, optional): Parameters to bind to the SQL statement. Defaults to ().
         commit (bool, optional): Whether to commit the transaction. Defaults to False.
     Raises:
         RuntimeError: If the SQL execution fails.
     """
     cursor = conn.cursor()
     try:
-        sql_code = sql
         if isinstance(sql, Path):
             logger.debug(
                 f"Executing SQL from file: {sql}",
             )
             with open(sql) as file:
-                sql_code = file.read()
-        cursor.execute(sql_code, params)
+                sql_code = file.read().split(";")
+        else:
+            sql_code = [sql]
+
+        for statement in sql_code:
+            if parameters:
+                cursor.execute(statement, parameters)
+            else:
+                cursor.execute(statement)
     except SyntaxError as e:
         raise PumSqlException(
             f"SQL execution failed for the following code: {sql} {e}"
