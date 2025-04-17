@@ -6,10 +6,9 @@ on:
         - main
         - docs
     paths:
-      - .github/workflows/docs_builder.yml
-      - pgserviceparser/**/*.py
+      - .github/workflows/docs.yml
+      - pum/**/*.py
       - docs/**/*
-      - requirements/documentation.txt
     tags:
       - "*"
 
@@ -17,10 +16,9 @@ on:
     branches:
         - main
     paths:
-      - .github/workflows/docs_builder.yml
-      - pgserviceparser/**/*.py
+      - .github/workflows/docs.yml
+      - pum/**/*.py
       - docs/**/*
-      - requirements/documentation.txt
 
 # Allow one concurrent deployment
 concurrency:
@@ -40,8 +38,10 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install pgserviceparser
-      run: python -m pip install -r docs/requirements.txt
+    - name: Install dependencies
+      run: |
+        python -m pip install -r requirements/base.txt
+        python -m pip install -r docs/requirements.txt
 
     - name: Build documentation
       run: mkdocs build -f docs/mkdocs.yml
