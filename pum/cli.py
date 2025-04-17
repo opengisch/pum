@@ -478,6 +478,12 @@ def cli() -> int:
             args.max_version,
             args.verbose,
         )
+    elif args.command == "help":
+        parser.print_help()
+    else:
+        print(f"Unknown command: {args.command}")
+        print("Use -h or --help for help.")
+        exit_code = 1
 
     return exit_code
 

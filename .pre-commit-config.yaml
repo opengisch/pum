@@ -12,8 +12,6 @@ repos:
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
-      - id: fix-encoding-pragma
-        args: [--remove]
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
 
@@ -27,6 +25,12 @@ repos:
     rev: 25.1.0
     hooks:
       - id: black
+
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.2.0
+    hooks:
+      - id: autoflake
+        args: ["--remove-all-unused-imports", "--remove-unused-variables"]
 
   - repo: https://github.com/pycqa/isort
     rev: 6.0.1
