@@ -7,6 +7,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
-.venv
+venv
+.python-version
 dist/
 .DS_Store
