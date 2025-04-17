@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
 
+from jinja2 import Template
+
 from psycopg import Connection, Cursor
 from psycopg.errors import SyntaxError
 
@@ -33,15 +35,17 @@ def execute_sql(
                 f"Executing SQL from file: {sql}",
             )
             with open(sql) as file:
-                sql_code = file.read().split(";")
+                if parameters:
+                    sql_code = Template(file.read()).render(**parameters)
+                else:
+                    sql_code = file.read()    
+                sql_code = sql_code.split(";")
         else:
             sql_code = [sql]
 
         for statement in sql_code:
-            if parameters:
-                cursor.execute(statement, parameters)
-            else:
-                cursor.execute(statement)
+            cursor.execute(statement)
+            
     except SyntaxError as e:
         raise PumSqlException(
             f"SQL execution failed for the following code: {sql} {e}"

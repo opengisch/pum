@@ -1,3 +1,4 @@
+jinja2
 packaging
 PyYAML
 psycopg[binary]
