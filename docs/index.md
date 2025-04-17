@@ -282,11 +282,11 @@ In summary the upgrade workflow is:
 execute pre-all.sql if exists
 
 for each file delta_x.x.x_deltaname.* ordered by version number:
-	execute delta_x.x.x_deltaname.pre.sql if exists
+    execute delta_x.x.x_deltaname.pre.sql if exists
 
-	execute delta_x.x.x_deltaname.sql if exists
+    execute delta_x.x.x_deltaname.sql if exists
 
-	execute delta_x.x.x_deltaname.post.sql if exists
+    execute delta_x.x.x_deltaname.post.sql if exists
 
 execute post-all.sql if exists
 ```
