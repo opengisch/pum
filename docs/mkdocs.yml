@@ -1,0 +1,14 @@
+site_name: pum documentation
+
+theme:
+  name: "material"
+
+plugins:
+  - mkdocstrings
+
+markdown_extensions:
+  - admonition
+  - codehilite
+
+nav:
+  - pum: index.md
