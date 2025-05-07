@@ -15,16 +15,12 @@ class PumConfig:
         self.pg_restore_exe: str | None = kwargs.get("pg_restore_exe") or os.getenv(
             "PG_RESTORE_EXE"
         )
-        self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv(
-            "PG_DUMP_EXE"
-        )
+        self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
         self.schema_migrations_table: str = (
             kwargs.get("schema_migrations_table") or "public.pum_migrations"
         )
-        self.changelogs_directory: str = (
-            kwargs.get("changelogs_directory") or "changelogs"
-        )
+        self.changelogs_directory: str = kwargs.get("changelogs_directory") or "changelogs"
 
     def get(self, key, default=None):
         """

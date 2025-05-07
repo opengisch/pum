@@ -120,9 +120,7 @@ class Checker:
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name
-                """.format(
-            self.exclude_schema
-        )
+                """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -151,9 +149,7 @@ class Checker:
                          WHERE table_schema NOT IN {es}
                             AND table_schema NOT LIKE 'pg\_%'
                          ORDER BY table_schema,table_name
-                         )""".format(
-                es=self.exclude_schema
-            )
+                         )""".format(es=self.exclude_schema)
 
         else:
             with_query = r"""WITH table_list AS (
@@ -163,9 +159,7 @@ class Checker:
                             AND table_schema NOT LIKE 'pg\_%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
-                         )""".format(
-                es=self.exclude_schema
-            )
+                         )""".format(es=self.exclude_schema)
 
         query = """{wq}
                 SELECT isc.table_schema, isc.table_name, column_name,
@@ -181,10 +175,7 @@ class Checker:
                 """.format(
             wq=with_query,
             efp="".join(
-                [
-                    f" AND column_name NOT LIKE '{pattern}'"
-                    for pattern in self.exclude_field_pattern
-                ]
+                [f" AND column_name NOT LIKE '{pattern}'" for pattern in self.exclude_field_pattern]
             ),
         )
 
@@ -242,9 +233,7 @@ class Checker:
         AND table_schema NOT LIKE 'pg\_%'
         AND table_name not like 'vw_export_%'
         ORDER BY table_schema, table_name
-        """.format(
-            self.exclude_schema
-        )
+        """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -361,9 +350,7 @@ class Checker:
             AND routines.specific_schema <> 'information_schema'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
-            """.format(
-            self.exclude_schema
-        )
+            """.format(self.exclude_schema)
 
         return self.__check_equals(query)
 
@@ -396,9 +383,7 @@ class Checker:
         WHERE n.nspname NOT IN {excl}
             AND n.nspname NOT LIKE 'pg\_%'
         ORDER BY n.nspname, c.relname, r.rulename, rule_event
-        """.format(
-            excl=self.exclude_schema
-        )
+        """.format(excl=self.exclude_schema)
 
         return self.__check_equals(query)
 

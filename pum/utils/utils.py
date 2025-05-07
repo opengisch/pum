@@ -1,7 +1,3 @@
-import os
-import sys
-
-
 # From http://code.activestate.com/recipes/541096-prompt-the-user-for
 # -confirmation/
 def ask_for_confirmation(prompt=None, resp=False):

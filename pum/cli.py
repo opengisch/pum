@@ -2,27 +2,17 @@
 
 import argparse
 import logging
-import os
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import psycopg
-import yaml
 
 from pum.checker import Checker
 from pum.config import PumConfig
 
 # from pum.dumper import Dumper
-from pum.exceptions import (
-    PgDumpCommandError,
-    PgDumpFailed,
-    PgRestoreCommandError,
-    PgRestoreFailed,
-)
 from pum.info import run_info
-from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
-from pum.utils.utils import ask_for_confirmation
 
 
 def setup_logging(verbosity: int = 0):
@@ -294,9 +284,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-c", "--config_file", help="set the config file. Default: .pum-config.yaml"
     )
-    parser.add_argument(
-        "-s", "--pg-service", help="Name of the postgres service", required=True
-    )
+    parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
 
     parser.add_argument(
         "-d", "--dir", help="Directory or URL of the module. Default: .", default="."
@@ -315,9 +303,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Parser for the "info" command
-    parser_info = subparsers.add_parser(
-        "info", help="show info about schema migrations history."
-    )
+    parser_info = subparsers.add_parser("info", help="show info about schema migrations history.")
 
     # Parser for the "install" command
     parser_install = subparsers.add_parser("install", help="Installs the module.")
@@ -367,9 +353,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_restore = subparsers.add_parser(
         "restore", help="restore a Postgres database from a dump file"
     )
-    parser_restore.add_argument(
-        "-x", help="ignore pg_restore errors", action="store_true"
-    )
+    parser_restore.add_argument("-x", help="ignore pg_restore errors", action="store_true")
     parser_restore.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
     )
@@ -379,9 +363,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_baseline = subparsers.add_parser(
         "baseline", help="Create upgrade information table and set baseline"
     )
-    parser_baseline.add_argument(
-        "-t", "--table", help="Upgrades information table", required=True
-    )
+    parser_baseline.add_argument("-t", "--table", help="Upgrades information table", required=True)
     parser_baseline.add_argument(
         "-d",
         "--dir",
@@ -395,9 +377,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
-    parser_upgrade.add_argument(
-        "-t", "--table", help="Upgrades information table", required=True
-    )
+    parser_upgrade.add_argument("-t", "--table", help="Upgrades information table", required=True)
     parser_upgrade.add_argument(
         "-d",
         "--dir",

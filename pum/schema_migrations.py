@@ -12,7 +12,7 @@ import logging
 import re
 
 from packaging.version import Version
-from psycopg import Connection, connect, sql
+from psycopg import Connection, sql
 
 from pum.config import PumConfig
 from pum.utils.execute_sql import execute_sql
@@ -43,9 +43,7 @@ class SchemaMigrations:
         table = None
         table_identifiers = self.config.schema_migrations_table.split(".")
         if len(table_identifiers) > 2:
-            raise ValueError(
-                "The schema_migrations_table must be in the format 'schema.table'"
-            )
+            raise ValueError("The schema_migrations_table must be in the format 'schema.table'")
         elif len(table_identifiers) == 2:
             schema = table_identifiers[0]
             table = table_identifiers[1]
@@ -94,18 +92,14 @@ class SchemaMigrations:
             );
         """
         ).format(
-            schema_migrations_table=sql.Identifier(
-                *self.config.schema_migrations_table.split(".")
-            ),
+            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split(".")),
             version=sql.Literal(migration_table_version),
         )
 
         comment_query = sql.SQL(
             """COMMENT ON TABLE {schema_migrations_table} IS 'version: 1 --  schema_migration table version';"""
         ).format(
-            schema_migrations_table=sql.Identifier(
-                *self.config.schema_migrations_table.split(".")
-            )
+            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split("."))
         )
 
         execute_sql(conn, create_query)
@@ -164,15 +158,11 @@ class SchemaMigrations:
             version=sql.Literal(version),
             beta_testing=sql.Literal(beta_testing),
             migration_table_version=sql.Literal(migration_table_version),
-            schema_migrations_table=sql.Identifier(
-                *self.config.schema_migrations_table.split(".")
-            ),
+            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split(".")),
             changelog_files=sql.Literal(changelog_files or []),
             parameters=sql.Literal(json.dumps(parameters or {})),
         )
-        logger.info(
-            f"Setting baseline version {version} in {self.config.schema_migrations_table}"
-        )
+        logger.info(f"Setting baseline version {version} in {self.config.schema_migrations_table}")
         conn.execute(query)
         if commit:
             conn.commit()
@@ -198,9 +188,7 @@ class SchemaMigrations:
             )
         """
         ).format(
-            schema_migrations_table=sql.Identifier(
-                *self.config.schema_migrations_table.split(".")
-            )
+            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split("."))
         )
         cursor = execute_sql(conn, query)
         return cursor.fetchone()[0]

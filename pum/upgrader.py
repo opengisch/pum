@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-import importlib.util
-import inspect
 import logging
 import os
 import re
 from hashlib import md5
-from os import listdir
-from os.path import basename, dirname, isdir, isfile, join
+from os.path import basename, isdir, join
 from pathlib import Path
 
 import psycopg
@@ -138,9 +135,7 @@ class Upgrader:
                 and (self.max_version is None or d.get_version() <= self.max_version)
             ):
                 print(
-                    "     Applying delta {} {}...".format(
-                        d.get_version(), d.get_name()
-                    ),
+                    "     Applying delta {} {}...".format(d.get_version(), d.get_name()),
                     end=" ",
                 )
 
@@ -180,15 +175,11 @@ class Upgrader:
         if not path.is_dir():
             raise PumException(f"Changelogs directory `{path}` does not exist.")
 
-        changelogs = [
-            Changelog(path / d) for d in os.listdir(path) if isdir(join(path, d))
-        ]
+        changelogs = [Changelog(path / d) for d in os.listdir(path) if isdir(join(path, d))]
 
         if after_current_version:
             changelogs = [
-                c
-                for c in changelogs
-                if c.version > self.schema_migrations.current_version()
+                c for c in changelogs if c.version > self.schema_migrations.current_version()
             ]
 
         changelogs.sort(key=lambda c: c.version)
@@ -200,9 +191,7 @@ class Upgrader:
         This is not recursive, it only returns the files in the given changelog directory.
         """
         files = [
-            changelog.dir / f
-            for f in os.listdir(changelog.dir)
-            if (changelog.dir / f).is_file()
+            changelog.dir / f for f in os.listdir(changelog.dir) if (changelog.dir / f).is_file()
         ]
         files.sort()
         return files
@@ -334,9 +323,7 @@ class Upgrader:
                 installed_on,
                 success
                 FROM {}
-                """.format(
-            self.upgrades_table
-        )
+                """.format(self.upgrades_table)
 
         self.cursor.execute(query)
         records = self.cursor.fetchall()
@@ -382,25 +369,20 @@ class Upgrader:
         col_width = [max(len(x) for x in col) for col in zip(*table)]
         print(
             "| "
-            + " | ".join(
-                "{:{}}".format(x, col_width[i]) for i, x in enumerate(table[0])
-            )
+            + " | ".join("{:{}}".format(x, col_width[i]) for i, x in enumerate(table[0]))
             + " |"
         )
         print(
             "| "
             + " | ".join(
-                "{:{}}".format("-" * col_width[i], col_width[i])
-                for i, x in enumerate(table[0])
+                "{:{}}".format("-" * col_width[i], col_width[i]) for i, x in enumerate(table[0])
             )
             + " |"
         )
         for line in table[1:]:
             print(
                 "| "
-                + " | ".join(
-                    "{:{}}".format(x, col_width[i]) for i, x in enumerate(line)
-                )
+                + " | ".join("{:{}}".format(x, col_width[i]) for i, x in enumerate(line))
                 + " |"
             )
 
@@ -424,9 +406,7 @@ class Upgrader:
             AND description = '{}'
             AND type = '{}'
             AND success = 'TRUE'
-        """.format(
-            self.upgrades_table, delta.get_version(), delta.get_name(), delta.get_type()
-        )
+        """.format(self.upgrades_table, delta.get_version(), delta.get_name(), delta.get_type())
 
         self.cursor.execute(query)
         if not self.cursor.fetchone():

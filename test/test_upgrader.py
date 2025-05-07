@@ -1,6 +1,4 @@
 import logging
-import os
-import shutil
 import tempfile
 import unittest
 
@@ -8,7 +6,7 @@ import psycopg
 
 from pum.config import PumConfig
 from pum.schema_migrations import SchemaMigrations
-from pum.upgrader import Delta, DeltaType, Upgrader
+from pum.upgrader import Upgrader
 
 
 class TestUpgrader(unittest.TestCase):
@@ -30,7 +28,6 @@ class TestUpgrader(unittest.TestCase):
 
         self.maxDiff = 5000
 
-
         self.pg_service = "pum_test"
         self.conn = psycopg.connect(f"service={self.pg_service}")
         self.cur = self.conn.cursor()
@@ -51,9 +48,7 @@ class TestUpgrader(unittest.TestCase):
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
         self.assertEqual(sm.baseline(self.conn), "1.2.3")
-        self.assertEqual(
-            sm.migration_details(self.conn), sm.migration_details(self.conn, "1.2.3")
-        )
+        self.assertEqual(sm.migration_details(self.conn), sm.migration_details(self.conn, "1.2.3"))
         self.assertEqual(sm.migration_details(self.conn)["version"], "1.2.3")
         self.assertEqual(
             sm.migration_details(self.conn)["changelog_files"],

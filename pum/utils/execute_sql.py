@@ -38,18 +38,16 @@ def execute_sql(
                 if parameters:
                     sql_code = Template(file.read()).render(**parameters)
                 else:
-                    sql_code = file.read()    
+                    sql_code = file.read()
                 sql_code = sql_code.split(";")
         else:
             sql_code = [sql]
 
         for statement in sql_code:
             cursor.execute(statement)
-            
+
     except SyntaxError as e:
-        raise PumSqlException(
-            f"SQL execution failed for the following code: {sql} {e}"
-        ) from e
+        raise PumSqlException(f"SQL execution failed for the following code: {sql} {e}") from e
     if commit:
         conn.commit()
 
