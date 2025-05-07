@@ -9,12 +9,12 @@ from pathlib import Path
 
 import psycopg
 
-from pum.checker import Checker
-from pum.config import PumConfig
+from .checker import Checker
+from .config import PumConfig
 
-# from pum.dumper import Dumper
-from pum.info import run_info
-from pum.upgrader import Upgrader
+# from .dumper import Dumper
+from .info import run_info
+from .upgrader import Upgrader
 
 
 def setup_logging(verbosity: int = 0):

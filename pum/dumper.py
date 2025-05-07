@@ -2,7 +2,7 @@ import subprocess
 import sys
 from distutils.version import LooseVersion
 
-from pum.core.exceptions import (
+from .core.exceptions import (
     PgDumpCommandError,
     PgDumpFailed,
     PgRestoreCommandError,
