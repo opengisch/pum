@@ -33,7 +33,7 @@ def execute_sql(
                 f"Executing SQL from file: {sql} with parameters: {parameters}",
             )
             with open(sql) as file:
-                sql_content = file.read()
+                sql_content = file.read()                
                 if parameters:
                     for key, value in parameters.items():
                         sql_content = sql_content.replace(f'{{{{ {key} }}}}', str(value))
@@ -48,6 +48,7 @@ def execute_sql(
             cursor.execute(statement)
 
     except SyntaxError as e:
+        logger.debug(f'Error executing SQL: {sql_code}')
         raise PumSqlException(f"SQL execution failed for the following code: {sql} {e}") from e
     if commit:
         conn.commit()
