@@ -4,7 +4,7 @@ from pathlib import Path
 from psycopg import Connection, Cursor
 from psycopg.errors import SyntaxError
 
-from pum.exceptions import PumSqlException
+from .exceptions import PumSqlException
 import re
 
 logger = logging.getLogger(__name__)

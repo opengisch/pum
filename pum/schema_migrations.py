@@ -14,8 +14,8 @@ import re
 from packaging.version import Version
 from psycopg import Connection, sql
 
-from pum.config import PumConfig
-from pum.utils.execute_sql import execute_sql
+from .config import PumConfig
+from .utils.execute_sql import execute_sql
 
 logger = logging.getLogger(__name__)
 

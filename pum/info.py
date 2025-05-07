@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from pum.config import PumConfig
-from pum.schema_migrations import SchemaMigrations
+from .config import PumConfig
+from .schema_migrations import SchemaMigrations
 
 logger = logging.getLogger(__name__)
 

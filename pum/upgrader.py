@@ -11,10 +11,10 @@ import psycopg
 from packaging.version import parse as parse_version
 from psycopg import Connection
 
-from pum.config import PumConfig
-from pum.exceptions import PumException
-from pum.schema_migrations import SchemaMigrations
-from pum.utils.execute_sql import execute_sql
+from .config import PumConfig
+from .exceptions import PumException
+from .schema_migrations import SchemaMigrations
+from .utils.execute_sql import execute_sql
 
 logger = logging.getLogger(__name__)
 
