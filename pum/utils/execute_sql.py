@@ -4,7 +4,7 @@ from pathlib import Path
 from psycopg import Connection, Cursor
 from psycopg.errors import SyntaxError
 
-from .exceptions import PumSqlException
+from ..exceptions import PumSqlException
 import re
 
 logger = logging.getLogger(__name__)
@@ -34,13 +34,14 @@ def execute_sql(
                 f"Executing SQL from file: {sql} with parameters: {parameters}",
             )
             with open(sql) as file:
-                sql_content = file.read()                
+                sql_content = file.read()
                 if parameters:
                     for key, value in parameters.items():
-                        sql_content = sql_content.replace(f'{{{{ {key} }}}}', str(value))
+                        sql_content = sql_content.replace(f"{{{{ {key} }}}}", str(value))
                     sql_code = sql_content
                 else:
                     sql_code = sql_content
+
                 def split_sql_statements(sql):
                     pattern = r'(?:[^;\'"]|\'[^\']*\'|"[^"]*")*;'
                     matches = re.finditer(pattern, sql, re.DOTALL)
@@ -48,7 +49,7 @@ def execute_sql(
                     last_end = 0
                     for match in matches:
                         end = match.end()
-                        statements.append(sql[last_end:end - 1].strip())
+                        statements.append(sql[last_end : end - 1].strip())
                         last_end = end
                     if last_end < len(sql):
                         statements.append(sql[last_end:].strip())
@@ -62,7 +63,7 @@ def execute_sql(
             cursor.execute(statement)
 
     except SyntaxError as e:
-        logger.debug(f'Error executing SQL: {sql_code}')
+        logger.debug(f"Error executing SQL: {sql_code}")
         raise PumSqlException(f"SQL execution failed for the following code: {sql} {e}") from e
     if commit:
         conn.commit()
