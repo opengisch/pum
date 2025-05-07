@@ -1,7 +1,6 @@
 import difflib
 
-import psycopg2
-import psycopg2.extras
+import psycopg
 
 
 class Checker:
@@ -39,10 +38,10 @@ class Checker:
             difference, 2 -> print all the difference details
         """
 
-        self.conn1 = psycopg2.connect(f"service={pg_service1}")
+        self.conn1 = psycopg.connect(f"service={pg_service1}")
         self.cur1 = self.conn1.cursor()
 
-        self.conn2 = psycopg2.connect(f"service={pg_service2}")
+        self.conn2 = psycopg.connect(f"service={pg_service2}")
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list
