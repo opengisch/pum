@@ -77,8 +77,17 @@ class SchemaMigrations:
         if self.exists(conn):
             logger.debug(f"{self.config.schema_migrations_table} table already exists")
             return
+        
+        # Create the schema if it doesn't exist
+        create_schema_query = None
+        schema = "public"
+        table_identifiers = self.config.schema_migrations_table.split(".")
+        if len(table_identifiers) == 2:
+            schema = table_identifiers[0]
+        if schema != "public":
+            create_schema_query = sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema};").format(schema=sql.Identifier(schema))
 
-        create_query = sql.SQL(
+        create_table_query = sql.SQL(
             """CREATE TABLE IF NOT EXISTS {schema_migrations_table}
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -102,7 +111,9 @@ class SchemaMigrations:
             schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split("."))
         )
 
-        execute_sql(conn, create_query)
+        if create_schema_query:
+            execute_sql(conn, create_schema_query)
+        execute_sql(conn, create_table_query)
         execute_sql(conn, comment_query)
 
         logger.info(f"Created {self.config.schema_migrations_table} table")

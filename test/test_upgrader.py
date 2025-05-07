@@ -19,6 +19,7 @@ class TestUpgrader(unittest.TestCase):
     def tearDown(self):
         self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
         self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
+        self.cur.execute("DROP TABLE IF EXISTS pum_test.custom_migration;")
         self.conn.commit()
         self.conn.close()
 
@@ -35,6 +36,7 @@ class TestUpgrader(unittest.TestCase):
         self.cur = self.conn.cursor()
         self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
         self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
+        self.cur.execute("DROP TABLE IF EXISTS pum_test.custom_migration;")
         self.conn.commit()
 
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -88,6 +90,16 @@ class TestUpgrader(unittest.TestCase):
             pg_service=self.pg_service,
             config=cfg,
             dir=str(Path("test") / "data" / "custom_directory"),
+        )
+        upgrader.install()
+        self.assertTrue(sm.exists(self.conn))
+
+    def test_install_custom_migration_table(self):
+        cfg = PumConfig.from_yaml(str(Path("test") / "data" / "custom_migration_table" / ".pum-config.yaml"))
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service, config=cfg, dir=str(Path("test") / "data" / "custom_migration_table")
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
