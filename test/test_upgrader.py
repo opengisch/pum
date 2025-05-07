@@ -1,6 +1,8 @@
 import logging
 import tempfile
 import unittest
+import os
+from pathlib import Path
 
 import psycopg
 
@@ -43,7 +45,7 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
-            pg_service=self.pg_service, config=cfg, dir="test/data/single_changelog"
+            pg_service=self.pg_service, config=cfg, dir=str(Path("test") / "data" / "single_changelog")
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -52,7 +54,7 @@ class TestUpgrader(unittest.TestCase):
         self.assertEqual(sm.migration_details(self.conn)["version"], "1.2.3")
         self.assertEqual(
             sm.migration_details(self.conn)["changelog_files"],
-            ["test/data/single_changelog/changelogs/1.2.3/create_northwind.sql"],
+            [str(Path("test") / "data" / "single_changelog" / "changelogs" / "1.2.3" / "create_northwind.sql")],
         )
 
     def test_parameters(self):
@@ -62,7 +64,7 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir="test/data/parameters",
+            dir=str(Path("test") / "data" / "parameters"),
         )
         upgrader.install(parameters={"SRID": 2056})
         self.assertTrue(sm.exists(self.conn))
@@ -72,13 +74,13 @@ class TestUpgrader(unittest.TestCase):
         self.assertEqual(srid, 2056)
 
     def test_install_custom_directory(self):
-        cfg = PumConfig.from_yaml("test/data/custom_directory/.pum-config.yaml")
+        cfg = PumConfig.from_yaml(str(Path("test") / "data" / "custom_directory" / ".pum-config.yaml"))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir="test/data/custom_directory",
+            dir=str(Path("test") / "data" / "custom_directory"),
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -90,7 +92,7 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir="test/data/multiple_changelogs",
+            dir=str(Path("test") / "data" / "multiple_changelogs"),
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -103,8 +105,8 @@ class TestUpgrader(unittest.TestCase):
         self.assertEqual(
             sm.migration_details(self.conn)["changelog_files"],
             [
-                "test/data/multiple_changelogs/changelogs/2.0.0/create_second_table.sql",
-                "test/data/multiple_changelogs/changelogs/2.0.0/create_third_table.sql",
+                str(Path("test") / "data" / "multiple_changelogs" / "changelogs" / "2.0.0" / "create_second_table.sql"),
+                str(Path("test") / "data" / "multiple_changelogs" / "changelogs" / "2.0.0" / "create_third_table.sql"),
             ],
         )
 
