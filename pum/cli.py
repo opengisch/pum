@@ -4,6 +4,7 @@ import argparse
 import logging
 import sys
 from typing import Any
+import importlib.metadata
 
 import psycopg
 
@@ -296,6 +297,14 @@ def create_parser() -> argparse.ArgumentParser:
         action="count",
         default=0,
         help="Increase output verbosity (e.g. -v, -vv)",
+    )
+
+    version = importlib.metadata.version("pum")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"pum {version}",
+        help="Show program's version number and exit."
     )
 
     subparsers = parser.add_subparsers(
