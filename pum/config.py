@@ -21,6 +21,7 @@ class PumConfig:
             kwargs.get("schema_migrations_table") or "public.pum_migrations"
         )
         self.changelogs_directory: str = kwargs.get("changelogs_directory") or "changelogs"
+        self.parameters_definition: dict = kwargs.get("parameters") or {}
 
     def get(self, key, default=None):
         """
@@ -33,6 +34,12 @@ class PumConfig:
         Set a configuration value by key.
         """
         setattr(self, key, value)
+
+    def parameters(self):
+        """
+        Get all changelogs parameters as a dictionary.
+        """
+        return self.get("parameters_definition", {})
 
     @classmethod
     def from_yaml(cls, file_path):

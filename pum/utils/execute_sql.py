@@ -1,8 +1,6 @@
 import logging
 from pathlib import Path
 
-from jinja2 import Template
-
 from psycopg import Connection, Cursor
 from psycopg.errors import SyntaxError
 
@@ -32,13 +30,16 @@ def execute_sql(
     try:
         if isinstance(sql, Path):
             logger.debug(
-                f"Executing SQL from file: {sql}",
+                f"Executing SQL from file: {sql} with parameters: {parameters}",
             )
             with open(sql) as file:
+                sql_content = file.read()
                 if parameters:
-                    sql_code = Template(file.read()).render(**parameters)
+                    for key, value in parameters.items():
+                        sql_content = sql_content.replace(f'{{{{ {key} }}}}', str(value))
+                    sql_code = sql_content
                 else:
-                    sql_code = file.read()
+                    sql_code = sql_content
                 sql_code = sql_code.split(";")
         else:
             sql_code = [sql]

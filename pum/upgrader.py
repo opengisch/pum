@@ -39,7 +39,7 @@ class Upgrader:
         self,
         pg_service: str,
         config: PumConfig,
-        variables=None,
+        parameters=None,
         dir: str | Path = ".",
         max_version=None,
     ):
@@ -55,8 +55,8 @@ class Upgrader:
             related to the db
         config: PumConfig
             The configuration object
-        variables: dict
-            dictionary for variables to be used in SQL deltas ( name => value )
+        parameters: dict
+            The parameters to pass to the SQL files.
         dir: str | Path
             The directory where the module is located.
         max_version: str
@@ -65,22 +65,18 @@ class Upgrader:
 
         self.pg_service = pg_service
         self.config = config
-        self.variables = variables
         self.max_version = parse_version(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
         self.dir = dir
+        self.parameters = parameters
 
-    def install(self, parameters: dict | None = None):
+    def install(self):
         """
         Installs the given module
         This will create the schema_migrations table if it does not exist.
         This will also apply all the changelogs that are after the current version.
         The changelogs are applied in the order they are found in the directory.
         It will also set the baseline version to the current version of the module.
-
-        args:
-            parameters: dict
-                The parameters to pass to the SQL files
         """
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
@@ -91,7 +87,7 @@ class Upgrader:
             self.schema_migrations.create(conn, commit=False)
             for changelog in self.changelogs(after_current_version=False):
                 changelog_files = self.__apply_changelog(
-                    conn, changelog, commit=False, parameters=parameters
+                    conn, changelog, commit=False, parameters=self.parameters
                 )
                 changelog_files = [str(f) for f in changelog_files]
                 self.schema_migrations.set_baseline(
@@ -100,7 +96,7 @@ class Upgrader:
                     beta_testing=False,
                     commit=False,
                     changelog_files=changelog_files,
-                    parameters=parameters,
+                    parameters=self.parameters,
                 )
             logger
 
@@ -272,8 +268,8 @@ class Upgrader:
 
         with open(filepath) as delta_file:
             sql = delta_file.read()
-            if self.variables:
-                self.cursor.execute(sql, self.variables)
+            if self.parameters:
+                self.cursor.execute(sql, self.parameters)
             else:
                 self.cursor.execute(sql)
             self.connection.commit()

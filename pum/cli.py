@@ -5,6 +5,7 @@ import logging
 import sys
 from typing import Any
 import importlib.metadata
+from pathlib import Path
 
 import psycopg
 
@@ -316,6 +317,13 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Parser for the "install" command
     parser_install = subparsers.add_parser("install", help="Installs the module.")
+    parser_install.add_argument(
+        "-p",
+        "--parameter",
+        nargs=2,
+        help="Assign variable for running SQL deltas. Format is name value.",
+        action="append",
+    )
 
     # Parser for the "check" command
     parser_check = subparsers.add_parser(
@@ -386,20 +394,13 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
-    parser_upgrade.add_argument("-t", "--table", help="Upgrades information table", required=True)
-    parser_upgrade.add_argument(
-        "-d",
-        "--dir",
-        nargs="+",
-        help="Delta directories (space-separated)",
-        required=True,
-    )
+
     parser_upgrade.add_argument("-u", "--max-version", help="upper bound limit version")
     parser_upgrade.add_argument(
         "-p",
         "--parameter",
-        nargs=3,
-        help="Assign variable for running SQL deltas. Format is: (string|float|int) name value.",
+        nargs=2,
+        help="Assign variable for running SQL deltas. Format is: name value.",
         action="append",
     )
 
@@ -414,24 +415,29 @@ def cli() -> int:
     if args.config_file:
         config = PumConfig.from_yaml(args.config_file)
     else:
-        args_dict = vars(args)
-        config = PumConfig(**args_dict)
+        config = PumConfig.from_yaml(Path(args.dir) / ".pum-config.yaml")
 
     # if no command is passed, print the help and exit
     if not args.command:
         parser.print_help()
         parser.exit()
 
-    # Build variables dict for upgrade/test-and-upgrade commands
-    variables: dict[str, Any] = {}
-    if args.command in ("upgrade", "test-and-upgrade"):
-        for v in args.var or ():
-            if v[0] == "float":
-                variables[v[1]] = float(v[2])
-            elif v[0] == "int":
-                variables[v[1]] = int(v[2])
+    # Build parameters dict for install and upgrade commands
+    parameters: dict[str, Any] = {}
+    parameters_definition = {p["name"]: {k: v for k, v in p.items() if k != "name"} for p in config.parameters()}
+    if args.command in ("install", "upgrade"):
+        for p in args.parameter or ():
+            if p[0] not in parameters_definition:
+                print(f"Unknown parameter: {p[0]}")
+                sys.exit(1)
+            if parameters_definition[p[0]].get("type") == "float":
+                parameters[p[0]] = float(p[1])
+            elif parameters_definition[p[0]].get("type") == "int":
+                parameters[p[0]] = int(p[1])
             else:
-                variables[v[1]] = v[2]
+                parameters[p[0]] = p[1]
+
+    logging.debug(f"Parameters: {parameters}")
 
     pum = Pum(args.pg_service, config)
     exit_code = 0
@@ -439,7 +445,7 @@ def cli() -> int:
     if args.command == "info":
         run_info(args.pg_service, config)
     elif args.command == "install":
-        Upgrader(args.pg_service, config=config, dir=args.dir).install()
+        Upgrader(args.pg_service, config=config, dir=args.dir, parameters=parameters).install()
     elif args.command == "check":
         success = pum.run_check(
             args.pg_service1,
@@ -463,7 +469,7 @@ def cli() -> int:
             args.pg_service,
             args.table,
             args.dir,
-            variables,
+            parameters,
             args.max_version,
             args.verbose,
         )

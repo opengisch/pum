@@ -58,7 +58,13 @@ class TestUpgrader(unittest.TestCase):
         )
 
     def test_parameters(self):
-        cfg = PumConfig()
+        cfg = PumConfig.from_yaml(str(Path("test") / "data" / "parameters" / ".pum-config.yaml"))
+        self.assertEqual(cfg.parameters(), [{
+            "name": "SRID",
+            "type": "int",
+            "default": 2056,
+            "description": "SRID for the geometry column",
+        }])
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
