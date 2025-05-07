@@ -35,6 +35,14 @@ def execute_sql(
             )
             with open(sql) as file:
                 sql_content = file.read()
+                # Remove SQL comments
+                def remove_sql_comments(sql):
+                    # Remove multiline comments (/* ... */)
+                    sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
+                    # Remove single-line comments (-- ...)
+                    sql = re.sub(r'--.*', '', sql)
+                    return sql
+                sql_content = remove_sql_comments(sql_content)
                 if parameters:
                     for key, value in parameters.items():
                         sql_content = sql_content.replace(f"{{{{ {key} }}}}", str(value))
