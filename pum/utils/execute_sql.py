@@ -5,6 +5,7 @@ from psycopg import Connection, Cursor
 from psycopg.errors import SyntaxError
 
 from pum.exceptions import PumSqlException
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,20 @@ def execute_sql(
                     sql_code = sql_content
                 else:
                     sql_code = sql_content
-                sql_code = sql_code.split(";")
+                def split_sql_statements(sql):
+                    pattern = r'(?:[^;\'"]|\'[^\']*\'|"[^"]*")*;'
+                    matches = re.finditer(pattern, sql, re.DOTALL)
+                    statements = []
+                    last_end = 0
+                    for match in matches:
+                        end = match.end()
+                        statements.append(sql[last_end:end - 1].strip())
+                        last_end = end
+                    if last_end < len(sql):
+                        statements.append(sql[last_end:].strip())
+                    return [stmt for stmt in statements if stmt]
+
+                sql_code = split_sql_statements(sql_code)
         else:
             sql_code = [sql]
 
