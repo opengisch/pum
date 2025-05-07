@@ -193,7 +193,7 @@ class SchemaMigrations:
             WHERE id = (
                 SELECT id
                 FROM {schema_migrations_table}
-                ORDER BY date_installed DESC
+                ORDER BY version DESC, date_installed DESC
                 LIMIT 1
             )
         """
@@ -225,7 +225,7 @@ class SchemaMigrations:
                 WHERE id = (
                         SELECT id
                         FROM {schema_migrations_table}
-                        ORDER BY date_installed DESC
+                        ORDER BY version DESC, date_installed DESC
                         LIMIT 1
                     )
                 ORDER BY date_installed DESC

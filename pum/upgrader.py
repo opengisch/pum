@@ -235,7 +235,10 @@ class Upgrader:
         """
         files = self.changelog_files(changelog)
         for file in files:
-            execute_sql(conn=conn, sql=file, commit=commit, parameters=parameters)
+            try:
+                execute_sql(conn=conn, sql=file, commit=commit, parameters=parameters)
+            except Exception as e:
+                raise PumException(f"Error applying changelog {file}: {e}") from e
         return files
 
     def __run_delta_sql(self, delta):

@@ -28,6 +28,9 @@ class TestUpgrader(unittest.TestCase):
     def setUp(self):
         logging.basicConfig(level=logging.INFO, format="%(message)s")
 
+        self.maxDiff = 5000
+
+
         self.pg_service = "pum_test"
         self.conn = psycopg.connect(f"service={self.pg_service}")
         self.cur = self.conn.cursor()
@@ -38,12 +41,12 @@ class TestUpgrader(unittest.TestCase):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
 
-    def test_install_simple(self):
+    def test_install_single_changelog(self):
         cfg = PumConfig()
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
-            pg_service=self.pg_service, config=cfg, dir="test/data/simple"
+            pg_service=self.pg_service, config=cfg, dir="test/data/single_changelog"
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -54,7 +57,7 @@ class TestUpgrader(unittest.TestCase):
         self.assertEqual(sm.migration_details(self.conn)["version"], "1.2.3")
         self.assertEqual(
             sm.migration_details(self.conn)["changelog_files"],
-            ["test/data/simple/changelogs/1.2.3/create_northwind.sql"],
+            ["test/data/single_changelog/changelogs/1.2.3/create_northwind.sql"],
         )
 
     def test_parameters(self):
@@ -84,6 +87,31 @@ class TestUpgrader(unittest.TestCase):
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
+
+    def test_install_multiple_changelogs(self):
+        cfg = PumConfig()
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service,
+            config=cfg,
+            dir="test/data/multiple_changelogs",
+        )
+        upgrader.install()
+        self.assertTrue(sm.exists(self.conn))
+        self.assertEqual(sm.baseline(self.conn), "2.0.0")
+        self.assertEqual(
+            sm.migration_details(self.conn),
+            sm.migration_details(self.conn, "2.0.0"),
+        )
+        self.assertEqual(sm.migration_details(self.conn)["version"], "2.0.0")
+        self.assertEqual(
+            sm.migration_details(self.conn)["changelog_files"],
+            [
+                "test/data/multiple_changelogs/changelogs/2.0.0/create_second_table.sql",
+                "test/data/multiple_changelogs/changelogs/2.0.0/create_third_table.sql",
+            ],
+        )
 
 
 if __name__ == "__main__":
