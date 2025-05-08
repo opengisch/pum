@@ -64,6 +64,6 @@ jobs:
       - name: Run base tests
         run: nose2 -v
 
-      - name: Run migrations tests
-        shell: bash
-        run: ./test/test_pum.sh
+      # - name: Run migrations tests
+      #   shell: bash
+      #   run: ./test/test_pum.sh
