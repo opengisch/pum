@@ -10,12 +10,15 @@ in the database.
 import json
 import logging
 import re
+from typing import Tuple, List
 
 from packaging.version import Version
 from psycopg import Connection, sql
 
 from .config import PumConfig
 from .utils.execute_sql import execute_sql
+
+from .exceptions import PumException
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +35,10 @@ class SchemaMigrations:
         """
         self.config = config
 
-    def exists(self, conn: Connection) -> bool:
+    def __pum_migrations_details(self) -> Tuple[str, str]:
         """
-        Checks if the schema_migrations information table exists
-        Args:
-            conn (Connection): The database connection to check for the existence of the table.
-            Returns:
-                bool: True if the table exists, False otherwise."""
+        Returns the pum_migrations table name and schema
+        """
         schema = "public"
         table = None
         table_identifiers = self.config.pum_migrations_table.split(".")
@@ -51,15 +51,25 @@ class SchemaMigrations:
             table = table_identifiers[1]
         else:
             table = table_identifiers[0]
+        return schema, table
 
+    def exists(self, conn: Connection):
+        """
+        Checks if the schema_migrations information table exists
+        Args:
+            conn (Connection): The database connection to check for the existence of the table.
+        Returns:
+            bool: True if the table exists, False otherwise."""
+
+        schema, table = self.__pum_migrations_details()
         query = sql.SQL(
             """
-            SELECT EXISTS (
+        SELECT EXISTS (
             SELECT 1
             FROM information_schema.tables
             WHERE table_name = {table} AND table_schema = {schema}
-            );
-            """
+        );
+        """
         ).format(
             schema=sql.Literal(schema),
             table=sql.Literal(table),
@@ -68,17 +78,47 @@ class SchemaMigrations:
         cursor = execute_sql(conn, query)
         return cursor.fetchone()[0]
 
-    def create(self, conn: Connection, commit: bool = True):
+    def exists_in_other_schemas(self, conn: Connection) -> List[str]:
+        """
+        Checks if the schema_migrations information table exists in other schemas
+        Args:
+            conn (Connection): The database connection to check for the existence of the table.
+        Returns:
+            List[str]: List of schemas where the table exists.
+        """
+        schema, table = self.__pum_migrations_details()
+        query = sql.SQL(
+            """
+            SELECT table_schema
+            FROM information_schema.tables
+            WHERE table_name = {table} AND table_schema != {schema}
+        """
+        ).format(
+            schema=sql.Literal(schema),
+            table=sql.Literal(table),
+        )
+
+        cursor = execute_sql(conn, query)
+        return [row[0] for row in cursor.fetchall()]
+
+    def create(self, conn: Connection, commit: bool = True, allow_multiple_schemas: bool = False):
         """
         Creates the schema_migrations information table
         Args:
             conn (Connection): The database connection to create the table.
             commit (bool): If true, the transaction is committed. The default is true.
+            allow_multiple_schemas (bool): If true, several pum_migrations tables are allowed in distinct schemas. Default is false.
         """
 
         if self.exists(conn):
             logger.debug(f"{self.config.pum_migrations_table} table already exists")
             return
+
+        if not allow_multiple_schemas and len(self.exists_in_other_schemas(conn)) > 0:
+            raise PumException(
+                f"Another {self.config.pum_migrations_table} table exists in another schema (). "
+                "Please use the allow_multiple_schemas option to create a new one."
+            )
 
         # Create the schema if it doesn't exist
         create_schema_query = None

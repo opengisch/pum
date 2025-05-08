@@ -19,8 +19,8 @@ class TestUpgrader(unittest.TestCase):
 
     def tearDown(self):
         self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
+        self.cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
         self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
-        self.cur.execute("DROP TABLE IF EXISTS pum_test.custom_migration;")
         self.conn.commit()
         self.conn.close()
 
@@ -36,8 +36,8 @@ class TestUpgrader(unittest.TestCase):
         self.conn = psycopg.connect(f"service={self.pg_service}")
         self.cur = self.conn.cursor()
         self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
+        self.cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
         self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
-        self.cur.execute("DROP TABLE IF EXISTS pum_test.custom_migration;")
         self.conn.commit()
 
         self.tmpdir = tempfile.TemporaryDirectory()
