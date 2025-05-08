@@ -4,7 +4,7 @@ from pathlib import Path
 from psycopg import Connection, Cursor
 from psycopg.errors import SyntaxError
 
-from ..exceptions import PumSqlException
+from ..exceptions import PumSqlException, PumInvalidChangelog
 import re
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,13 @@ def execute_sql(
                 sql = re.sub(r'(?m)(^|;)\s*--.*?(\r\n|\r|\n)', r'\1', sql)
                 return sql
             sql_content = remove_sql_comments(sql_content)
+
+            # Check for forbidden transaction statements
+            forbidden_statements = ['BEGIN;', 'COMMIT;']
+            for forbidden in forbidden_statements:
+                if re.search(rf'\b{forbidden[:-1]}\b\s*;', sql_content, re.IGNORECASE):
+                    raise PumInvalidChangelog(f"SQL contains forbidden transaction statement: {forbidden}")
+
             if parameters:
                 for key, value in parameters.items():
                     sql_content = sql_content.replace(f"{{{{ {key} }}}}", str(value))

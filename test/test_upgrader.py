@@ -114,6 +114,7 @@ class TestUpgrader(unittest.TestCase):
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
+
     def test_install_multiple_changelogs(self):
         cfg = PumConfig()
         sm = SchemaMigrations(cfg)
@@ -139,6 +140,18 @@ class TestUpgrader(unittest.TestCase):
             ],
         )
 
+    def test_invalid_changelog(self):
+        cfg = PumConfig()
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service,
+            config=cfg,
+            dir=str(Path("test") / "data" / "invalid_changelog"),
+        )
+        with self.assertRaises(Exception) as context:
+            upgrader.install()
+        self.assertTrue("SQL contains forbidden transaction statement: BEGIN;" in str(context.exception))
 
 if __name__ == "__main__":
     unittest.main()
