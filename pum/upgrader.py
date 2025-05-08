@@ -31,9 +31,11 @@ class Changelog:
 
 
 class Upgrader:
-    """This class is used to upgrade an existing database using sql delta files.
+    """
+    This class is used to upgrade an existing database using sql delta files.
 
-    Stores the info about the upgrade in a table on the database."""
+    Stores the info about the upgrade in a table on the database.
+    """
 
     def __init__(
         self,
@@ -50,17 +52,17 @@ class Upgrader:
         The table is created in the schema defined in the config file if it does not exist.
 
         Args:
-        pg_service: str
-            The name of the postgres service (defined in pg_service.conf)
-            related to the db
-        config: PumConfig
-            The configuration object
-        parameters: dict
-            The parameters to pass to the SQL files.
-        dir: str | Path
-            The directory where the module is located.
-        max_version: str
-            Maximum (including) version to run the deltas up to.
+            pg_service: str
+                The name of the postgres service (defined in pg_service.conf)
+                related to the db
+            config: PumConfig
+                The configuration object
+            parameters: dict
+                The parameters to pass to the SQL files.
+            dir: str | Path
+                The directory where the module is located.
+            max_version: str
+                Maximum (including) version to run the deltas up to.
         """
 
         self.pg_service = pg_service
