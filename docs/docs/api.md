@@ -9,6 +9,7 @@
 ::: pum.changelog.last_version
 
 ## MigrationParameterDefinition
+::: pum.migration_parameter_definition.ParameterType
 ::: pum.migration_parameter_definition.MigrationParameterDefintion
 
 ## PumConfig
