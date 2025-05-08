@@ -59,6 +59,7 @@ class TestUpgrader(unittest.TestCase):
             [str(Path("test") / "data" / "single_changelog" / "changelogs" / "1.2.3" / "create_northwind.sql")],
         )
 
+    @unittest.skipIf(os.name == "nt" and os.getenv("CI") == "true", "Test not supported on Windows CI (postgis not installed)")
     def test_parameters(self):
         cfg = PumConfig.from_yaml(str(Path("test") / "data" / "parameters" / ".pum-config.yaml"))
         self.assertEqual(cfg.parameters(), [{
