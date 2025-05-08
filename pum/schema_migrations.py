@@ -35,7 +35,7 @@ class SchemaMigrations:
         """
         self.config = config
 
-    def _pum_migrations_details(self) -> Tuple[str, str]:
+    def _pum_migrations_table_schema_name(self) -> Tuple[str, str]:
         """
         Returns the pum_migrations table name and schema
         """
@@ -61,7 +61,7 @@ class SchemaMigrations:
         Returns:
             bool: True if the table exists, False otherwise."""
 
-        schema, table = self._pum_migrations_details()
+        schema, table = self._pum_migrations_table_schema_name()
         query = sql.SQL(
             """
         SELECT EXISTS (
@@ -86,7 +86,7 @@ class SchemaMigrations:
         Returns:
             List[str]: List of schemas where the table exists.
         """
-        schema, table = self._pum_migrations_details()
+        schema, table = self._pum_migrations_table_schema_name()
         query = sql.SQL(
             """
             SELECT table_schema
