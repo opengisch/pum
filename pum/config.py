@@ -12,6 +12,9 @@ class PumConfig:
     def __init__(self, **kwargs):
         """
         Initialize the configuration with key-value pairs.
+
+        Args:
+            **kwargs: Key-value pairs representing configuration settings.
         """
         self.pg_restore_exe: str | None = kwargs.get("pg_restore_exe") or os.getenv(
             "PG_RESTORE_EXE"
@@ -43,27 +46,49 @@ class PumConfig:
                     "parameters must be a list of dictionaries or MigrationParameterDefintion instances"
                 )
 
-    def get(self, key, default=None):
-        """
-        Get a configuration value by key, with an optional default.
-        """
-        return getattr(self, key, default)
+    # def get(self, key, default=None) -> any:
+    #     """
+    #     Get a configuration value by key, with an optional default.
+    #     This method allows dynamic retrieval of attributes from the PumConfig instance.
+    #     Args:
+    #         key (str): The name of the attribute to retrieve.
+    #         default: The default value to return if the attribute does not exist.
+    #     Returns:
+    #         any: The value of the attribute, or the default value if the attribute does not exist.
+    #     """
+    #     return getattr(self, key, default)
 
-    def set(self, key, value):
-        """
-        Set a configuration value by key.
-        """
-        setattr(self, key, value)
+    # def set(self, key, value):
+    #     """
+    #     Set a configuration value by key.
+    #     This method allows dynamic setting of attributes on the PumConfig instance.
 
-    def parameters(self):
+    #     Args:
+    #         key (str): The name of the attribute to set.
+    #         value: The value to assign to the attribute.
+    #     Raises:
+    #         AttributeError: If the attribute does not exist.
+    #     """
+    #     setattr(self, key, value)
+
+    def parameters(self) -> dict[str, MigrationParameterDefintion]:
         """
-        Get all changelogs parameters as a dictionary.
+        Get all migration parameters as a dictionary.
+
+        Returns:
+            dict[str, MigrationParameterDefintion]: A dictionary of migration parameters.
+        The keys are parameter names, and the values are MigrationParameterDefintion instances.
         """
         return self.parameter_definitions
 
-    def parameter(self, name):
+    def parameter(self, name) -> MigrationParameterDefintion:
         """
-        Get a specific changelog parameter by name.
+        Get a specific migration parameter by name.
+
+        Returns:
+            MigrationParameterDefintion: The migration parameter definition.
+        Raises:
+            KeyError: If the parameter name does not exist.
         """
         return self.parameter_definitions[name]
 

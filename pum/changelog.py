@@ -13,6 +13,10 @@ class Changelog:
     """
 
     def __init__(self, dir):
+        """
+        Args:
+            dir (str): The directory where the changelog is located.
+        """
         self.dir = dir
         self.version = parse_version(basename(dir))
 

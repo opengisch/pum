@@ -26,6 +26,12 @@ migration_table_version = "2025.0"
 
 
 class SchemaMigrations:
+    """
+    This class is responsible for managing the schema migrations in the database.
+    It provides methods to create the schema_migrations table, check its existence,
+    set the baseline version, and retrieve migration details.
+    """
+
     def __init__(self, config: PumConfig):
         """
         Initialize the SchemaMigrations class with a database connection and configuration.
