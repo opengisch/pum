@@ -1,6 +1,6 @@
 
 parameters:
   - name: SRID
-    type: int
+    type: integer
     default: 2056
     description: SRID for the geometry column

@@ -9,6 +9,7 @@ import psycopg
 from pum.config import PumConfig
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
+from pum.migration_parameter_definition import MigrationParameterDefintion
 
 
 class TestUpgrader(unittest.TestCase):
@@ -62,12 +63,12 @@ class TestUpgrader(unittest.TestCase):
     @unittest.skipIf(os.name == "nt" and os.getenv("CI") == "true", "Test not supported on Windows CI (postgis not installed)")
     def test_parameters(self):
         cfg = PumConfig.from_yaml(str(Path("test") / "data" / "parameters" / ".pum-config.yaml"))
-        self.assertEqual(cfg.parameters(), [{
-            "name": "SRID",
-            "type": "int",
-            "default": 2056,
-            "description": "SRID for the geometry column",
-        }])
+        self.assertEqual(cfg.parameters()["SRID"], MigrationParameterDefintion(
+            name="SRID",
+            type_="integer",
+            default=2056,
+            description="SRID for the geometry column",
+        ))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(

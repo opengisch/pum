@@ -1,6 +1,8 @@
 import os
+from enum import Enum
 
 import yaml
+from .migration_parameter_definition import ParameterType, MigrationParameterDefintion
 
 
 class PumConfig:
@@ -21,7 +23,26 @@ class PumConfig:
             kwargs.get("schema_migrations_table") or "public.pum_migrations"
         )
         self.changelogs_directory: str = kwargs.get("changelogs_directory") or "changelogs"
-        self.parameters_definition: dict = kwargs.get("parameters") or {}
+
+        self.parameter_definitions = dict()
+        for p in kwargs.get("parameters") or ():
+            if isinstance(p, dict):
+                name = p.get("name")
+                type_ = p.get("type")
+                default = p.get("default")
+                description = p.get("description")
+                self.parameter_definitions[name] = MigrationParameterDefintion(
+                    name=name,
+                    type_=type_,
+                    default=default,
+                    description=description,
+                )
+            elif isinstance(p, MigrationParameterDefintion):
+                self.parameter_definitions[p.name] = p
+            else:
+                raise TypeError(
+                    "parameters must be a list of dictionaries or MigrationParameterDefintion instances"
+                )
 
     def get(self, key, default=None):
         """
@@ -39,8 +60,14 @@ class PumConfig:
         """
         Get all changelogs parameters as a dictionary.
         """
-        return self.get("parameters_definition", {})
-
+        return self.parameter_definitions
+    
+    def parameter(self, name):
+        """
+        Get a specific changelog parameter by name.
+        """
+        return self.parameter_definitions[name]
+    
     @classmethod
     def from_yaml(cls, file_path):
         """
