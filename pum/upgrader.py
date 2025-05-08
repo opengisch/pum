@@ -187,7 +187,9 @@ class Upgrader:
         This is not recursive, it only returns the files in the given changelog directory.
         """
         files = [
-            changelog.dir / f for f in os.listdir(changelog.dir) if (changelog.dir / f).is_file()
+            changelog.dir / f
+            for f in os.listdir(changelog.dir)
+            if (changelog.dir / f).is_file() and f.endswith(".sql")
         ]
         files.sort()
         return files
