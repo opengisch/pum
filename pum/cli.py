@@ -426,12 +426,12 @@ def cli() -> int:
     parameters = {}
     if args.command in ("install", "upgrade"):
         for p in args.parameter or ():
-            if p[0] not in config.parameters_definition():
+            if p[0] not in config.parameters():
                 print(f"Unknown parameter: {p[0]}")
                 sys.exit(1)
-            if config.parameters_definition(p[0]).type_ == "float":
+            if config.parameter(p[0]).type == "float":
                 parameters[p[0]] = float(p[1])
-            if config.parameters_definition(p[0]).type_ == "integer":
+            if config.parameter(p[0]).type == "integer":
                 parameters[p[0]] = int(p[1])
             else:
                 parameters[p[0]] = p[1]
