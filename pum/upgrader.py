@@ -4,30 +4,19 @@ import logging
 import os
 import re
 from hashlib import md5
-from os.path import basename, isdir, join
 from pathlib import Path
-
-import psycopg
 from packaging.version import parse as parse_version
+import psycopg
 from psycopg import Connection
+from os.path import basename
 
 from .config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
 from .utils.execute_sql import execute_sql
+from .changelog import Changelog, list_changelogs
 
 logger = logging.getLogger(__name__)
-
-
-class Changelog:
-    """This class represent a changelog directory."""
-
-    def __init__(self, dir):
-        self.dir = dir
-        self.version = parse_version(basename(dir))
-
-    def __repr__(self):
-        return f"<dir: {self.dir} (v: {self.version})>"
 
 
 class Upgrader:
@@ -76,7 +65,6 @@ class Upgrader:
         """
         Installs the given module
         This will create the schema_migrations table if it does not exist.
-        This will also apply all the changelogs that are after the current version.
         The changelogs are applied in the order they are found in the directory.
         It will also set the baseline version to the current version of the module.
         """
@@ -87,7 +75,7 @@ class Upgrader:
                     f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
             self.schema_migrations.create(conn, commit=False)
-            for changelog in self.changelogs(after_current_version=False):
+            for changelog in list_changelogs(config=self.config, dir=self.dir):
                 changelog_files = self.__apply_changelog(
                     conn, changelog, commit=False, parameters=self.parameters
                 )
@@ -158,30 +146,6 @@ class Upgrader:
     def __get_dbuser(self):
         """Return the db user"""
         return self.connection.get_dsn_parameters()["user"]
-
-    def changelogs(self, after_current_version: bool = True) -> list[Changelog]:
-        """
-        Return a list of changelogs.
-        The changelogs are sorted by version.
-        If after_current_version is True, only the changelogs that are after the current version will be returned.
-        If after_current_version is False, all changelogs will be returned.
-        """
-        path = Path(self.dir)
-        if not path.is_dir():
-            raise PumException(f"Module directory `{path}` does not exist.")
-        path = path / self.config.changelogs_directory
-        if not path.is_dir():
-            raise PumException(f"Changelogs directory `{path}` does not exist.")
-
-        changelogs = [Changelog(path / d) for d in os.listdir(path) if isdir(join(path, d))]
-
-        if after_current_version:
-            changelogs = [
-                c for c in changelogs if c.version > self.schema_migrations.current_version()
-            ]
-
-        changelogs.sort(key=lambda c: c.version)
-        return changelogs
 
     def changelog_files(self, changelog: str) -> list[Path]:
         """
