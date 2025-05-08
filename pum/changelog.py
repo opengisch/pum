@@ -31,6 +31,12 @@ def last_version(
     The changelogs are sorted by version.
     If after_current_version is True, only the changelogs that are after the current version will be returned.
     If after_current_version is False, all changelogs will be returned.
+
+    Args:
+        config (PumConfig): The configuration object.
+        dir (str | Path): The directory where the changelogs are located.
+        after_version (str | None): The version to start from.
+        before_version (str | None): The version to end at.
     """
     changelogs = list_changelogs(config, dir, after_version, before_version)
     if not changelogs:
@@ -55,6 +61,12 @@ def list_changelogs(
     The changelogs are sorted by version.
     If after_current_version is True, only the changelogs that are after the current version will be returned.
     If after_current_version is False, all changelogs will be returned.
+
+    Args:
+        config (PumConfig): The configuration object.
+        dir (str | Path): The directory where the changelogs are located.
+        after_version (str | None): The version to start from.
+        before_version (str | None): The version to end at.
     """
     path = Path(dir)
     if not path.is_dir():
