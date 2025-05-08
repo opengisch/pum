@@ -82,7 +82,7 @@ class Upgrader:
         with psycopg.connect(f"service={self.pg_service}") as conn:
             if self.schema_migrations.exists(conn):
                 raise PumException(
-                    "Schema migrations table already exists. Use upgrade() to upgrade the db or start with a clean db."
+                    f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
             self.schema_migrations.create(conn, commit=False)
             for changelog in self.changelogs(after_current_version=False):
@@ -511,10 +511,6 @@ class Delta:
 
     def __repr__(self):
         return f"<file: {self.file} (v: {self.get_version()}, n: {self.get_name()}>"
-
-    def get_version(self):
-        """Return the version of the delta file."""
-        return pkg_resources.parse_version(self.match.group(2))
 
     def get_name(self):
         """Return the name (description) of the delta file."""
