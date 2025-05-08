@@ -1,3 +1,5 @@
 # API documentation
 
-::: pum
+::: pum.config
+::: pum.schema_migrations
+::: pum.upgrader
