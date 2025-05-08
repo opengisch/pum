@@ -7,7 +7,10 @@ from .config import PumConfig
 
 
 class Changelog:
-    """This class represent a changelog directory."""
+    """
+    This class represent a changelog directory.
+    The directory name is the version of the changelog.
+    """
 
     def __init__(self, dir):
         self.dir = dir
@@ -15,6 +18,30 @@ class Changelog:
 
     def __repr__(self):
         return f"<dir: {self.dir} (v: {self.version})>"
+
+
+def last_version(
+    config: PumConfig,
+    dir: str | Path = ".",
+    after_version: str | None = None,
+    before_version: str | None = None,
+) -> str | None:
+    """
+    Return the last version of the changelogs.
+    The changelogs are sorted by version.
+    If after_current_version is True, only the changelogs that are after the current version will be returned.
+    If after_current_version is False, all changelogs will be returned.
+    """
+    changelogs = list_changelogs(config, dir, after_version, before_version)
+    if not changelogs:
+        return None
+    if after_version:
+        changelogs = [c for c in changelogs if c.version > parse_version(after_version)]
+    if before_version:
+        changelogs = [c for c in changelogs if c.version < parse_version(before_version)]
+    if not changelogs:
+        return None
+    return changelogs[-1].version
 
 
 def list_changelogs(
