@@ -8,11 +8,14 @@ CREATE TABLE pum_test_data.some_table (
     amount NUMERIC(10,2)
 );
 
-COMMENT ON COLUMN pum_test_data.some_table.created_date IS 'A comment with semi column; , quotes '' and a backslash \\';
+COMMENT ON COLUMN pum_test_data.some_table.created_date IS 'A comment with semi column; , quotes '' and a backslash \\ and -- dashes';
 
 -- commented code that has ; in it
-/* ALTER TABLE mytable ADD COLUMN newcol varchar (16);
+
+/* ALTER TABLE mytable ADD COLUMN newcolvarchar (16);
 ALTER TABLE mytable ADD COLUMN newcol2 varchar (16); */
+
+/* -- ; ' */
 
 -- This is a comment with a semicolon; and a quote ' and a backslash \
 
