@@ -305,7 +305,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--version",
         action="version",
         version=f"pum {version}",
-        help="Show program's version number and exit."
+        help="Show program's version number and exit.",
     )
 
     subparsers = parser.add_subparsers(
@@ -424,7 +424,9 @@ def cli() -> int:
 
     # Build parameters dict for install and upgrade commands
     parameters: dict[str, Any] = {}
-    parameters_definition = {p["name"]: {k: v for k, v in p.items() if k != "name"} for p in config.parameters()}
+    parameters_definition = {
+        p["name"]: {k: v for k, v in p.items() if k != "name"} for p in config.parameters()
+    }
     if args.command in ("install", "upgrade"):
         for p in args.parameter or ():
             if p[0] not in parameters_definition:

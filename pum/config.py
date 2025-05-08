@@ -1,8 +1,7 @@
 import os
-from enum import Enum
 
 import yaml
-from .migration_parameter_definition import ParameterType, MigrationParameterDefintion
+from .migration_parameter_definition import MigrationParameterDefintion
 
 
 class PumConfig:
@@ -61,13 +60,13 @@ class PumConfig:
         Get all changelogs parameters as a dictionary.
         """
         return self.parameter_definitions
-    
+
     def parameter(self, name):
         """
         Get a specific changelog parameter by name.
         """
         return self.parameter_definitions[name]
-    
+
     @classmethod
     def from_yaml(cls, file_path):
         """

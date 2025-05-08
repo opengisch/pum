@@ -34,20 +34,24 @@ def execute_sql(
         )
         with open(sql) as file:
             sql_content = file.read()
+
             # Remove SQL comments
             def remove_sql_comments(sql):
                 # Remove multiline comments (/* ... */)
-                sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
+                sql = re.sub(r"/\*.*?\*/", "", sql, flags=re.DOTALL)
                 # Remove single-line comments (-- ...)
-                sql = re.sub(r'(?m)(^|;)\s*--.*?(\r\n|\r|\n)', r'\1', sql)
+                sql = re.sub(r"(?m)(^|;)\s*--.*?(\r\n|\r|\n)", r"\1", sql)
                 return sql
+
             sql_content = remove_sql_comments(sql_content)
 
             # Check for forbidden transaction statements
-            forbidden_statements = ['BEGIN;', 'COMMIT;']
+            forbidden_statements = ["BEGIN;", "COMMIT;"]
             for forbidden in forbidden_statements:
-                if re.search(rf'\b{forbidden[:-1]}\b\s*;', sql_content, re.IGNORECASE):
-                    raise PumInvalidChangelog(f"SQL contains forbidden transaction statement: {forbidden}")
+                if re.search(rf"\b{forbidden[:-1]}\b\s*;", sql_content, re.IGNORECASE):
+                    raise PumInvalidChangelog(
+                        f"SQL contains forbidden transaction statement: {forbidden}"
+                    )
 
             if parameters:
                 for key, value in parameters.items():

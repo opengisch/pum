@@ -25,6 +25,7 @@ class PumSqlException(Exception):
 
     pass
 
+
 class PumInvalidChangelog(Exception):
     """Exception raised for invalid changelog."""
 

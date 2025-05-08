@@ -1,16 +1,24 @@
 from enum import Enum
 
+
 class ParameterType(Enum):
     INTEGER = "integer"
     STRING = "string"
     DECIMAL = "decimal"
+
 
 class MigrationParameterDefintion:
     """
     A class to define a migration parameter.
     """
 
-    def __init__(self, name: str, type_: str | ParameterType, default: str | int | float = None, description: str = None):
+    def __init__(
+        self,
+        name: str,
+        type_: str | ParameterType,
+        default: str | int | float = None,
+        description: str = None,
+    ):
         """
         Initialize a MigrationParameterDefintion instance.
 
@@ -39,13 +47,13 @@ class MigrationParameterDefintion:
 
     def __repr__(self):
         return f"MigrationParameter(name={self.name}, type={self.type}, default={self.default}, description={self.description})"
-    
+
     def __eq__(self, other):
         if not isinstance(other, MigrationParameterDefintion):
             return NotImplemented
         return (
-            self.name == other.name and
-            self.type == other.type and
-            self.default == other.default and
-            self.description == other.description
+            self.name == other.name
+            and self.type == other.type
+            and self.default == other.default
+            and self.description == other.description
         )
