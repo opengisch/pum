@@ -104,6 +104,15 @@ class TestUpgrader(unittest.TestCase):
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
 
+    def test_install_complex_files_content(self):
+        cfg = PumConfig()
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service, config=cfg, dir=str(Path("test") / "data" / "complex_files_content")
+        )
+        upgrader.install()
+        self.assertTrue(sm.exists(self.conn))
     def test_install_multiple_changelogs(self):
         cfg = PumConfig()
         sm = SchemaMigrations(cfg)

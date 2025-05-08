@@ -39,9 +39,10 @@ def execute_sql(
                 # Remove multiline comments (/* ... */)
                 sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
                 # Remove single-line comments (-- ...)
-                sql = re.sub(r'--(?=(?:[^\'"]|\'[^\']*\'|"[^"]*")*$).*', '', sql)
+                sql = re.sub(r'--.*?(\r\n|\r|\n)', '', sql)
                 return sql
             sql_content = remove_sql_comments(sql_content)
+            print(sql_content)
             if parameters:
                 for key, value in parameters.items():
                     sql_content = sql_content.replace(f"{{{{ {key} }}}}", str(value))
