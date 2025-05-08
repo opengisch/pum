@@ -313,7 +313,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Parser for the "info" command
-    parser_info = subparsers.add_parser("info", help="show info about schema migrations history.")
+    parser_info = subparsers.add_parser("info", help="show info about schema migrations history.")  # NOQA
 
     # Parser for the "install" command
     parser_install = subparsers.add_parser("install", help="Installs the module.")
@@ -423,18 +423,15 @@ def cli() -> int:
         parser.exit()
 
     # Build parameters dict for install and upgrade commands
-    parameters: dict[str, Any] = {}
-    parameters_definition = {
-        p["name"]: {k: v for k, v in p.items() if k != "name"} for p in config.parameters()
-    }
+    parameters = {}
     if args.command in ("install", "upgrade"):
         for p in args.parameter or ():
-            if p[0] not in parameters_definition:
+            if p[0] not in config.parameters_definition():
                 print(f"Unknown parameter: {p[0]}")
                 sys.exit(1)
-            if parameters_definition[p[0]].get("type") == "float":
+            if config.parameters_definition(p[0]).type_ == "float":
                 parameters[p[0]] = float(p[1])
-            elif parameters_definition[p[0]].get("type") == "int":
+            if config.parameters_definition(p[0]).type_ == "integer":
                 parameters[p[0]] = int(p[1])
             else:
                 parameters[p[0]] = p[1]
