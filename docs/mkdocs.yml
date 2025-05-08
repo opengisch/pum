@@ -11,4 +11,5 @@ markdown_extensions:
   - codehilite
 
 nav:
-  - pum: index.md
+  - Introduction: index.md
+  - API: api.md
