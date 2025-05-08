@@ -117,14 +117,14 @@ class TestUpgrader(unittest.TestCase):
 
     def test_install_custom_migration_table(self):
         cfg = PumConfig.from_yaml(
-            str(Path("test") / "data" / "custom_migration_table" / ".pum-config.yaml")
+            str(Path("test") / "data" / "custom_migration_schema" / ".pum-config.yaml")
         )
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=str(Path("test") / "data" / "custom_migration_table"),
+            dir=str(Path("test") / "data" / "custom_migration_schema"),
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))

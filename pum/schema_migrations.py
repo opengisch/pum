@@ -41,9 +41,11 @@ class SchemaMigrations:
                 bool: True if the table exists, False otherwise."""
         schema = "public"
         table = None
-        table_identifiers = self.config.schema_migrations_table.split(".")
+        table_identifiers = self.config.pum_migrations_table.split(".")
         if len(table_identifiers) > 2:
-            raise ValueError("The schema_migrations_table must be in the format 'schema.table'")
+            raise ValueError(
+                f"The pum_migrations_table '{self.config.pum_migrations_table}' must be in the format 'schema.table'"
+            )
         elif len(table_identifiers) == 2:
             schema = table_identifiers[0]
             table = table_identifiers[1]
@@ -75,13 +77,13 @@ class SchemaMigrations:
         """
 
         if self.exists(conn):
-            logger.debug(f"{self.config.schema_migrations_table} table already exists")
+            logger.debug(f"{self.config.pum_migrations_table} table already exists")
             return
 
         # Create the schema if it doesn't exist
         create_schema_query = None
         schema = "public"
-        table_identifiers = self.config.schema_migrations_table.split(".")
+        table_identifiers = self.config.pum_migrations_table.split(".")
         if len(table_identifiers) == 2:
             schema = table_identifiers[0]
         if schema != "public":
@@ -90,7 +92,7 @@ class SchemaMigrations:
             )
 
         create_table_query = sql.SQL(
-            """CREATE TABLE IF NOT EXISTS {schema_migrations_table}
+            """CREATE TABLE IF NOT EXISTS {pum_migrations_table}
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             date_installed timestamp without time zone NOT NULL DEFAULT now(),
@@ -103,22 +105,20 @@ class SchemaMigrations:
             );
         """
         ).format(
-            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split(".")),
+            pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")),
             version=sql.Literal(migration_table_version),
         )
 
         comment_query = sql.SQL(
-            """COMMENT ON TABLE {schema_migrations_table} IS 'version: 1 --  schema_migration table version';"""
-        ).format(
-            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split("."))
-        )
+            """COMMENT ON TABLE {pum_migrations_table} IS 'version: 1 --  schema_migration table version';"""
+        ).format(pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")))
 
         if create_schema_query:
             execute_sql(conn, create_schema_query)
         execute_sql(conn, create_table_query)
         execute_sql(conn, comment_query)
 
-        logger.info(f"Created {self.config.schema_migrations_table} table")
+        logger.info(f"Created {self.config.pum_migrations_table} table")
 
         if commit:
             conn.commit()
@@ -153,7 +153,7 @@ class SchemaMigrations:
 
         query = sql.SQL(
             """
-            INSERT INTO {schema_migrations_table} (
+            INSERT INTO {pum_migrations_table} (
             version,
             beta_testing,
             migration_table_version,
@@ -171,11 +171,11 @@ class SchemaMigrations:
             version=sql.Literal(version),
             beta_testing=sql.Literal(beta_testing),
             migration_table_version=sql.Literal(migration_table_version),
-            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split(".")),
+            pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")),
             changelog_files=sql.Literal(changelog_files or []),
             parameters=sql.Literal(json.dumps(parameters or {})),
         )
-        logger.info(f"Setting baseline version {version} in {self.config.schema_migrations_table}")
+        logger.info(f"Setting baseline version {version} in {self.config.pum_migrations_table}")
         conn.execute(query)
         if commit:
             conn.commit()
@@ -192,17 +192,15 @@ class SchemaMigrations:
         query = sql.SQL(
             """
             SELECT version
-            FROM {schema_migrations_table}
+            FROM {pum_migrations_table}
             WHERE id = (
                 SELECT id
-                FROM {schema_migrations_table}
+                FROM {pum_migrations_table}
                 ORDER BY version DESC, date_installed DESC
                 LIMIT 1
             )
         """
-        ).format(
-            schema_migrations_table=sql.Identifier(*self.config.schema_migrations_table.split("."))
-        )
+        ).format(pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")))
         cursor = execute_sql(conn, query)
         return cursor.fetchone()[0]
 
@@ -222,31 +220,27 @@ class SchemaMigrations:
             query = sql.SQL(
                 """
                 SELECT *
-                FROM {schema_migrations_table}
+                FROM {pum_migrations_table}
                 WHERE id = (
                         SELECT id
-                        FROM {schema_migrations_table}
+                        FROM {pum_migrations_table}
                         ORDER BY version DESC, date_installed DESC
                         LIMIT 1
                     )
                 ORDER BY date_installed DESC
             """
             ).format(
-                schema_migrations_table=sql.Identifier(
-                    *self.config.schema_migrations_table.split(".")
-                ),
+                pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")),
             )
         else:
             query = sql.SQL(
                 """
                 SELECT *
-                FROM {schema_migrations_table}
+                FROM {pum_migrations_table}
                 WHERE version = {version}
             """
             ).format(
-                schema_migrations_table=sql.Identifier(
-                    *self.config.schema_migrations_table.split(".")
-                ),
+                pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")),
                 version=sql.Literal(version),
             )
         cursor = execute_sql(conn, query)

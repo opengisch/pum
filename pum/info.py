@@ -17,7 +17,7 @@ def run_info(pg_service: str, config: PumConfig) -> None:
     try:
         schema_migrations = SchemaMigrations(pg_service, config)
         if not schema_migrations.exists():
-            logger.info(f"No migrations found in {config.schema_migrations_table}")
+            logger.info(f"No migrations found in {config.pum_migrations_table}")
         else:
             # Add your logic for when migrations exist; for now, we simply print a message.
             logger.info("Migrations found.")
