@@ -6,9 +6,10 @@
 - pg_service.conf configured for your database connections (see [PostgreSQL documentation](https://www.postgresql.org/docs/current/libpq-pgservice.html))
 
 ## Installation
-  ```sh title="install PUM"
-  pip install pum
-  ```
+
+```bash
+pip install pum
+```
 
 ## Changelogs
 
