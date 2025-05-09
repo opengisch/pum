@@ -9,6 +9,13 @@ theme:
     - navigation.indexes
     - navigation.top
     - navigation.tracking
+    - pymdownx.highlight:
+        anchor_linenums: true
+        line_spans: __span
+        pygments_lang_class: true
+    - pymdownx.inlinehilite
+    - pymdownx.snippets
+    - pymdownx.superfences
 
 plugins:
   - mkdocstrings:
@@ -25,7 +32,10 @@ markdown_extensions:
   - codehilite
 
 nav:
-  - Introduction: index.md
+  - About: index.md
+  - Getting Started: getting_started.md
+  - Config: config.md
+  - CLI: cli.md
   - API:
       - Changelog: api/changelog.md
       - MigrationParameterDefinition: api/migration_parameter_definition.md

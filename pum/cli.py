@@ -283,9 +283,7 @@ def create_parser() -> argparse.ArgumentParser:
     Creates the main parser with its sub-parsers
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-c", "--config_file", help="set the config file. Default: .pum-config.yaml"
-    )
+    parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
 
     parser.add_argument(
@@ -415,7 +413,7 @@ def cli() -> int:
     if args.config_file:
         config = PumConfig.from_yaml(args.config_file)
     else:
-        config = PumConfig.from_yaml(Path(args.dir) / ".pum-config.yaml")
+        config = PumConfig.from_yaml(Path(args.dir) / ".pum.yaml")
 
     # if no command is passed, print the help and exit
     if not args.command:

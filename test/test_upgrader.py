@@ -70,7 +70,7 @@ class TestUpgrader(unittest.TestCase):
     )
     def test_parameters(self):
         test_dir = Path("test") / "data" / "parameters"
-        config_path = test_dir / ".pum-config.yaml"
+        config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(str(config_path))
         self.assertEqual(
             cfg.parameters()["SRID"],
@@ -98,7 +98,7 @@ class TestUpgrader(unittest.TestCase):
 
     def test_install_custom_directory(self):
         test_dir = Path("test") / "data" / "custom_directory"
-        config_path = test_dir / ".pum-config.yaml"
+        config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(str(config_path))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
@@ -112,7 +112,7 @@ class TestUpgrader(unittest.TestCase):
 
     def test_install_custom_migration_table(self):
         test_dir = Path("test") / "data" / "custom_migration_schema"
-        config_path = test_dir / ".pum-config.yaml"
+        config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(str(config_path))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
