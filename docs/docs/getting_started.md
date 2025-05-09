@@ -49,3 +49,14 @@ Each file contains SQL statements for a single migration step.
 
 3. **Apply Migrations**:
   Use the `upgrade` command to apply SQL delta files and keep your database up-to-date.
+
+
+## Installing the datamodel
+
+Once the code is organized, the datamodel can be installed from the command line:
+
+```sh
+pum -s {pg_service} install
+```
+
+`pg_service` is the service to be used to perform the installation specifying an existing database.
