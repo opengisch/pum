@@ -1,35 +1,29 @@
-class PgDumpCommandError(Exception):
-    pass
-
-
-class PgDumpFailed(Exception):
-    pass
-
-
-class PgRestoreCommandError(Exception):
-    pass
-
-
-class PgRestoreFailed(Warning):
-    pass
-
-
 class PumException(Exception):
     """Base class for all exceptions raised by PUM."""
 
     pass
 
 
-class PumSqlException(Exception):
-    """Exception raised for SQL-related errors in PUM."""
+class PumSqlException(PumException):
+    """Exception raised for SQL-related errors in PUM.
 
-    pass
+    Attributes:
+        message (str): Explanation of the error.
+    """
+
+    def __init__(self, message):
+        super().__init__(message)
 
 
-class PumInvalidChangelog(Exception):
-    """Exception raised for invalid changelog."""
+class PumInvalidChangelog(PumException):
+    """Exception raised for invalid changelog.
 
-    pass
+    Attributes:
+        message (str): Explanation of the error.
+    """
+
+    def __init__(self, message):
+        super().__init__(message)
 
 
 class PumConfigError(PumException):
