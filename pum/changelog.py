@@ -94,3 +94,21 @@ def list_changelogs(
 
     changelogs.sort(key=lambda c: c.version)
     return changelogs
+
+
+def changelog_files(changelog: str) -> list[Path]:
+    """
+    Get the ordered list of SQL files in the changelog directory.
+    This is not recursive, it only returns the files in the given changelog directory.
+    Args:
+        changelog (str): The changelog directory.
+    Returns:
+        list[Path]: A list of paths to the changelog files.
+    """
+    files = [
+        changelog.dir / f
+        for f in listdir(changelog.dir)
+        if (changelog.dir / f).is_file() and f.endswith(".sql")
+    ]
+    files.sort()
+    return files
