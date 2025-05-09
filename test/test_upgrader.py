@@ -162,6 +162,16 @@ class TestUpgrader(unittest.TestCase):
             [str(changelog_file_1), str(changelog_file_2)],
         )
 
+    def test_install_multiple_changelogs_max_version(self):
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig()
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader.install(max_version="1.2.4")
+        self.assertTrue(sm.exists(self.conn))
+        self.assertEqual(sm.baseline(self.conn), "1.2.4")
+
     def test_invalid_changelog(self):
         test_dir = Path("test") / "data" / "invalid_changelog"
         cfg = PumConfig()

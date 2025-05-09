@@ -9,6 +9,7 @@ from packaging.version import parse as parse_version
 import psycopg
 from psycopg import Connection
 from os.path import basename
+from packaging.version import Version
 
 from .config import PumConfig
 from .exceptions import PumException
@@ -61,12 +62,16 @@ class Upgrader:
         self.dir = dir
         self.parameters = parameters
 
-    def install(self):
+    def install(self, max_version: str | Version | None = None):
         """
         Installs the given module
         This will create the schema_migrations table if it does not exist.
         The changelogs are applied in the order they are found in the directory.
         It will also set the baseline version to the current version of the module.
+
+        Args:
+            max_version: str | Version | None
+                The maximum version to apply. If None, all versions are applied.
         """
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
@@ -75,7 +80,9 @@ class Upgrader:
                     f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
             self.schema_migrations.create(conn, commit=False)
-            for changelog in list_changelogs(config=self.config, dir=self.dir):
+            for changelog in list_changelogs(
+                config=self.config, dir=self.dir, max_version=max_version
+            ):
                 changelog_files = self.__apply_changelog(
                     conn, changelog, commit=False, parameters=self.parameters
                 )
