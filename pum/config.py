@@ -96,6 +96,13 @@ class PumConfig:
     def from_yaml(cls, file_path):
         """
         Create a PumConfig instance from a YAML file.
+        Args:
+            file_path (str): The path to the YAML file.
+        Returns:
+            PumConfig: An instance of the PumConfig class.
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            yaml.YAMLError: If there is an error parsing the YAML file.
         """
 
         with open(file_path) as file:

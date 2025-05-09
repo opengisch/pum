@@ -27,8 +27,8 @@ class Changelog:
 def last_version(
     config: PumConfig,
     dir: str | Path = ".",
-    after_version: str | None = None,
-    before_version: str | None = None,
+    min_version: str | None = None,
+    max_version: str | None = None,
 ) -> str | None:
     """
     Return the last version of the changelogs.
@@ -39,16 +39,19 @@ def last_version(
     Args:
         config (PumConfig): The configuration object.
         dir (str | Path): The directory where the changelogs are located.
-        after_version (str | None): The version to start from.
-        before_version (str | None): The version to end at.
+        min_version (str | None): The version to start from (inclusive).
+        max_version (str | None): The version to end at (inclusive).
+
+    Returns:
+        str | None: The last version of the changelogs. If no changelogs are found, None is returned.
     """
-    changelogs = list_changelogs(config, dir, after_version, before_version)
+    changelogs = list_changelogs(config, dir, min_version, max_version)
     if not changelogs:
         return None
-    if after_version:
-        changelogs = [c for c in changelogs if c.version > parse_version(after_version)]
-    if before_version:
-        changelogs = [c for c in changelogs if c.version < parse_version(before_version)]
+    if min_version:
+        changelogs = [c for c in changelogs if c.version >= parse_version(min_version)]
+    if max_version:
+        changelogs = [c for c in changelogs if c.version <= parse_version(max_version)]
     if not changelogs:
         return None
     return changelogs[-1].version
@@ -57,8 +60,8 @@ def last_version(
 def list_changelogs(
     config: PumConfig,
     dir: str | Path = ".",
-    after_version: str | None = None,
-    before_version: str | None = None,
+    min_version: str | None = None,
+    max_version: str | None = None,
 ) -> list:
     """
     Return a list of changelogs.
@@ -69,8 +72,11 @@ def list_changelogs(
     Args:
         config (PumConfig): The configuration object.
         dir (str | Path): The directory where the changelogs are located.
-        after_version (str | None): The version to start from.
-        before_version (str | None): The version to end at.
+        min_version (str | None): The version to start from (inclusive).
+        max_version (str | None): The version to end at (inclusive).
+
+    Returns:
+        list: A list of changelogs. Each changelog is represented by a Changelog object.
     """
     path = Path(dir)
     if not path.is_dir():
@@ -81,10 +87,10 @@ def list_changelogs(
 
     changelogs = [Changelog(path / d) for d in listdir(path) if isdir(join(path, d))]
 
-    if after_version:
-        changelogs = [c for c in changelogs if c.version > parse_version(after_version)]
-    if before_version:
-        changelogs = [c for c in changelogs if c.version < parse_version(before_version)]
+    if min_version:
+        changelogs = [c for c in changelogs if c.version >= parse_version(min_version)]
+    if max_version:
+        changelogs = [c for c in changelogs if c.version <= parse_version(max_version)]
 
     changelogs.sort(key=lambda c: c.version)
     return changelogs

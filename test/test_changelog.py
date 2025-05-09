@@ -33,36 +33,36 @@ class TestChangelog(unittest.TestCase):
         last_version_result = last_version(
             config=cfg,
             dir=str(Path("test") / "data" / "multiple_changelogs"),
-            after_version="1.2.3",
-            before_version="1.3.0",
+            min_version="1.2.4",
+            max_version="1.3.0",
         )
-        self.assertEqual(last_version_result, parse_version("1.2.4"))
+        self.assertEqual(last_version_result, parse_version("1.3.0"))
 
         last_version_result = last_version(
             config=cfg,
             dir=str(Path("test") / "data" / "multiple_changelogs"),
-            before_version="1.3.0",
+            max_version="1.3.0",
         )
-        self.assertEqual(last_version_result, parse_version("1.2.4"))
+        self.assertEqual(last_version_result, parse_version("1.3.0"))
 
         last_version_result = last_version(
             config=cfg,
             dir=str(Path("test") / "data" / "multiple_changelogs"),
-            before_version="1.2.3",
+            max_version="1.0.0",
         )
         self.assertIsNone(last_version_result)
 
         last_version_result = last_version(
             config=cfg,
             dir=str(Path("test") / "data" / "multiple_changelogs"),
-            after_version="1.2.3",
+            min_version="1.2.3",
         )
         self.assertEqual(last_version_result, parse_version("2.0.0"))
 
         last_version_result = last_version(
             config=cfg,
             dir=str(Path("test") / "data" / "multiple_changelogs"),
-            after_version="2.0.0",
+            min_version="2.1.0",
         )
         self.assertIsNone(last_version_result)
 

@@ -11,7 +11,14 @@ theme:
     - navigation.tracking
 
 plugins:
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+
 
 markdown_extensions:
   - admonition
