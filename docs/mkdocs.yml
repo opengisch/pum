@@ -27,10 +27,10 @@ markdown_extensions:
 nav:
   - Introduction: index.md
   - API:
-      - PumConfig: api/pum_config.md
       - Changelog: api/changelog.md
       - MigrationParameterDefinition: api/migration_parameter_definition.md
-      - MigrationParameterDefinition: api/migration_parameter_type.md
+      - MigrationParameterType: api/migration_parameter_type.md
+      - PumConfig: api/pum_config.md
       - SchemaMigrations: api/schema_migrations.md
       - Upgrader: api/upgrader.md
 
