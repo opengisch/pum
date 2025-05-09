@@ -2,8 +2,8 @@
 
 ## New version
 
-This is the code of pum version 2.
-You can find version 1.x documentation at https://github.com/opengisch/pum/tree/old-v1
+This is the code of pum version 1.
+You can find version 0.x documentation at https://github.com/opengisch/pum/tree/old-v1
 
 ## About
 
