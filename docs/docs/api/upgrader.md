@@ -1,3 +1,1 @@
-## Upgrader
-
 ::: pum.upgrader.Upgrader

@@ -1,3 +1,1 @@
-## PumConfig
-
 ::: pum.config.PumConfig

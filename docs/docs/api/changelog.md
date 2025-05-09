@@ -1,5 +1,3 @@
-## Changelogs
-
 ::: pum.changelog.Changelog
 
 ::: pum.changelog.list_changelogs

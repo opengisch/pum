@@ -2,6 +2,18 @@ from enum import Enum
 
 
 class ParameterType(Enum):
+    """
+    An enumeration of parameter types.
+    This class defines the types of parameters that can be used in migration definitions.
+
+    Attributes:
+        BOOLEAN (str): Represents a boolean parameter type.
+        INTEGER (str): Represents an integer parameter type.
+        STRING (str): Represents a string parameter type.
+        DECIMAL (str): Represents a decimal parameter type.
+    """
+
+    BOOLEAN = "boolean"
     INTEGER = "integer"
     STRING = "string"
     DECIMAL = "decimal"

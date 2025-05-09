@@ -2,6 +2,13 @@ site_name: pum documentation
 
 theme:
   name: "material"
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
 
 plugins:
   - mkdocstrings
@@ -12,4 +19,13 @@ markdown_extensions:
 
 nav:
   - Introduction: index.md
-  - API: api.md
+  - API:
+      - PumConfig: api/pum_config.md
+      - Changelog: api/changelog.md
+      - MigrationParameterDefinition: api/migration_parameter_definition.md
+      - SchemaMigrations: api/schema_migrations.md
+      - Upgrader: api/upgrader.md
+
+extra:
+  # Remove "Made with Material for MkDocs" from footer
+  generator: false
