@@ -1,1 +1,1 @@
-::: pum.schema_migrations.SchemaMigrations
+::: pum.SchemaMigrations

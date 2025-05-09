@@ -1,1 +1,1 @@
-::: pum.migration_parameter_definition.MigrationParameterDefintion
+::: pum.migration_parameter.MigrationParameterDefinition

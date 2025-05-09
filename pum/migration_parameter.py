@@ -19,7 +19,7 @@ class MigrationParameterType(Enum):
     DECIMAL = "decimal"
 
 
-class MigrationParameterDefintion:
+class MigrationParameterDefinition:
     """
     A class to define a migration parameter.
     """
@@ -61,7 +61,7 @@ class MigrationParameterDefintion:
         return f"MigrationParameter(name={self.name}, type={self.type}, default={self.default}, description={self.description})"
 
     def __eq__(self, other):
-        if not isinstance(other, MigrationParameterDefintion):
+        if not isinstance(other, MigrationParameterDefinition):
             return NotImplemented
         return (
             self.name == other.name

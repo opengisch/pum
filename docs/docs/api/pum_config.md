@@ -1,1 +1,1 @@
-::: pum.config.PumConfig
+::: pum.PumConfig

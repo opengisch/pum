@@ -1,7 +1,7 @@
 import os
 
 import yaml
-from .migration_parameter_definition import MigrationParameterDefintion
+from .migration_parameter import MigrationParameterDefinition
 
 
 class PumConfig:
@@ -33,13 +33,13 @@ class PumConfig:
                 type_ = p.get("type")
                 default = p.get("default")
                 description = p.get("description")
-                self.parameter_definitions[name] = MigrationParameterDefintion(
+                self.parameter_definitions[name] = MigrationParameterDefinition(
                     name=name,
                     type_=type_,
                     default=default,
                     description=description,
                 )
-            elif isinstance(p, MigrationParameterDefintion):
+            elif isinstance(p, MigrationParameterDefinition):
                 self.parameter_definitions[p.name] = p
             else:
                 raise TypeError(
@@ -71,7 +71,7 @@ class PumConfig:
     #     """
     #     setattr(self, key, value)
 
-    def parameters(self) -> dict[str, MigrationParameterDefintion]:
+    def parameters(self) -> dict[str, MigrationParameterDefinition]:
         """
         Get all migration parameters as a dictionary.
 
@@ -81,7 +81,7 @@ class PumConfig:
         """
         return self.parameter_definitions
 
-    def parameter(self, name) -> MigrationParameterDefintion:
+    def parameter(self, name) -> MigrationParameterDefinition:
         """
         Get a specific migration parameter by name.
 

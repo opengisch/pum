@@ -1,1 +1,1 @@
-::: pum.upgrader.Upgrader
+::: pum.Upgrader

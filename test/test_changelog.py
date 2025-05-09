@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 from pum.config import PumConfig
-from pum.changelog import list_changelogs, last_version
+from pum.changelog_utils import list_changelogs, last_version
 from packaging.version import parse as parse_version
 
 

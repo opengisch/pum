@@ -2,16 +2,16 @@
 
 import logging
 from pathlib import Path
-from packaging.version import parse as parse_version
 import psycopg
 from psycopg import Connection
-from packaging.version import Version
+import packaging
 
 from .config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
 from .utils.execute_sql import execute_sql
-from .changelog import Changelog, list_changelogs, changelog_files
+from .changelog import Changelog
+from .changelog_utils import list_changelogs, changelog_files
 
 logger = logging.getLogger(__name__)
 
@@ -53,12 +53,12 @@ class Upgrader:
 
         self.pg_service = pg_service
         self.config = config
-        self.max_version = parse_version(max_version) if max_version else None
+        self.max_version = packaging.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
         self.dir = dir
         self.parameters = parameters
 
-    def install(self, max_version: str | Version | None = None):
+    def install(self, max_version: str | packaging.version.Version | None = None):
         """
         Installs the given module
         This will create the schema_migrations table if it does not exist.
@@ -66,7 +66,8 @@ class Upgrader:
         It will also set the baseline version to the current version of the module.
 
         Args:
-            The maximum version to apply. If None, all versions are applied.
+            max_version:
+                The maximum version to apply. If None, all versions are applied.
         """
 
         with psycopg.connect(f"service={self.pg_service}") as conn:

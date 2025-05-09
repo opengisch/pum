@@ -1,5 +1,11 @@
-::: pum.changelog.Changelog
+::: pum.Changelog
 
-::: pum.changelog.list_changelogs
+::: pum
+    options:
+      members: true
+      show_signature: true
+      show_signature_annotations: true  
 
-::: pum.changelog.last_version
+::: pum.last_version
+
+::: pum.changelog_files

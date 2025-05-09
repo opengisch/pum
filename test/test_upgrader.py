@@ -9,7 +9,7 @@ import psycopg
 from pum.config import PumConfig
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
-from pum.migration_parameter_definition import MigrationParameterDefintion
+from pum.migration_parameter import MigrationParameterDefinition
 
 
 class TestUpgrader(unittest.TestCase):
@@ -74,7 +74,7 @@ class TestUpgrader(unittest.TestCase):
         cfg = PumConfig.from_yaml(str(config_path))
         self.assertEqual(
             cfg.parameters()["SRID"],
-            MigrationParameterDefintion(
+            MigrationParameterDefinition(
                 name="SRID",
                 type_="integer",
                 default=2056,

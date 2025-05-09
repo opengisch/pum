@@ -33,6 +33,7 @@ nav:
       - PumConfig: api/pum_config.md
       - SchemaMigrations: api/schema_migrations.md
       - Upgrader: api/upgrader.md
+      - changelog utils: api/changelog_utils.md
 
 extra:
   # Remove "Made with Material for MkDocs" from footer
