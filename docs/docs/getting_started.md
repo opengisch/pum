@@ -17,11 +17,11 @@ The changelogs directory in a PUM project is typically used to store SQL scripts
 
 ```
 project/
-├── changelogs/
+└── changelogs/
     ├── 1.0.0/
     │   ├── 01_create_schema.sql
     │   └── 02_create_tables.sql
-    ├── 1.0.1/
+    └── 1.0.1/
         ├── 01_rename_column.sql
         └── 02_do_something_else.sql
 ```
