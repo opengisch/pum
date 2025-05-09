@@ -45,7 +45,7 @@ nav:
       - SchemaMigrations: api/schema_migrations.md
       - Upgrader: api/upgrader.md
       - changelog utils: api/changelog_utils.md
-      - changelog utils: api/exceptions.md
+      - exceptions: api/exceptions.md
 
 extra:
   # Remove "Made with Material for MkDocs" from footer
