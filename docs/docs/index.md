@@ -1,8 +1,8 @@
-# PostgreSQL Upgrades Manager (PUM)
+# PUM
 
-PUM is a robust database migration management tool designed to streamline the process of managing PostgreSQL database upgrades. Inspired by tools like FlywayDB and Liquibase, PUM leverages metadata tables to ensure seamless database versioning and migration.
+PUM (PostgreSQL Upgrades Manager) is a robust database migration management tool designed to streamline the process of managing PostgreSQL database upgrades. Inspired by tools like FlywayDB and Liquibase, PUM leverages metadata tables to ensure seamless database versioning and migration.
 
-### Key Features
+# Key Features
 
 - **Command-line and Python Integration**: Use PUM as a standalone CLI tool or integrate it into your Python project.
 - **Database Versioning**: Automatically manage database versioning with a metadata table.
@@ -10,7 +10,7 @@ PUM is a robust database migration management tool designed to streamline the pr
 - **Database Comparison**: Compare two databases to identify differences in tables, columns, constraints, and more.
 - **Backup and Restore**: Create and restore database backups with ease.
 
-### Why PUM?
+# Why PUM?
 
 Managing database migrations in a Version Control System (VCS) can be challenging, especially for production databases. PUM simplifies this process by embedding version metadata directly into the database, enabling efficient tracking and application of migrations.
 

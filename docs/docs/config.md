@@ -1,6 +1,12 @@
 
 # Config
 
+## Config file .pum.yaml
+```yaml
+datamodel:
+  changelogs_dir: changelogs
+```
+
 In the config file .pum-config.yaml, you can define, with the YAML syntax:
 - **upgrades_table**: the name (and schema) of the table with the migration information
 - **delta_dir**: the directory with the delta files.

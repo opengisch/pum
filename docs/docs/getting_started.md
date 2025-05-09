@@ -1,36 +1,31 @@
-
 # Getting Started
+
+## Prerequisites
+- Python 3.10 or newer
+- PostgreSQL server (tested with 12+)
+- pg_service.conf configured for your database connections (see [PostgreSQL documentation](https://www.postgresql.org/docs/current/libpq-pgservice.html))
 
 ## Installation
   ```sh title="install PUM"
   pip install pum
   ```
 
-## Code organization
+## Changelogs
 
-### Schema separation
-
-We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
-
-
+The changelogs directory in a PUM project is typically used to store SQL scripts or migration files that define incremental changes to your database schema.
 
 ```
 project/
 ├── changelogs/
-│   ├── 1.0.0/
-│   │   ├── 01_create_schema.sql
-│   │   └── 02_create_tables.sql
-│   ├── 1.0.1/
-│   │   ├── 01_rename_column.sql
-│   │   └── 02_do_something_else.sql
-├── app/
-│   └── create_views_and_triggers.sql
-└── .pum.yaml
+    ├── 1.0.0/
+    │   ├── 01_create_schema.sql
+    │   └── 02_create_tables.sql
+    ├── 1.0.1/
+        ├── 01_rename_column.sql
+        └── 02_do_something_else.sql
 ```
 
-### Changelogs
 
-  The changelogs directory in a PUM project is typically used to store SQL scripts or migration files that define incremental changes to your database schema.
 
 `changelogs` is the root directory for all migration scripts.
 Each subfolder corresponds to a version of the datamodel.
@@ -46,9 +41,6 @@ Each file contains SQL statements for a single migration step.
 * Add new changes as new files.
 * Store the changelogs directory in version control (e.g., Git).
 
-
-3. **Apply Migrations**:
-  Use the `upgrade` command to apply SQL delta files and keep your database up-to-date.
 
 
 ## Installing the datamodel
