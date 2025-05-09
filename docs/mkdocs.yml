@@ -1,5 +1,9 @@
 site_name: PUM documentation
 
+repo_name: opengisch/pum
+repo_url: https://github.com/opengisch/pum
+edit_uri: https://github.com/opengisch/pum/tree/master/docs/docs/
+
 theme:
   name: "material"
   logo: assets/images/pum.png
