@@ -1,5 +1,9 @@
 # PostgreSQL Upgrades Manager (PUM)
 
+<p>
+  <img src="https://raw.githubusercontent.com/opengisch/pum/main/docs/docs/assets/pum.png" alt="PUM Logo" width="200"/>
+</p>
+
 ## New version
 
 This is the code of pum version 1.
