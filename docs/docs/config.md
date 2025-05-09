@@ -4,6 +4,7 @@
 ## Config file .pum.yaml
 
 In the config file .pum.yaml, you can define, with the YAML syntax:
+
 * `changelogs_directory`: the directory with the changelogs files.
 * `pum_migrations_schema`: the schema where is stored the `pum_migrations` table.
 * `parameters: the definition` of parameters for the migration
