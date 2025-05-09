@@ -1,5 +1,3 @@
-import os
-
 import yaml
 from .migration_parameter import MigrationParameterDefinition
 
@@ -16,10 +14,10 @@ class PumConfig:
         Args:
             **kwargs: Key-value pairs representing configuration settings.
         """
-        self.pg_restore_exe: str | None = kwargs.get("pg_restore_exe") or os.getenv(
-            "PG_RESTORE_EXE"
-        )
-        self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
+        # self.pg_restore_exe: str | None = kwargs.get("pg_restore_exe") or os.getenv(
+        #     "PG_RESTORE_EXE"
+        # )
+        # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
         self.pum_migrations_table: str = (
             f"{(kwargs.get('pum_migrations_schema') or 'public')}.pum_migrations"
