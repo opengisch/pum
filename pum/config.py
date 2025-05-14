@@ -1,5 +1,7 @@
 import yaml
 from .migration_parameter import MigrationParameterDefinition
+from .exceptions import PumConfigError
+from .migration_hooks import MigrationHook, HookType
 
 
 class PumConfig:
@@ -13,11 +15,19 @@ class PumConfig:
 
         Args:
             **kwargs: Key-value pairs representing configuration settings.
+
+        Raises:
+            PumConfigError: If the configuration is invalid.
         """
         # self.pg_restore_exe: str | None = kwargs.get("pg_restore_exe") or os.getenv(
         #     "PG_RESTORE_EXE"
         # )
         # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
+
+        if "dir" in kwargs:
+            raise PumConfigError(
+                "dir not allowed in configuration, use PumConfig.from_yaml() instead."
+            )
 
         self.pum_migrations_table: str = (
             f"{(kwargs.get('pum_migrations_schema') or 'public')}.pum_migrations"
@@ -40,9 +50,35 @@ class PumConfig:
             elif isinstance(p, MigrationParameterDefinition):
                 self.parameter_definitions[p.name] = p
             else:
-                raise TypeError(
+                raise PumConfigError(
                     "parameters must be a list of dictionaries or MigrationParameterDefintion instances"
                 )
+
+        # Migration hooks
+        self.migration_hooks_pre = []
+        self.migration_hooks_post = []
+        migration_hooks = kwargs.get("migration_hooks") or dict()
+        pre_hook_defintions = migration_hooks.get("pre", [])
+        post_hook_defintions = migration_hooks.get("post", [])
+        for hook_type, hook_definitions in (
+            (HookType.PRE, pre_hook_defintions),
+            (HookType.POST, post_hook_defintions),
+        ):
+            for hook_definition in hook_definitions:
+                hook = None
+                if not isinstance(hook_definition, dict):
+                    raise PumConfigError("hook must be a list of key-value pairs")
+                if isinstance(hook_definition.get("file"), str):
+                    hook = MigrationHook(type=hook_type, file=hook_definition.get("file"))
+                else:
+                    raise PumConfigError("invalid hook configuration")
+                assert isinstance(hook, MigrationHook)
+                if hook_type == HookType.PRE:
+                    self.migration_hooks_pre.append(hook)
+                elif hook_type == HookType.POST:
+                    self.migration_hooks_post.append(hook)
+                else:
+                    raise PumConfigError(f"Invalid hook type: {hook_type}")
 
     # def get(self, key, default=None) -> any:
     #     """
@@ -86,9 +122,12 @@ class PumConfig:
         Returns:
             MigrationParameterDefintion: The migration parameter definition.
         Raises:
-            KeyError: If the parameter name does not exist.
+            PumConfigError: If the parameter name does not exist.
         """
-        return self.parameter_definitions[name]
+        try:
+            return self.parameter_definitions[name]
+        except KeyError:
+            raise PumConfigError(f"Parameter '{name}' not found in configuration.")
 
     @classmethod
     def from_yaml(cls, file_path):

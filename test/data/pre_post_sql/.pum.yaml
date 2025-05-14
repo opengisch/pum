@@ -1,0 +1,7 @@
+
+migration_hooks:
+  pre:
+    - file: pre/drop_view.sql
+
+  post:
+    - file: post/create_view.sql
