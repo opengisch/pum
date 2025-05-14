@@ -1,7 +1,7 @@
 import yaml
 from .migration_parameter import MigrationParameterDefinition
 from .exceptions import PumConfigError
-from .migration_hooks import MigrationHook, HookType
+from .migration_hooks import MigrationHook, MigrationHookType
 
 
 class PumConfig:
@@ -61,8 +61,8 @@ class PumConfig:
         pre_hook_defintions = migration_hooks.get("pre", [])
         post_hook_defintions = migration_hooks.get("post", [])
         for hook_type, hook_definitions in (
-            (HookType.PRE, pre_hook_defintions),
-            (HookType.POST, post_hook_defintions),
+            (MigrationHookType.PRE, pre_hook_defintions),
+            (MigrationHookType.POST, post_hook_defintions),
         ):
             for hook_definition in hook_definitions:
                 hook = None
@@ -73,9 +73,9 @@ class PumConfig:
                 else:
                     raise PumConfigError("invalid hook configuration")
                 assert isinstance(hook, MigrationHook)
-                if hook_type == HookType.PRE:
+                if hook_type == MigrationHookType.PRE:
                     self.migration_hooks_pre.append(hook)
-                elif hook_type == HookType.POST:
+                elif hook_type == MigrationHookType.POST:
                     self.migration_hooks_post.append(hook)
                 else:
                     raise PumConfigError(f"Invalid hook type: {hook_type}")
