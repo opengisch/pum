@@ -1,5 +1,3 @@
-
-
 ## Data and application isolation
 
 We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
@@ -30,16 +28,16 @@ There are two types of migration hooks:
 - `pre`: Executed before the migration.
 - `post`: Executed after the migration.
 
-Hooks are defined as a list of files to be executed. For example:
+Hooks are defined as a list of files or plain SQL code to be executed. For example:
 
 ```yaml
 migration_hooks:
   pre:
-    - file: pre/drop_view.sql
+    - code: DROP VIEW IF EXISTS pum_test_app.some_view;
 
   post:
     - file: post/create_view.sql
-```
+    ```
 
 Python hooks can also be defined in a Python module.
 The only requirement is that a method `run_hook` is defined,
