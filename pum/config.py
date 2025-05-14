@@ -55,8 +55,8 @@ class PumConfig:
                 )
 
         # Migration hooks
-        self.migration_hooks_pre = []
-        self.migration_hooks_post = []
+        self.pre_hooks = []
+        self.post_hooks = []
         migration_hooks = kwargs.get("migration_hooks") or dict()
         pre_hook_defintions = migration_hooks.get("pre", [])
         post_hook_defintions = migration_hooks.get("post", [])
@@ -74,9 +74,9 @@ class PumConfig:
                     raise PumConfigError("invalid hook configuration")
                 assert isinstance(hook, MigrationHook)
                 if hook_type == MigrationHookType.PRE:
-                    self.migration_hooks_pre.append(hook)
+                    self.pre_hooks.append(hook)
                 elif hook_type == MigrationHookType.POST:
-                    self.migration_hooks_post.append(hook)
+                    self.post_hooks.append(hook)
                 else:
                     raise PumConfigError(f"Invalid hook type: {hook_type}")
 

@@ -184,6 +184,21 @@ class TestUpgrader(unittest.TestCase):
             "SQL contains forbidden transaction statement: BEGIN;" in str(context.exception)
         )
 
+    def test_pre_post_sql(self):
+        test_dir = Path("test") / "data" / "pre_post_sql"
+        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader.install(max_version="1.2.3")
+        self.assertTrue(sm.exists(self.conn))
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+        )
+        exists = cursor.fetchone()[0]
+        self.assertTrue(exists)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -322,6 +322,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Assign variable for running SQL deltas. Format is name value.",
         action="append",
     )
+    parser_install.add_argument("--max-version", help="maximum version to install")
 
     # Parser for the "check" command
     parser_check = subparsers.add_parser(
@@ -442,7 +443,9 @@ def cli() -> int:
     if args.command == "info":
         run_info(args.pg_service, config)
     elif args.command == "install":
-        Upgrader(args.pg_service, config=config, dir=args.dir, parameters=parameters).install()
+        Upgrader(args.pg_service, config=config, dir=args.dir, parameters=parameters).install(
+            max_version=args.max_version
+        )
     elif args.command == "check":
         success = pum.run_check(
             args.pg_service1,

@@ -15,9 +15,7 @@ class TestConfig(unittest.TestCase):
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql" / ".pum.yaml")
 
         self.assertEqual(
-            cfg.migration_hooks_post,
+            cfg.post_hooks,
             [MigrationHook(MigrationHookType.POST, "post/create_view.sql")],
         )
-        self.assertEqual(
-            cfg.migration_hooks_pre, [MigrationHook(MigrationHookType.PRE, "pre/drop_view.sql")]
-        )
+        self.assertEqual(cfg.pre_hooks, [MigrationHook(MigrationHookType.PRE, "pre/drop_view.sql")])

@@ -91,7 +91,14 @@ class Upgrader:
                     changelog_files=changelog_files,
                     parameters=self.parameters,
                 )
-            logger
+                for post_hook in self.config.post_hooks:
+                    post_hook.execute_sql(
+                        conn=conn, commit=False, parameters=self.parameters, dir=self.dir
+                    )
+            conn.commit()
+            logger.info(
+                f"Installed {self.config.pum_migrations_table} table and applied changelogs up to version {changelog.version}"
+            )
 
     def _apply_changelog(
         self,
