@@ -196,20 +196,20 @@ class TestUpgrader(unittest.TestCase):
         exists = cursor.fetchone()[0]
         self.assertTrue(exists)
 
-        def test_pre_post_sql_code(self):
-            test_dir = Path("test") / "data" / "pre_post_sql_code"
-            cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
-            sm = SchemaMigrations(cfg)
-            self.assertFalse(sm.exists(self.conn))
-            upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
-            upgrader.install(max_version="1.2.3")
-            self.assertTrue(sm.exists(self.conn))
-            cursor = self.conn.cursor()
-            cursor.execute(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
-            )
-            exists = cursor.fetchone()[0]
-            self.assertTrue(exists)
+    def test_pre_post_sql_code(self):
+        test_dir = Path("test") / "data" / "pre_post_sql_code"
+        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
+        upgrader.install(max_version="1.2.3")
+        self.assertTrue(sm.exists(self.conn))
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+        )
+        exists = cursor.fetchone()[0]
+        self.assertTrue(exists)
 
     def test_pre_post_python(self):
         test_dir = Path("test") / "data" / "pre_post_python"

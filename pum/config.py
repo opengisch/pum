@@ -1,6 +1,6 @@
 import yaml
 from .migration_parameter import MigrationParameterDefinition
-from .exceptions import PumConfigError
+from .exceptions import PumConfigError, PumHookError
 from .migration_hook import MigrationHook, MigrationHookType
 from pathlib import Path
 
@@ -32,6 +32,7 @@ class PumConfig:
         )
         self.changelogs_directory: str = kwargs.get("changelogs_directory") or "changelogs"
 
+        # parameters
         self.parameter_definitions = dict()
         for p in kwargs.get("parameters") or ():
             if isinstance(p, dict):
@@ -73,6 +74,12 @@ class PumConfig:
                     if not path.exists():
                         raise PumConfigError(f"hook file {path} does not exist")
                     hook = MigrationHook(type=hook_type, file=path)
+                    try:
+                        hook.check_parameter_definitions(self.parameter_definitions)
+                    except PumHookError as e:
+                        raise PumConfigError(
+                            f"Hook file {path} has invalid parameter definitions: {e}"
+                        )
                 elif isinstance(hook_definition.get("code"), str):
                     hook = MigrationHook(type=hook_type, code=hook_definition.get("code"))
                 else:

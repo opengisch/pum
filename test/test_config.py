@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pum.config import PumConfig
 from pum.migration_hook import MigrationHook, MigrationHookType
+from pum.exceptions import PumConfigError
 
 
 class TestConfig(unittest.TestCase):
@@ -30,3 +31,9 @@ class TestConfig(unittest.TestCase):
                 )
             ],
         )
+
+    def test_migration_hook_python(self):
+        with self.assertRaises(PumConfigError):
+            PumConfig.from_yaml(
+                Path("test") / "data" / "pre_post_python_parameters_broken" / ".pum.yaml"
+            )

@@ -1,10 +1,4 @@
 
-parameters:
-  - name: my_comment
-    type: string
-    default: "This is a comment"
-
-
 migration_hooks:
   pre:
     - file: pre/drop_view.sql

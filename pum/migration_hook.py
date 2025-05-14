@@ -71,6 +71,24 @@ class MigrationHook:
             return NotImplemented
         return self.type == other.type and self.file == other.file
 
+    def check_parameter_definitions(self, parameters: dict):
+        """
+        Check if the parameters match the expected parameter definitions.
+        This is only effective for Python hooks for now.
+
+        Args:
+            parameters (dict): The parameters to check.
+
+        Raises:
+            PumHookError: If the parameters do not match the expected definitions.
+        """
+        if self.file and self.file.suffix == ".py":
+            for parameter_arg in self.parameter_args:
+                if parameter_arg not in parameters:
+                    raise PumHookError(
+                        f"Hook function 'run_hook' in {self.file} has an unexpected argument '{parameter_arg}' which is not specified in the parameters."
+                    )
+
     def execute(
         self,
         connection: Connection,
