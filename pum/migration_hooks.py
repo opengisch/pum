@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 class MigrationHookType(Enum):
     """
     Enum for migration hook types.
+
+    Attributes:
+        PRE (str): Pre-migration hook.
+        POST (str): Post-migration hook.
     """
 
     PRE = "pre"
