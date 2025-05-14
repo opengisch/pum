@@ -100,7 +100,7 @@ class MigrationHook:
                             for arg in arg_names:
                                 if arg == "connection":
                                     continue
-                                if arg not in parameters.keys():
+                                if not parameters or arg not in parameters.keys():
                                     raise PumHookError(
                                         f"Hook function 'run_hook' in {path} has an unexpected argument '{arg}' which is not specified in the parameters."
                                     )

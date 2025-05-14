@@ -10,6 +10,7 @@ from pum.config import PumConfig
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
 from pum.migration_parameter import MigrationParameterDefinition
+from pum.exceptions import PumHookError
 
 
 class TestUpgrader(unittest.TestCase):
@@ -230,6 +231,29 @@ class TestUpgrader(unittest.TestCase):
         )
         exists = cursor.fetchone()[0]
         self.assertTrue(exists)
+
+    def test_pre_post_python_parameters(self):
+        test_dir = Path("test") / "data" / "pre_post_python_parameters"
+        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        with self.assertRaises(PumHookError):
+            upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+            upgrader.install(max_version="1.2.3")
+        upgrader = Upgrader(
+            pg_service=self.pg_service,
+            config=cfg,
+            dir=test_dir,
+            parameters={"my_comment": "how cool"},
+        )
+        upgrader.install(max_version="1.2.3")
+        self.assertTrue(sm.exists(self.conn))
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT obj_description(('pum_test_app.some_view'::regclass)::oid, 'pg_class');"
+        )
+        comment = cursor.fetchone()[0]
+        self.assertEqual(comment, "how cool")
 
 
 if __name__ == "__main__":
