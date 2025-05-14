@@ -37,7 +37,7 @@ migration_hooks:
 
   post:
     - file: post/create_view.sql
-    ```
+```
 
 Python hooks can also be defined in a Python module.
 The only requirement is that a method `run_hook` is defined,
