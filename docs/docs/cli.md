@@ -35,7 +35,7 @@ pum info [OPTIONS]
 
 ### install
 
-Installs the module.
+Installs the module and applies changelogs up to the specified version.
 
 ```sh
 pum install [OPTIONS]
@@ -45,6 +45,8 @@ pum install [OPTIONS]
 
 - `-p, --parameter <name> <value>`  
   Assign variable for running SQL deltas. Can be used multiple times.
+- `--max-version <version>`  
+  Upper bound limit version for applying changelogs.
 
 ---
 
