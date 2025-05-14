@@ -1,7 +1,7 @@
 import yaml
 from .migration_parameter import MigrationParameterDefinition
 from .exceptions import PumConfigError
-from .migration_hooks import MigrationHook, MigrationHookType
+from .migration_hook import MigrationHook, MigrationHookType
 
 
 class PumConfig:
@@ -70,6 +70,8 @@ class PumConfig:
                     raise PumConfigError("hook must be a list of key-value pairs")
                 if isinstance(hook_definition.get("file"), str):
                     hook = MigrationHook(type=hook_type, file=hook_definition.get("file"))
+                elif isinstance(hook_definition.get("code"), str):
+                    hook = MigrationHook(type=hook_type, code=hook_definition.get("code"))
                 else:
                     raise PumConfigError("invalid hook configuration")
                 assert isinstance(hook, MigrationHook)

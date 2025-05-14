@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 from pum.config import PumConfig
-from pum.migration_hooks import MigrationHook, MigrationHookType
+from pum.migration_hook import MigrationHook, MigrationHookType
 
 
 class TestConfig(unittest.TestCase):
@@ -12,7 +12,7 @@ class TestConfig(unittest.TestCase):
     """
 
     def test_changelog(self):
-        cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql" / ".pum.yaml")
+        cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")
 
         self.assertEqual(
             cfg.post_hooks,
