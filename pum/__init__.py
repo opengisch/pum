@@ -4,6 +4,7 @@ from .config import PumConfig
 from .upgrader import Upgrader
 from .schema_migrations import SchemaMigrations
 from .migration_parameter import MigrationParameterType, MigrationParameterDefinition
+from .migration_hooks import MigrationHook, MigrationHookType
 
 __all__ = [
     "Changelog",
@@ -13,6 +14,8 @@ __all__ = [
     "PumConfig",
     "Upgrader",
     "SchemaMigrations",
+    "MigrationHook",
+    "MigrationHookType",
     "MigrationParameterType",
     "MigrationParameterDefinition",
 ]

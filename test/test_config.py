@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 from pum.config import PumConfig
-from pum.migration_hooks import MigrationHook, HookType
+from pum.migration_hooks import MigrationHook, MigrationHookType
 
 
 class TestConfig(unittest.TestCase):
@@ -15,8 +15,9 @@ class TestConfig(unittest.TestCase):
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql" / ".pum.yaml")
 
         self.assertEqual(
-            cfg.migration_hooks_post, [MigrationHook(HookType.POST, "post/create_view.sql")]
+            cfg.migration_hooks_post,
+            [MigrationHook(MigrationHookType.POST, "post/create_view.sql")],
         )
         self.assertEqual(
-            cfg.migration_hooks_pre, [MigrationHook(HookType.PRE, "pre/drop_view.sql")]
+            cfg.migration_hooks_pre, [MigrationHook(MigrationHookType.PRE, "pre/drop_view.sql")]
         )
