@@ -1,0 +1,2 @@
+
+CREATE SCHEMA IF NOT EXISTS pum_test_app;

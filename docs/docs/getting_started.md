@@ -36,6 +36,8 @@ Files are usually named with a sequential number or timestamp and a short descri
 The order of files determines the order of execution.
 Each file contains SQL statements for a single migration step.
 
+Changelog should not try to commit.
+
 ### Best Practices
 * Keep each migration atomic—one logical change per file.
 * Never modify a changelog file after it has been applied to any environment.

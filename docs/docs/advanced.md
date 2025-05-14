@@ -1,6 +1,6 @@
 
 
-### Schema separation
+## Data and application isolation
 
 We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
 This will facilitate the migrations but also the code management: you will not have to write diff files for views and triggers.
@@ -20,4 +20,63 @@ project/
 └── .pum.yaml
 ```
 
-TODO: write about how to define pre/post
+
+## Migration hooks
+
+Migration hooks allow you to define actions to be executed before or after a migration. These hooks are defined in the `.pum.yaml` configuration file under the `migration_hooks` section.
+
+There are two types of migration hooks:
+
+- `pre`: Executed before the migration.
+- `post`: Executed after the migration.
+
+Hooks are defined as a list of files to be executed. For example:
+
+```yaml
+migration_hooks:
+  pre:
+    - file: pre/drop_view.sql
+
+  post:
+    - file: post/create_view.sql
+```
+
+Python hooks can also be defined in a Python module.
+The only requirement is that a method `run_hook` is defined,
+using a `psycopg.Connection` as argument.
+It should not commit the transaction or rollback in case of a future error would fail.
+
+The configuration is then:
+
+```yaml
+migration_hooks:
+  pre:
+    - file: pre/drop_view.sql
+
+  post:
+    - file: post/create_schema.sql
+    - file: post/create_view.py
+```
+
+With `post/create_view.py`:
+
+```py
+from pirogue.utils import select_columns
+from psycopg import Connection
+from pum.utils.execute_sql import execute_sql
+
+def run_hook(conn: Connection):
+    sql_code = """
+    CREATE OR REPLACE VIEW pum_test_app.some_view AS
+    SELECT {columns}
+    FROM pum_test_data.some_table
+    WHERE is_active = TRUE;
+    """.format(
+        columns=select_columns(
+            pg_cur=conn.cursor(),
+            table_schema="pum_test_data",
+            table_name="some_table"  
+        )
+    )
+    execute_sql(conn=conn, sql=sql_code, commit=False)
+```

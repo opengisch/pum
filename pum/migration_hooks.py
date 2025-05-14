@@ -3,6 +3,8 @@ from pathlib import Path
 from psycopg import Connection
 from .utils.execute_sql import execute_sql
 import logging
+from .exceptions import PumHookError
+import importlib.util
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +46,7 @@ class MigrationHook:
             return NotImplemented
         return self.type == other.type and self.file == other.file
 
-    def execute_sql(
+    def execute(
         self,
         conn: Connection,
         dir: str | Path = ".",
@@ -69,6 +71,24 @@ class MigrationHook:
             raise ValueError("No file specified for the migration hook.")
 
         path = Path(dir) / self.file
-        execute_sql(conn=conn, sql=path, commit=False, parameters=parameters)
+        if path.suffix == ".sql":
+            execute_sql(conn=conn, sql=path, commit=False, parameters=parameters)
+        elif path.suffix == ".py":
+            if path.is_file():
+                spec = importlib.util.spec_from_file_location(path.stem, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                if hasattr(module, "run_hook"):
+                    run_hook = getattr(module, "run_hook")
+                    if callable(run_hook):
+                        run_hook(conn=conn)
+                    else:
+                        raise PumHookError(f"Hook function 'run_hook' in {path} is not callable.")
+                else:
+                    raise PumHookError(f"Hook function 'run_hook' not found in {path}.")
+        else:
+            raise PumHookError(
+                f"Unsupported file type for migration hook: {path.suffix}. Only .sql and .py files are supported."
+            )
         if commit:
             conn.commit()

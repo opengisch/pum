@@ -10,3 +10,4 @@ pre-commit
 
 # for testing
 nose2
+pirogue

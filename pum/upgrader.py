@@ -92,7 +92,7 @@ class Upgrader:
                     parameters=self.parameters,
                 )
                 for post_hook in self.config.post_hooks:
-                    post_hook.execute_sql(
+                    post_hook.execute(
                         conn=conn, commit=False, parameters=self.parameters, dir=self.dir
                     )
             conn.commit()

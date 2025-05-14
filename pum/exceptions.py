@@ -42,3 +42,9 @@ class PumVersionError(PumException):
     """Exception raised for version-related errors in PUM."""
 
     pass
+
+
+class PumHookError(PumException):
+    """Exception raised for errors by an invalid hook."""
+
+    pass

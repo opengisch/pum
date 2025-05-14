@@ -1,0 +1,8 @@
+
+migration_hooks:
+  pre:
+    - file: pre/drop_view.sql
+
+  post:
+    - file: post/create_schema.sql
+    - file: post/create_view.py

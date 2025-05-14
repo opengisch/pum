@@ -20,6 +20,7 @@ class TestUpgrader(unittest.TestCase):
     def tearDown(self):
         self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
         self.cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
+        self.cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
         self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
         self.conn.commit()
         self.conn.close()
@@ -37,6 +38,7 @@ class TestUpgrader(unittest.TestCase):
         self.cur = self.conn.cursor()
         self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
         self.cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
+        self.cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
         self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
         self.conn.commit()
 
@@ -186,6 +188,21 @@ class TestUpgrader(unittest.TestCase):
 
     def test_pre_post_sql(self):
         test_dir = Path("test") / "data" / "pre_post_sql"
+        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader.install(max_version="1.2.3")
+        self.assertTrue(sm.exists(self.conn))
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+        )
+        exists = cursor.fetchone()[0]
+        self.assertTrue(exists)
+
+    def test_pre_post_python(self):
+        test_dir = Path("test") / "data" / "pre_post_python"
         cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
