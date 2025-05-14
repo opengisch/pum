@@ -59,13 +59,15 @@ class SchemaMigrations:
             table = table_identifiers[0]
         return schema, table
 
-    def exists(self, conn: Connection):
+    def exists(self, connection: Connection):
         """
-        Checks if the schema_migrations information table exists
+        Checks if the schema_migrations information table exists.
+
         Args:
-            conn (Connection): The database connection to check for the existence of the table.
+            connection (Connection): The database connection to check for the existence of the table.
         Returns:
-            bool: True if the table exists, False otherwise."""
+            bool: True if the table exists, False otherwise.
+        """
 
         schema, table = self._pum_migrations_table_schema_name()
         query = sql.SQL(
@@ -81,14 +83,14 @@ class SchemaMigrations:
             table=sql.Literal(table),
         )
 
-        cursor = execute_sql(conn, query)
+        cursor = execute_sql(connection, query)
         return cursor.fetchone()[0]
 
-    def exists_in_other_schemas(self, conn: Connection) -> List[str]:
+    def exists_in_other_schemas(self, connection: Connection) -> List[str]:
         """
         Checks if the schema_migrations information table exists in other schemas
         Args:
-            conn (Connection): The database connection to check for the existence of the table.
+            connection (Connection): The database connection to check for the existence of the table.
         Returns:
             List[str]: List of schemas where the table exists.
         """
@@ -104,23 +106,25 @@ class SchemaMigrations:
             table=sql.Literal(table),
         )
 
-        cursor = execute_sql(conn, query)
+        cursor = execute_sql(connection, query)
         return [row[0] for row in cursor.fetchall()]
 
-    def create(self, conn: Connection, commit: bool = True, allow_multiple_schemas: bool = False):
+    def create(
+        self, connection: Connection, commit: bool = True, allow_multiple_schemas: bool = False
+    ):
         """
         Creates the schema_migrations information table
         Args:
-            conn (Connection): The database connection to create the table.
+            connection (Connection): The database connection to create the table.
             commit (bool): If true, the transaction is committed. The default is true.
             allow_multiple_schemas (bool): If true, several pum_migrations tables are allowed in distinct schemas. Default is false.
         """
 
-        if self.exists(conn):
+        if self.exists(connection):
             logger.debug(f"{self.config.pum_migrations_table} table already exists")
             return
 
-        if not allow_multiple_schemas and len(self.exists_in_other_schemas(conn)) > 0:
+        if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
             raise PumException(
                 f"Another {self.config.pum_migrations_table} table exists in another schema (). "
                 "Please use the allow_multiple_schemas option to create a new one."
@@ -160,18 +164,18 @@ class SchemaMigrations:
         ).format(pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")))
 
         if create_schema_query:
-            execute_sql(conn, create_schema_query)
-        execute_sql(conn, create_table_query)
-        execute_sql(conn, comment_query)
+            execute_sql(connection, create_schema_query)
+        execute_sql(connection, create_table_query)
+        execute_sql(connection, comment_query)
 
         logger.info(f"Created {self.config.pum_migrations_table} table")
 
         if commit:
-            conn.commit()
+            connection.commit()
 
     def set_baseline(
         self,
-        conn: Connection,
+        connection: Connection,
         version: Version | str,
         beta_testing: bool = False,
         commit: bool = True,
@@ -182,7 +186,7 @@ class SchemaMigrations:
         Sets the baseline into the migration table
 
         Args:
-            conn: Connection
+            connection: Connection
                 The database connection to set the baseline version.
             version: Version | str
                 The version of the current database to set in the information.
@@ -222,16 +226,18 @@ class SchemaMigrations:
             parameters=sql.Literal(json.dumps(parameters or {})),
         )
         logger.info(f"Setting baseline version {version} in {self.config.pum_migrations_table}")
-        conn.execute(query)
+        connection.execute(query)
         if commit:
-            conn.commit()
+            connection.commit()
 
-    def baseline(self, conn: Connection) -> str:
+    def baseline(self, connection: Connection) -> str:
         """
-        Returns the baseline version from the migration table
+        Returns the baseline version from the migration table.
+
         Args:
-            conn: Connection
+            connection: Connection
                 The database connection to get the baseline version.
+
         Returns:
             str: The baseline version.
         """
@@ -247,17 +253,19 @@ class SchemaMigrations:
             )
         """
         ).format(pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")))
-        cursor = execute_sql(conn, query)
+        cursor = execute_sql(connection, query)
         return cursor.fetchone()[0]
 
-    def migration_details(self, conn: Connection, version: str = None) -> dict:
+    def migration_details(self, connection: Connection, version: str = None) -> dict:
         """
-        Returns the migration details from the migration table
+        Returns the migration details from the migration table.
+
         Args:
-            conn: Connection
+            connection: Connection
                 The database connection to get the migration details.
             version: str
                 The version of the migration to get details for. If None, last migration is returned.
+
         Returns:
             dict: The migration details.
         """
@@ -289,7 +297,7 @@ class SchemaMigrations:
                 pum_migrations_table=sql.Identifier(*self.config.pum_migrations_table.split(".")),
                 version=sql.Literal(version),
             )
-        cursor = execute_sql(conn, query)
+        cursor = execute_sql(connection, query)
         row = cursor.fetchone()
         if row is None:
             return None

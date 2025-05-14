@@ -4,6 +4,7 @@ from psycopg import Connection
 from .utils.execute_sql import execute_sql
 import logging
 from .exceptions import PumHookError
+import inspect
 import importlib.util
 
 logger = logging.getLogger(__name__)
@@ -55,16 +56,17 @@ class MigrationHook:
 
     def execute(
         self,
-        conn: Connection,
+        connection: Connection,
         dir: str | Path = ".",
         commit: bool = False,
         parameters: dict | None = None,
     ):
         """
-        Execute the SQL file or code associated with the migration hook.
+        Execute the migration hook.
+        This method executes the SQL code or the Python file specified in the hook.
 
         Args:
-            conn: The database connection.
+            connection: The database connection.
             commit: Whether to commit the transaction after executing the SQL.
             dir: The root directory of the project.
             parameters (dict, optional): Parameters to bind to the SQL statement. Defaults to ().
@@ -80,7 +82,7 @@ class MigrationHook:
         if self.file:
             path = Path(dir) / self.file
             if path.suffix == ".sql":
-                execute_sql(conn=conn, sql=path, commit=False, parameters=parameters)
+                execute_sql(connection=connection, sql=path, commit=False, parameters=parameters)
             elif path.suffix == ".py":
                 if path.is_file():
                     spec = importlib.util.spec_from_file_location(path.stem, path)
@@ -89,7 +91,23 @@ class MigrationHook:
                     if hasattr(module, "run_hook"):
                         run_hook = getattr(module, "run_hook")
                         if callable(run_hook):
-                            run_hook(conn=conn)
+                            # Get the list of argument names for run_hook
+                            arg_names = list(inspect.signature(run_hook).parameters.keys())
+                            if "connection" not in arg_names:
+                                raise PumHookError(
+                                    f"Hook function 'run_hook' in {path} must accept 'connection' as an argument."
+                                )
+                            for arg in arg_names:
+                                if arg == "connection":
+                                    continue
+                                if arg not in parameters.keys():
+                                    raise PumHookError(
+                                        f"Hook function 'run_hook' in {path} has an unexpected argument '{arg}' which is not specified in the parameters."
+                                    )
+                            if parameters:
+                                run_hook(connection=connection, **parameters)
+                            else:
+                                run_hook(connection=connection)
                         else:
                             raise PumHookError(
                                 f"Hook function 'run_hook' in {path} is not callable."
@@ -101,7 +119,7 @@ class MigrationHook:
                     f"Unsupported file type for migration hook: {path.suffix}. Only .sql and .py files are supported."
                 )
         elif self.code:
-            execute_sql(conn=conn, sql=self.code, commit=False, parameters=parameters)
+            execute_sql(connection=connection, sql=self.code, commit=False, parameters=parameters)
 
         if commit:
-            conn.commit()
+            connection.commit()

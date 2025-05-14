@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def execute_sql(
-    conn: Connection,
+    connection: Connection,
     sql: str | Path,
     parameters: dict | None = None,
     commit: bool = False,
@@ -20,14 +20,14 @@ def execute_sql(
     Execute a SQL statement with optional parameters.
 
     Args:
-        conn (Connection): The database connection to execute the SQL statement.
+        connection (Connection): The database connection to execute the SQL statement.
         sql (str | Path): The SQL statement to execute or a path to a SQL file.
         parameters (dict, optional): Parameters to bind to the SQL statement. Defaults to ().
         commit (bool, optional): Whether to commit the transaction. Defaults to False.
     Raises:
         RuntimeError: If the SQL execution fails.
     """
-    cursor = conn.cursor()
+    cursor = connection.cursor()
     if isinstance(sql, Path):
         logger.debug(
             f"Executing SQL from file: {sql} with parameters: {parameters}",
@@ -84,6 +84,6 @@ def execute_sql(
             logger.debug(f"Error executing SQL: {statement}")
             raise PumSqlException(f"SQL execution failed for the following code: {sql} {e}") from e
     if commit:
-        conn.commit()
+        connection.commit()
 
     return cursor

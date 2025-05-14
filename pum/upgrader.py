@@ -70,21 +70,21 @@ class Upgrader:
                 The maximum version to apply. If None, all versions are applied.
         """
 
-        with psycopg.connect(f"service={self.pg_service}") as conn:
-            if self.schema_migrations.exists(conn):
+        with psycopg.connect(f"service={self.pg_service}") as connection:
+            if self.schema_migrations.exists(connection):
                 raise PumException(
                     f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
-            self.schema_migrations.create(conn, commit=False)
+            self.schema_migrations.create(connection, commit=False)
             for changelog in list_changelogs(
                 config=self.config, dir=self.dir, max_version=max_version
             ):
                 changelog_files = self._apply_changelog(
-                    conn, changelog, commit=False, parameters=self.parameters
+                    connection, changelog, commit=False, parameters=self.parameters
                 )
                 changelog_files = [str(f) for f in changelog_files]
                 self.schema_migrations.set_baseline(
-                    conn=conn,
+                    connection=connection,
                     version=changelog.version,
                     beta_testing=False,
                     commit=False,
@@ -93,16 +93,19 @@ class Upgrader:
                 )
                 for post_hook in self.config.post_hooks:
                     post_hook.execute(
-                        conn=conn, commit=False, parameters=self.parameters, dir=self.dir
+                        connection=connection,
+                        commit=False,
+                        parameters=self.parameters,
+                        dir=self.dir,
                     )
-            conn.commit()
+            connection.commit()
             logger.info(
                 f"Installed {self.config.pum_migrations_table} table and applied changelogs up to version {changelog.version}"
             )
 
     def _apply_changelog(
         self,
-        conn: Connection,
+        connection: Connection,
         changelog: Changelog,
         parameters: dict | None = None,
         commit: bool = True,
@@ -113,7 +116,7 @@ class Upgrader:
         The changelog directory is the one that contains the delta files.
 
         Args:
-            conn: Connection
+            connection: Connection
                 The connection to the database
             changelog: Changelog
                 The changelog to apply
@@ -129,7 +132,7 @@ class Upgrader:
         files = changelog_files(changelog)
         for file in files:
             try:
-                execute_sql(conn=conn, sql=file, commit=commit, parameters=parameters)
+                execute_sql(connection=connection, sql=file, commit=commit, parameters=parameters)
             except Exception as e:
                 raise PumException(f"Error applying changelog {file}: {e}") from e
         return files
