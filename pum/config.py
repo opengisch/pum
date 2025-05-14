@@ -2,6 +2,7 @@ import yaml
 from .migration_parameter import MigrationParameterDefinition
 from .exceptions import PumConfigError
 from .migration_hook import MigrationHook, MigrationHookType
+from pathlib import Path
 
 
 class PumConfig:
@@ -9,7 +10,7 @@ class PumConfig:
     A class to hold configuration settings.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, dir: str | Path, **kwargs):
         """
         Initialize the configuration with key-value pairs.
 
@@ -24,10 +25,7 @@ class PumConfig:
         # )
         # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
-        if "dir" in kwargs:
-            raise PumConfigError(
-                "dir not allowed in configuration, use PumConfig.from_yaml() instead."
-            )
+        self.dir = dir if isinstance(dir, Path) else Path(dir)
 
         self.pum_migrations_table: str = (
             f"{(kwargs.get('pum_migrations_schema') or 'public')}.pum_migrations"
@@ -69,7 +67,12 @@ class PumConfig:
                 if not isinstance(hook_definition, dict):
                     raise PumConfigError("hook must be a list of key-value pairs")
                 if isinstance(hook_definition.get("file"), str):
-                    hook = MigrationHook(type=hook_type, file=hook_definition.get("file"))
+                    path = Path(hook_definition.get("file"))
+                    if not path.is_absolute():
+                        path = self.dir / path
+                    if not path.exists():
+                        raise PumConfigError(f"hook file {path} does not exist")
+                    hook = MigrationHook(type=hook_type, file=path)
                 elif isinstance(hook_definition.get("code"), str):
                     hook = MigrationHook(type=hook_type, code=hook_definition.get("code"))
                 else:
@@ -132,11 +135,11 @@ class PumConfig:
             raise PumConfigError(f"Parameter '{name}' not found in configuration.")
 
     @classmethod
-    def from_yaml(cls, file_path):
+    def from_yaml(cls, file_path: str | Path) -> "PumConfig":
         """
         Create a PumConfig instance from a YAML file.
         Args:
-            file_path (str): The path to the YAML file.
+            file_path (str | Path): The path to the YAML file.
         Returns:
             PumConfig: An instance of the PumConfig class.
         Raises:
@@ -146,4 +149,9 @@ class PumConfig:
 
         with open(file_path) as file:
             data = yaml.safe_load(file)
-        return cls(**data)
+
+        if "dir" in data:
+            raise PumConfigError("dir not allowed in configuration instead.")
+
+        dir = Path(file_path).parent
+        return cls(dir=dir, **data)

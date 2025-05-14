@@ -49,13 +49,12 @@ class TestUpgrader(unittest.TestCase):
     def test_install_single_changelog(self):
         test_dir = Path("test") / "data" / "single_changelog"
         changelog_file = test_dir / "changelogs" / "1.2.3" / "create_northwind.sql"
-        cfg = PumConfig()
+        cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=test_dir,
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -89,7 +88,6 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=test_dir,
             parameters={"SRID": 2056},
         )
         upgrader.install()
@@ -108,7 +106,6 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=test_dir,
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -122,20 +119,18 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=test_dir,
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
 
     def test_install_complex_files_content(self):
         complex_dir = Path("test") / "data" / "complex_files_content"
-        cfg = PumConfig()
+        cfg = PumConfig(complex_dir)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=str(complex_dir),
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -144,13 +139,12 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "multiple_changelogs"
         changelog_file_1 = test_dir / "changelogs" / "2.0.0" / "create_second_table.sql"
         changelog_file_2 = test_dir / "changelogs" / "2.0.0" / "create_third_table.sql"
-        cfg = PumConfig()
+        cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            dir=test_dir,
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
@@ -167,20 +161,20 @@ class TestUpgrader(unittest.TestCase):
 
     def test_install_multiple_changelogs_max_version(self):
         test_dir = Path("test") / "data" / "multiple_changelogs"
-        cfg = PumConfig()
+        cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
         upgrader.install(max_version="1.2.4")
         self.assertTrue(sm.exists(self.conn))
         self.assertEqual(sm.baseline(self.conn), "1.2.4")
 
     def test_invalid_changelog(self):
         test_dir = Path("test") / "data" / "invalid_changelog"
-        cfg = PumConfig()
+        cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
         with self.assertRaises(Exception) as context:
             upgrader.install()
         self.assertTrue(
@@ -192,7 +186,7 @@ class TestUpgrader(unittest.TestCase):
         cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
         upgrader.install(max_version="1.2.3")
         self.assertTrue(sm.exists(self.conn))
         cursor = self.conn.cursor()
@@ -207,7 +201,7 @@ class TestUpgrader(unittest.TestCase):
             cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
             sm = SchemaMigrations(cfg)
             self.assertFalse(sm.exists(self.conn))
-            upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+            upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
             upgrader.install(max_version="1.2.3")
             self.assertTrue(sm.exists(self.conn))
             cursor = self.conn.cursor()
@@ -222,7 +216,7 @@ class TestUpgrader(unittest.TestCase):
         cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
         upgrader.install(max_version="1.2.3")
         self.assertTrue(sm.exists(self.conn))
         cursor = self.conn.cursor()
@@ -238,13 +232,10 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         with self.assertRaises(PumHookError):
-            upgrader = Upgrader(pg_service=self.pg_service, config=cfg, dir=test_dir)
+            upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
             upgrader.install(max_version="1.2.3")
         upgrader = Upgrader(
-            pg_service=self.pg_service,
-            config=cfg,
-            dir=test_dir,
-            parameters={"my_comment": "how cool"},
+            pg_service=self.pg_service, config=cfg, parameters={"my_comment": "how cool"}
         )
         upgrader.install(max_version="1.2.3")
         self.assertTrue(sm.exists(self.conn))

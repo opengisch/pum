@@ -28,7 +28,6 @@ class Upgrader:
         pg_service: str,
         config: PumConfig,
         parameters=None,
-        dir: str | Path = ".",
         max_version=None,
     ):
         """
@@ -45,8 +44,6 @@ class Upgrader:
                 The configuration object
             parameters: dict
                 The parameters to pass to the SQL files.
-            dir: str | Path
-                The directory where the module is located.
             max_version: str
                 Maximum (including) version to run the deltas up to.
         """
@@ -55,7 +52,6 @@ class Upgrader:
         self.config = config
         self.max_version = packaging.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
-        self.dir = dir
         self.parameters = parameters
 
     def install(self, max_version: str | packaging.version.Version | None = None):
@@ -76,9 +72,7 @@ class Upgrader:
                     f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
             self.schema_migrations.create(connection, commit=False)
-            for changelog in list_changelogs(
-                config=self.config, dir=self.dir, max_version=max_version
-            ):
+            for changelog in list_changelogs(config=self.config, max_version=max_version):
                 changelog_files = self._apply_changelog(
                     connection, changelog, commit=False, parameters=self.parameters
                 )
@@ -93,10 +87,7 @@ class Upgrader:
                 )
                 for post_hook in self.config.post_hooks:
                     post_hook.execute(
-                        connection=connection,
-                        commit=False,
-                        parameters=self.parameters,
-                        dir=self.dir,
+                        connection=connection, commit=False, parameters=self.parameters
                     )
             connection.commit()
             logger.info(

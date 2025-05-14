@@ -9,7 +9,6 @@ from .changelog import Changelog
 
 def last_version(
     config: PumConfig,
-    dir: str | Path = ".",
     min_version: str | None = None,
     max_version: str | None = None,
 ) -> str | None:
@@ -21,14 +20,13 @@ def last_version(
 
     Args:
         config (PumConfig): The configuration object.
-        dir (str | Path): The directory where the changelogs are located.
         min_version (str | None): The version to start from (inclusive).
         max_version (str | None): The version to end at (inclusive).
 
     Returns:
         str | None: The last version of the changelogs. If no changelogs are found, None is returned.
     """
-    changelogs = list_changelogs(config, dir, min_version, max_version)
+    changelogs = list_changelogs(config, min_version, max_version)
     if not changelogs:
         return None
     if min_version:
@@ -42,7 +40,6 @@ def last_version(
 
 def list_changelogs(
     config: PumConfig,
-    dir: str | Path = ".",
     min_version: str | None = None,
     max_version: str | None = None,
 ) -> list:
@@ -54,17 +51,13 @@ def list_changelogs(
 
     Args:
         config (PumConfig): The configuration object.
-        dir (str | Path): The directory where the changelogs are located.
         min_version (str | None): The version to start from (inclusive).
         max_version (str | None): The version to end at (inclusive).
 
     Returns:
         list: A list of changelogs. Each changelog is represented by a Changelog object.
     """
-    path = Path(dir)
-    if not path.is_dir():
-        raise PumException(f"Module directory `{path}` does not exist.")
-    path = path / config.changelogs_directory
+    path = config.dir / config.changelogs_directory
     if not path.is_dir():
         raise PumException(f"Changelogs directory `{path}` does not exist.")
 

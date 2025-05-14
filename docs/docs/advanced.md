@@ -40,8 +40,9 @@ migration_hooks:
 ```
 
 Python hooks can also be defined in a Python module.
-The only requirement is that a method `run_hook` is defined,
+A method `run_hook` must be defined,
 using a `psycopg.Connection` as argument.
+It can have extra arguments that will be the parameters.
 It should not commit the transaction or rollback in case of a future error would fail.
 
 The configuration is then:

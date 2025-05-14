@@ -16,6 +16,17 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(
             cfg.post_hooks,
-            [MigrationHook(MigrationHookType.POST, "post/create_view.sql")],
+            [
+                MigrationHook(
+                    MigrationHookType.POST, "test/data/pre_post_sql_files/post/create_view.sql"
+                )
+            ],
         )
-        self.assertEqual(cfg.pre_hooks, [MigrationHook(MigrationHookType.PRE, "pre/drop_view.sql")])
+        self.assertEqual(
+            cfg.pre_hooks,
+            [
+                MigrationHook(
+                    MigrationHookType.PRE, "test/data/pre_post_sql_files/pre/drop_view.sql"
+                )
+            ],
+        )
