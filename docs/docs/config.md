@@ -1,6 +1,4 @@
-# Config
-
-## Config file .pum.yaml
+# Configuration file .pum.yaml
 
 In the config file `.pum.yaml`, you can define, with the YAML syntax:
 

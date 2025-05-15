@@ -1,4 +1,4 @@
-# PUM Command Line Interface (CLI) Documentation
+# Command Line Interface (CLI) documentation
 
 `pum` is a command-line tool for managing PostgreSQL schema migrations, upgrades, and checks.
 

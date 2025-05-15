@@ -1,6 +1,4 @@
-
-
-## Migration hooks
+# Migration hooks
 
 Migration hooks allow you to define actions to be executed before or after a migration. These hooks are defined in the `.pum.yaml` configuration file under the `migration_hooks` section.
 
@@ -9,7 +7,7 @@ There are two types of migration hooks:
 - `pre`: Executed before the migration.
 - `post`: Executed after the migration.
 
-### SQL hooks
+## SQL hooks
 
 Hooks are defined as a list of files or plain SQL code to be executed. For example:
 
@@ -22,8 +20,7 @@ migration_hooks:
     - file: post/create_view.sql
 ```
 
-
-### Python hooks
+## Python hooks
 
 Python hooks can also be defined in a Python module.
 A method `run_hook` must be defined,
@@ -81,8 +78,7 @@ def run_hook(connection: Connection, srid: int):
     execute_sql(connection=connection, sql=sql_code)
 ```
 
-
-### Data and application isoltion
+## Data and application isoltion
 
 We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
 This will facilitate the migrations but also the code management: you will not have to write diff files for views and triggers.
