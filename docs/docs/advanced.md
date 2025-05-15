@@ -43,7 +43,8 @@ Python hooks can also be defined in a Python module.
 A method `run_hook` must be defined,
 using a `psycopg.Connection` as argument.
 It can have extra arguments that will be the parameters.
-It should not commit the transaction or rollback in case of a future error would fail.
+It should not commit the transaction or rollback would fail in case of a later error.
+You can use `pum.utils.execute_sql` to execute the SQL code without committing.
 
 The configuration is then:
 
@@ -76,5 +77,20 @@ def run_hook(connection: Connection):
         FROM pum_test_data.some_table
         WHERE is_active = TRUE;
     """
-    execute_sql(connection=connection, sql=sql_code, commit=False)
+    execute_sql(connection=connection, sql=sql_code)
+```
+
+or with extra parameters:
+
+```py
+from psycopg import Connection
+from pum.utils.execute_sql import execute_sql
+
+def run_hook(connection: Connection, srid: int):
+    sql_code = f"""
+        CREATE OR REPLACE VIEW pum_test_app.some_view AS
+        SELECT ST_Tramsform(geometry, {srid})
+        FROM pum_test_data.some_table;
+    """
+    execute_sql(connection=connection, sql=sql_code)
 ```
