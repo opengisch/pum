@@ -1,22 +1,3 @@
-## Data and application isolation
-
-We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
-This will facilitate the migrations but also the code management: you will not have to write diff files for views and triggers.
-
-To achieve this you can organize the code in such a manner:
-```
-project/
-├── changelogs/
-│   ├── 1.0.0/
-│   │   ├── 01_create_schema.sql
-│   │   └── 02_create_tables.sql
-│   ├── 1.0.1/
-│   │   ├── 01_rename_column.sql
-│   │   └── 02_do_something_else.sql
-├── app/
-│   └── create_views_and_triggers.sql
-└── .pum.yaml
-```
 
 
 ## Migration hooks
@@ -28,6 +9,8 @@ There are two types of migration hooks:
 - `pre`: Executed before the migration.
 - `post`: Executed after the migration.
 
+### SQL hooks
+
 Hooks are defined as a list of files or plain SQL code to be executed. For example:
 
 ```yaml
@@ -38,6 +21,9 @@ migration_hooks:
   post:
     - file: post/create_view.sql
 ```
+
+
+### Python hooks
 
 Python hooks can also be defined in a Python module.
 A method `run_hook` must be defined,
@@ -93,4 +79,27 @@ def run_hook(connection: Connection, srid: int):
         FROM pum_test_data.some_table;
     """
     execute_sql(connection=connection, sql=sql_code)
+```
+
+
+### Data and application isoltion
+
+We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
+This will facilitate the migrations but also the code management: you will not have to write diff files for views and triggers.
+This is easily achievable thanks to migration hooks.
+
+To achieve this you can organize the code in such a manner:
+```
+project/
+├── changelogs/
+│   ├── 1.0.0/
+│   │   ├── 01_create_schema.sql
+│   │   └── 02_create_tables.sql
+│   ├── 1.0.1/
+│   │   ├── 01_rename_column.sql
+│   │   └── 02_do_something_else.sql
+├── app/
+│   ├── drop_views_and_triggers.sql
+│   └── create_views_and_triggers.sql
+└── .pum.yaml
 ```

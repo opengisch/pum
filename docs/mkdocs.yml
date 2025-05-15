@@ -68,7 +68,7 @@ nav:
   - About: index.md
   - Getting Started: getting_started.md
   - Config: config.md
-  - Advanced: advanced.md
+  - Hooks: hooks.md
   - CLI: cli.md
   - API:
       - Changelog: api/changelog.md
