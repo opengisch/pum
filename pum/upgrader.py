@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 
 import logging
-from pathlib import Path
 import packaging.version
 import psycopg
-from psycopg import Connection
 import packaging
 
 from .config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
-from .utils.execute_sql import execute_sql
-from .changelog import Changelog
-from .changelog_utils import list_changelogs, changelog_files
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +68,9 @@ class Upgrader:
                     f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
                 )
             self.schema_migrations.create(connection, commit=False)
-            for changelog in list_changelogs(config=self.config, max_version=max_version):
-                changelog_files = self._apply_changelog(
-                    connection, changelog, commit=False, parameters=self.parameters
+            for changelog in self.config.list_changelogs(max_version=max_version):
+                changelog_files = changelog.apply(
+                    connection, commit=False, parameters=self.parameters
                 )
                 changelog_files = [str(f) for f in changelog_files]
                 self.schema_migrations.set_baseline(
@@ -94,37 +89,3 @@ class Upgrader:
             logger.info(
                 f"Installed {self.config.pum_migrations_table} table and applied changelogs up to version {changelog.version}"
             )
-
-    def _apply_changelog(
-        self,
-        connection: Connection,
-        changelog: Changelog,
-        parameters: dict | None = None,
-        commit: bool = True,
-    ) -> list[Path]:
-        """
-        Apply a changelog
-        This will execute all the files in the changelog directory.
-        The changelog directory is the one that contains the delta files.
-
-        Args:
-            connection: Connection
-                The connection to the database
-            changelog: Changelog
-                The changelog to apply
-            parameters: dict
-                The parameters to pass to the SQL files
-            commit: bool
-                If true, the transaction is committed. The default is true.
-
-        Returns:
-            list[Path]
-                The list of changelogs that were executed
-        """
-        files = changelog_files(changelog)
-        for file in files:
-            try:
-                execute_sql(connection=connection, sql=file, commit=commit, parameters=parameters)
-            except Exception as e:
-                raise PumException(f"Error applying changelog {file}: {e}") from e
-        return files

@@ -10,7 +10,6 @@ __all__ = [
     "Changelog",
     "last_version",
     "list_changelogs",
-    "changelog_files",
     "PumConfig",
     "Upgrader",
     "SchemaMigrations",

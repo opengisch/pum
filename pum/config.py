@@ -1,8 +1,12 @@
 import yaml
 from .migration_parameter import MigrationParameterDefinition
-from .exceptions import PumConfigError, PumHookError
+from .exceptions import PumConfigError, PumHookError, PumException, PumInvalidChangelog
 from .migration_hook import MigrationHook, MigrationHookType
 from pathlib import Path
+from packaging.version import parse as parse_version
+from os.path import isdir, join
+from os import listdir
+from .changelog import Changelog
 
 
 class PumConfig:
@@ -26,6 +30,8 @@ class PumConfig:
         # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
         self.dir = dir if isinstance(dir, Path) else Path(dir)
+        if not self.dir.is_dir():
+            raise PumConfigError(f"Directory `{self.dir}` does not exist.")
 
         self.pum_migrations_table: str = (
             f"{(kwargs.get('pum_migrations_schema') or 'public')}.pum_migrations"
@@ -92,31 +98,6 @@ class PumConfig:
                 else:
                     raise PumConfigError(f"Invalid hook type: {hook_type}")
 
-    # def get(self, key, default=None) -> any:
-    #     """
-    #     Get a configuration value by key, with an optional default.
-    #     This method allows dynamic retrieval of attributes from the PumConfig instance.
-    #     Args:
-    #         key (str): The name of the attribute to retrieve.
-    #         default: The default value to return if the attribute does not exist.
-    #     Returns:
-    #         any: The value of the attribute, or the default value if the attribute does not exist.
-    #     """
-    #     return getattr(self, key, default)
-
-    # def set(self, key, value):
-    #     """
-    #     Set a configuration value by key.
-    #     This method allows dynamic setting of attributes on the PumConfig instance.
-
-    #     Args:
-    #         key (str): The name of the attribute to set.
-    #         value: The value to assign to the attribute.
-    #     Raises:
-    #         AttributeError: If the attribute does not exist.
-    #     """
-    #     setattr(self, key, value)
-
     def parameters(self) -> dict[str, MigrationParameterDefinition]:
         """
         Get all migration parameters as a dictionary.
@@ -162,3 +143,65 @@ class PumConfig:
 
         dir = Path(file_path).parent
         return cls(dir=dir, **data)
+
+    def validate_changelogs(self):
+        for changelog in self.list_changelogs():
+            try:
+                changelog.validate()
+            except PumInvalidChangelog as e:
+                raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
+
+    def last_version(
+        self, min_version: str | None = None, max_version: str | None = None
+    ) -> str | None:
+        """
+        Return the last version of the changelogs.
+        The changelogs are sorted by version.
+
+        Args:
+            min_version (str | None): The version to start from (inclusive).
+            max_version (str | None): The version to end at (inclusive).
+
+        Returns:
+            str | None: The last version of the changelogs. If no changelogs are found, None is returned.
+        """
+        changelogs = self.list_changelogs(min_version, max_version)
+        if not changelogs:
+            return None
+        if min_version:
+            changelogs = [c for c in changelogs if c.version >= parse_version(min_version)]
+        if max_version:
+            changelogs = [c for c in changelogs if c.version <= parse_version(max_version)]
+        if not changelogs:
+            return None
+        return changelogs[-1].version
+
+    def list_changelogs(
+        self, min_version: str | None = None, max_version: str | None = None
+    ) -> list:
+        """
+        Return a list of changelogs.
+        The changelogs are sorted by version.
+
+        Args:
+            min_version (str | None): The version to start from (inclusive).
+            max_version (str | None): The version to end at (inclusive).
+
+        Returns:
+            list: A list of changelogs. Each changelog is represented by a Changelog object.
+        """
+        path = self.dir / self.changelogs_directory
+        if not path.is_dir():
+            raise PumException(f"Changelogs directory `{path}` does not exist.")
+        if listdir(path) == []:
+            raise PumException(f"Changelogs directory `{path}` is empty.")
+
+        changelogs = [Changelog(path / d) for d in listdir(path) if isdir(join(path, d))]
+
+        if min_version:
+            changelogs = [c for c in changelogs if c.version >= parse_version(min_version)]
+        if max_version:
+            changelogs = [c for c in changelogs if c.version <= parse_version(max_version)]
+
+        changelogs.sort(key=lambda c: c.version)
+        return changelogs

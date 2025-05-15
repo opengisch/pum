@@ -16,14 +16,9 @@ class PumSqlException(PumException):
 
 
 class PumInvalidChangelog(PumException):
-    """Exception raised for invalid changelog.
+    """Exception raised for invalid changelog."""
 
-    Attributes:
-        message (str): Explanation of the error.
-    """
-
-    def __init__(self, message):
-        super().__init__(message)
+    pass
 
 
 class PumConfigError(PumException):
@@ -46,5 +41,11 @@ class PumVersionError(PumException):
 
 class PumHookError(PumException):
     """Exception raised for errors by an invalid hook."""
+
+    pass
+
+
+class PumInvalidSqlFile(PumException):
+    """Exception raised for invalid SQL files."""
 
     pass
