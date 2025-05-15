@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+import packaging.version
 import psycopg
 from psycopg import Connection
 import packaging
@@ -27,8 +28,8 @@ class Upgrader:
         self,
         pg_service: str,
         config: PumConfig,
-        parameters=None,
-        max_version=None,
+        parameters: dict | None = None,
+        max_version: packaging.version.Version | str | None = None,
     ):
         """
         Initialize the Upgrader class.
@@ -37,14 +38,14 @@ class Upgrader:
         The table is created in the schema defined in the config file if it does not exist.
 
         Args:
-            pg_service: str
+            pg_service:
                 The name of the postgres service (defined in pg_service.conf)
                 related to the db
-            config: PumConfig
+            config:
                 The configuration object
-            parameters: dict
+            parameters:
                 The parameters to pass to the SQL files.
-            max_version: str
+            max_version:
                 Maximum (including) version to run the deltas up to.
         """
 
