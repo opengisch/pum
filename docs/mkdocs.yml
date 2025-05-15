@@ -67,7 +67,7 @@ markdown_extensions:
 nav:
   - About: index.md
   - Getting Started: getting_started.md
-  - Config: config.md
+  - Configuration: configuration.md
   - Hooks: hooks.md
   - CLI: cli.md
   - API:
