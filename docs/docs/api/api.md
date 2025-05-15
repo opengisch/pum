@@ -8,5 +8,4 @@
 - [PumConfig](api/pum_config.md)
 - [SchemaMigrations](api/schema_migrations.md)
 - [Upgrader](api/upgrader.md)
-- [Changelog Utils](api/changelog_utils.md)
 - [Exceptions](api/exceptions.md)
