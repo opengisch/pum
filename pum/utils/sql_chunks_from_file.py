@@ -1,16 +1,15 @@
 from pathlib import Path
+import psycopg
 from ..exceptions import PumInvalidSqlFile
 import re
 
 
-def sql_chunks_from_file(file: str | Path, parameters: dict | None = None):
+def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
     """
     Read SQL from a file, remove comments, and split into chunks.
 
     Args:
         file (str | Path): Path to the SQL file.
-        parameters (dict, optional): Dictionary of parameters to replace in the SQL.
-            Defaults to None.
     Returns:
         list: List of SQL statements.
     Raises:
@@ -39,13 +38,6 @@ def sql_chunks_from_file(file: str | Path, parameters: dict | None = None):
                     f"SQL contains forbidden transaction statement: {forbidden}"
                 )
 
-        if parameters:
-            for key, value in parameters.items():
-                sql_content = sql_content.replace(f"{{{{ {key} }}}}", str(value))
-            sql_code = sql_content
-        else:
-            sql_code = sql_content
-
         def split_sql_statements(sql):
             pattern = r'(?:[^;\'"]|\'[^\']*\'|"[^"]*")*;'
             matches = re.finditer(pattern, sql, re.DOTALL)
@@ -59,6 +51,11 @@ def sql_chunks_from_file(file: str | Path, parameters: dict | None = None):
                 statements.append(sql[last_end:].strip())
             return [stmt for stmt in statements if stmt]
 
-        sql_code = split_sql_statements(sql_code)
+        sql_code = split_sql_statements(sql_content)
+
+        sql_code = [re.sub(r"[\r\n]+", " ", stmt) for stmt in sql_code]
+        sql_code = [re.sub(r"\\n", " ", stmt) for stmt in sql_code]
+        sql_code = [re.sub(r"\n", " ", stmt) for stmt in sql_code]
+        sql_code = [psycopg.sql.SQL(stmt) for stmt in sql_code]
 
     return sql_code
