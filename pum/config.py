@@ -1,6 +1,12 @@
 import yaml
 from .migration_parameter import MigrationParameterDefinition
-from .exceptions import PumConfigError, PumHookError, PumException, PumInvalidChangelog
+from .exceptions import (
+    PumConfigError,
+    PumHookError,
+    PumException,
+    PumInvalidChangelog,
+    PumSqlException,
+)
 from .migration_hook import MigrationHook, MigrationHookType
 from pathlib import Path
 from packaging.version import parse as parse_version
@@ -208,10 +214,15 @@ class PumConfig:
         """
         Validate the chanbgelogs and hooks
         """
+
+        parameters = {}
+        for parameter in self.parameter_definitions.values():
+            parameters[parameter.name] = parameter.default
+
         for changelog in self.list_changelogs():
             try:
-                changelog.validate()
-            except PumInvalidChangelog as e:
+                changelog.validate(parameters=parameters)
+            except (PumInvalidChangelog, PumSqlException) as e:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
         for hook in self.pre_hooks + self.post_hooks:
             try:

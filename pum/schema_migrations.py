@@ -71,20 +71,17 @@ class SchemaMigrations:
         """
 
         schema, table = self._pum_migrations_table_schema_name()
-        query = psycopg.sql.SQL(
-            """
+        query = psycopg.sql.SQL("""
         SELECT EXISTS (
             SELECT 1
             FROM information_schema.tables
             WHERE table_name = {table} AND table_schema = {schema}
         );
-        """
-        ).format(
-            schema=psycopg.sql.Literal(schema),
-            table=psycopg.sql.Literal(table),
-        )
+        """)
 
-        cursor = execute_sql(connection, query)
+        parameters = {"schema": schema, "table": table}
+
+        cursor = execute_sql(connection, sql=query, parameters=parameters)
         return cursor.fetchone()[0]
 
     def exists_in_other_schemas(self, connection: psycopg.Connection) -> List[str]:
@@ -102,12 +99,11 @@ class SchemaMigrations:
             FROM information_schema.tables
             WHERE table_name = {table} AND table_schema != {schema}
         """
-        ).format(
-            schema=psycopg.sql.Literal(schema),
-            table=psycopg.sql.Literal(table),
         )
 
-        cursor = execute_sql(connection, query)
+        parameters = {"schema": schema, "table": table}
+
+        cursor = execute_sql(connection, sql=query, parameters=parameters)
         return [row[0] for row in cursor.fetchall()]
 
     def create(
@@ -140,10 +136,17 @@ class SchemaMigrations:
         table_identifiers = self.config.pum_migrations_table.split(".")
         if len(table_identifiers) == 2:
             schema = table_identifiers[0]
+
+        parameters = {
+            "pum_migrations_table": psycopg.sql.Identifier(
+                *self.config.pum_migrations_table.split(".")
+            ),
+            "version": migration_table_version,
+            "schema": psycopg.sql.Identifier(schema),
+        }
+
         if schema != "public":
-            create_schema_query = psycopg.sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema};").format(
-                schema=psycopg.sql.Identifier(schema)
-            )
+            create_schema_query = psycopg.sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema};")
 
         create_table_query = psycopg.sql.SQL(
             """CREATE TABLE IF NOT EXISTS {pum_migrations_table}
@@ -158,25 +161,16 @@ class SchemaMigrations:
             migration_table_version character varying(50) NOT NULL DEFAULT {version}
             );
         """
-        ).format(
-            pum_migrations_table=psycopg.sql.Identifier(
-                *self.config.pum_migrations_table.split(".")
-            ),
-            version=psycopg.sql.Literal(migration_table_version),
         )
 
         comment_query = psycopg.sql.SQL(
             """COMMENT ON TABLE {pum_migrations_table} IS 'version: 1 --  schema_migration table version';"""
-        ).format(
-            pum_migrations_table=psycopg.sql.Identifier(
-                *self.config.pum_migrations_table.split(".")
-            )
         )
 
         if create_schema_query:
-            execute_sql(connection, create_schema_query)
-        execute_sql(connection, create_table_query)
-        execute_sql(connection, comment_query)
+            execute_sql(connection, sql=create_schema_query, parameters=parameters)
+        execute_sql(connection, sql=create_table_query, parameters=parameters)
+        execute_sql(connection, sql=comment_query, parameters=parameters)
 
         logger.info(f"Created {self.config.pum_migrations_table} table")
 
@@ -265,12 +259,15 @@ class SchemaMigrations:
                 LIMIT 1
             )
         """
-        ).format(
-            pum_migrations_table=psycopg.sql.Identifier(
+        )
+
+        parameters = {
+            "pum_migrations_table": psycopg.sql.Identifier(
                 *self.config.pum_migrations_table.split(".")
             )
-        )
-        cursor = execute_sql(connection, query)
+        }
+
+        cursor = execute_sql(connection, sql=query, parameters=parameters)
         return cursor.fetchone()[0]
 
     def migration_details(self, connection: psycopg.Connection, version: str = None) -> dict:
@@ -300,11 +297,13 @@ class SchemaMigrations:
                     )
                 ORDER BY date_installed DESC
             """
-            ).format(
-                pum_migrations_table=psycopg.sql.Identifier(
+            )
+
+            parameters = {
+                "pum_migrations_table": psycopg.sql.Identifier(
                     *self.config.pum_migrations_table.split(".")
                 ),
-            )
+            }
         else:
             query = psycopg.sql.SQL(
                 """
@@ -312,13 +311,16 @@ class SchemaMigrations:
                 FROM {pum_migrations_table}
                 WHERE version = {version}
             """
-            ).format(
-                pum_migrations_table=psycopg.sql.Identifier(
+            )
+
+            parameters = {
+                "pum_migrations_table": psycopg.sql.Identifier(
                     *self.config.pum_migrations_table.split(".")
                 ),
-                version=psycopg.sql.Literal(version),
-            )
-        cursor = execute_sql(connection, query)
+                "version": version,
+            }
+
+        cursor = execute_sql(connection, sql=query, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
             return None

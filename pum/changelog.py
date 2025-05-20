@@ -4,8 +4,7 @@ from pathlib import Path
 from os import listdir
 from .exceptions import PumInvalidChangelog, PumSqlException, PumInvalidSqlFile
 from psycopg import Connection
-from .utils.execute_sql import execute_sql
-from .utils.sql_chunks_from_file import sql_chunks_from_file
+from .utils.execute_sql import execute_sql, prepare_sql
 
 
 class Changelog:
@@ -41,10 +40,13 @@ class Changelog:
         files.sort()
         return files
 
-    def validate(self):
+    def validate(self, parameters: dict | None = None) -> bool:
         """
         Validate the changelog directory.
         This is done by checking if the directory exists and if it contains at least one SQL file.
+
+        Args:
+            parameters: The parameters to pass to the SQL files.
 
         Raises:
             PumInvalidChangelog: If the changelog directory does not exist or does not contain any SQL files.
@@ -62,7 +64,7 @@ class Changelog:
             if not file.suffix == ".sql":
                 raise PumInvalidChangelog(f"Changelog file `{file}` is not a SQL file.")
             try:
-                sql_chunks_from_file(file)
+                prepare_sql(file, parameters=parameters)
             except PumInvalidSqlFile as e:
                 raise PumInvalidChangelog(
                     f"Changelog file `{file}` is not a valid SQL file."

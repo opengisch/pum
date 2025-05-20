@@ -89,3 +89,8 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(PumConfigError):
             PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=True)
         PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=False)
+
+    def test_invalid_changelog_parameters(self):
+        PumConfig.from_yaml(Path("test") / "data" / "parameters" / ".pum.yaml", validate=True)
+        with self.assertRaises(PumConfigError):
+            PumConfig(dir=Path("test") / "data" / "parameters", validate=True)
