@@ -14,11 +14,13 @@ class PumConfig:
     A class to hold configuration settings.
     """
 
-    def __init__(self, dir: str | Path, **kwargs):
+    def __init__(self, dir: str | Path, validate: bool = True, **kwargs):
         """
         Initialize the configuration with key-value pairs.
 
         Args:
+            dir (str | Path): The directory where the changelogs are located.
+            validate (bool): Whether to validate the changelogs and hooks.
             **kwargs: Key-value pairs representing configuration settings.
 
         Raises:
@@ -80,12 +82,6 @@ class PumConfig:
                     if not path.exists():
                         raise PumConfigError(f"hook file {path} does not exist")
                     hook = MigrationHook(type=hook_type, file=path)
-                    try:
-                        hook.check_parameter_definitions(self.parameter_definitions)
-                    except PumHookError as e:
-                        raise PumConfigError(
-                            f"Hook file {path} has invalid parameter definitions: {e}"
-                        )
                 elif isinstance(hook_definition.get("code"), str):
                     hook = MigrationHook(type=hook_type, code=hook_definition.get("code"))
                 else:
@@ -97,6 +93,14 @@ class PumConfig:
                     self.post_hooks.append(hook)
                 else:
                     raise PumConfigError(f"Invalid hook type: {hook_type}")
+
+        if validate:
+            try:
+                self.validate()
+            except (PumInvalidChangelog, PumHookError) as e:
+                raise PumConfigError(
+                    f"Configuration is invalid: {e}. You can disable the validation when constructing the config."
+                ) from e
 
     def parameters(self) -> dict[str, MigrationParameterDefinition]:
         """
@@ -123,11 +127,12 @@ class PumConfig:
             raise PumConfigError(f"Parameter '{name}' not found in configuration.")
 
     @classmethod
-    def from_yaml(cls, file_path: str | Path) -> "PumConfig":
+    def from_yaml(cls, file_path: str | Path, validate: bool = True) -> "PumConfig":
         """
         Create a PumConfig instance from a YAML file.
         Args:
             file_path (str | Path): The path to the YAML file.
+            validate (bool): Whether to validate the changelogs and hooks.
         Returns:
             PumConfig: An instance of the PumConfig class.
         Raises:
@@ -142,14 +147,7 @@ class PumConfig:
             raise PumConfigError("dir not allowed in configuration instead.")
 
         dir = Path(file_path).parent
-        return cls(dir=dir, **data)
-
-    def validate_changelogs(self):
-        for changelog in self.list_changelogs():
-            try:
-                changelog.validate()
-            except PumInvalidChangelog as e:
-                raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
+        return cls(dir=dir, validate=validate, **data)
 
     def last_version(
         self, min_version: str | None = None, max_version: str | None = None
@@ -205,3 +203,18 @@ class PumConfig:
 
         changelogs.sort(key=lambda c: c.version)
         return changelogs
+
+    def validate(self):
+        """
+        Validate the chanbgelogs and hooks
+        """
+        for changelog in self.list_changelogs():
+            try:
+                changelog.validate()
+            except PumInvalidChangelog as e:
+                raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
+        for hook in self.pre_hooks + self.post_hooks:
+            try:
+                hook.validate(self.parameter_definitions)
+            except PumHookError as e:
+                raise PumHookError(f"Hook `{hook}` is invalid.") from e

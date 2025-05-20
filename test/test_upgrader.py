@@ -171,7 +171,7 @@ class TestUpgrader(unittest.TestCase):
 
     def test_invalid_changelog(self):
         test_dir = Path("test") / "data" / "invalid_changelog"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(dir=test_dir, validate=False)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(pg_service=self.pg_service, config=cfg)

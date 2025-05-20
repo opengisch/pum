@@ -71,7 +71,7 @@ class MigrationHook:
             return NotImplemented
         return self.type == other.type and self.file == other.file
 
-    def check_parameter_definitions(self, parameters: dict):
+    def validate(self, parameters: dict):
         """
         Check if the parameters match the expected parameter definitions.
         This is only effective for Python hooks for now.

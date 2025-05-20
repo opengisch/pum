@@ -75,8 +75,17 @@ class TestConfig(unittest.TestCase):
             ],
         )
 
-    def test_migration_hook_python(self):
+    def test_invalid_hooks_parameters(self):
         with self.assertRaises(PumConfigError):
             PumConfig.from_yaml(
                 Path("test") / "data" / "pre_post_python_parameters_broken" / ".pum.yaml"
             )
+        PumConfig.from_yaml(
+            Path("test") / "data" / "pre_post_python_parameters_broken" / ".pum.yaml",
+            validate=False,
+        )
+
+    def test_invalid_changelog(self):
+        with self.assertRaises(PumConfigError):
+            PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=True)
+        PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=False)
