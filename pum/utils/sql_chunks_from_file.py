@@ -54,8 +54,6 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
         sql_code = split_sql_statements(sql_content)
 
         sql_code = [re.sub(r"[\r\n]+", " ", stmt) for stmt in sql_code]
-        sql_code = [re.sub(r"\\n", " ", stmt) for stmt in sql_code]
-        sql_code = [re.sub(r"\n", " ", stmt) for stmt in sql_code]
         sql_code = [psycopg.sql.SQL(stmt) for stmt in sql_code]
 
     return sql_code
