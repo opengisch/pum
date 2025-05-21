@@ -46,7 +46,7 @@ With `post/create_view.py`:
 ```py
 from pirogue.utils import select_columns
 from psycopg import Connection
-from pum.utils.execute_sql import execute_sql
+from pum import SqlContent
 
 def run_hook(connection: Connection):
     columns=select_columns(

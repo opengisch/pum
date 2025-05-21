@@ -1,11 +1,11 @@
 from enum import Enum
 from pathlib import Path
 from psycopg import Connection
-from .utils.execute_sql import execute_sql
 import logging
 from .exceptions import PumHookError
 import inspect
 import importlib.util
+from .sql_content import SqlContent
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,8 @@ class MigrationHook:
                     raise PumHookError(
                         f"Hook function 'run_hook' in {self.file} has an unexpected argument '{parameter_arg}' which is not specified in the parameters."
                     )
+        if self.file and self.file.suffix == ".sql":
+            SqlContent(self.file).validate(parameters=parameters)
 
     def execute(
         self,
@@ -114,8 +116,8 @@ class MigrationHook:
 
         if self.file:
             if self.file.suffix == ".sql":
-                execute_sql(
-                    connection=connection, sql=self.file, commit=False, parameters=parameters
+                SqlContent(self.file).execute(
+                    connection=connection, commit=False, parameters=parameters
                 )
             elif self.file.suffix == ".py":
                 for parameter_arg in self.parameter_args:
@@ -133,7 +135,7 @@ class MigrationHook:
                     f"Unsupported file type for migration hook: {self.file.suffix}. Only .sql and .py files are supported."
                 )
         elif self.code:
-            execute_sql(connection=connection, sql=self.code, commit=False, parameters=parameters)
+            SqlContent(self.code).execute(connection, parameters=parameters, commit=False)
 
         if commit:
             connection.commit()

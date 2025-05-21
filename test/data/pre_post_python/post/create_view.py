@@ -1,6 +1,6 @@
 from pirogue.utils import select_columns
 from psycopg import Connection
-from pum.utils.execute_sql import execute_sql
+from pum.sql_content import SqlContent
 
 
 def run_hook(connection: Connection):
@@ -13,4 +13,4 @@ def run_hook(connection: Connection):
         FROM pum_test_data.some_table
         WHERE is_active = TRUE;
         """
-    execute_sql(connection=connection, sql=sql_code, commit=False)
+    SqlContent(sql_code).execute(connection=connection, commit=False)

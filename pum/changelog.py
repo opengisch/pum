@@ -4,7 +4,7 @@ from pathlib import Path
 from os import listdir
 from .exceptions import PumInvalidChangelog, PumSqlException, PumInvalidSqlFile
 from psycopg import Connection
-from .utils.execute_sql import execute_sql, prepare_sql
+from .sql_content import SqlContent
 
 
 class Changelog:
@@ -64,7 +64,7 @@ class Changelog:
             if not file.suffix == ".sql":
                 raise PumInvalidChangelog(f"Changelog file `{file}` is not a SQL file.")
             try:
-                prepare_sql(file, parameters=parameters)
+                SqlContent(file).validate(parameters=parameters)
             except PumInvalidSqlFile as e:
                 raise PumInvalidChangelog(
                     f"Changelog file `{file}` is not a valid SQL file."
@@ -102,7 +102,9 @@ class Changelog:
         files = self.files()
         for file in files:
             try:
-                execute_sql(connection=connection, sql=file, commit=commit, parameters=parameters)
+                SqlContent(file).execute(
+                    connection=connection, commit=commit, parameters=parameters
+                )
             except PumSqlException as e:
                 raise PumSqlException(f"Error applying changelog {file}: {e}") from e
         return files

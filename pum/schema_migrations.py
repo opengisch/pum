@@ -17,8 +17,7 @@ import psycopg
 import psycopg.sql
 
 from .config import PumConfig
-from .utils.execute_sql import execute_sql
-
+from .sql_content import SqlContent
 from .exceptions import PumException
 
 logger = logging.getLogger(__name__)
@@ -81,7 +80,7 @@ class SchemaMigrations:
 
         parameters = {"schema": schema, "table": table}
 
-        cursor = execute_sql(connection, sql=query, parameters=parameters)
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
         return cursor.fetchone()[0]
 
     def exists_in_other_schemas(self, connection: psycopg.Connection) -> List[str]:
@@ -103,7 +102,7 @@ class SchemaMigrations:
 
         parameters = {"schema": schema, "table": table}
 
-        cursor = execute_sql(connection, sql=query, parameters=parameters)
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
         return [row[0] for row in cursor.fetchall()]
 
     def create(
@@ -168,9 +167,9 @@ class SchemaMigrations:
         )
 
         if create_schema_query:
-            execute_sql(connection, sql=create_schema_query, parameters=parameters)
-        execute_sql(connection, sql=create_table_query, parameters=parameters)
-        execute_sql(connection, sql=comment_query, parameters=parameters)
+            SqlContent(create_schema_query).execute(connection, parameters=parameters)
+        SqlContent(create_table_query).execute(connection, parameters=parameters)
+        SqlContent(comment_query).execute(connection, parameters=parameters)
 
         logger.info(f"Created {self.config.pum_migrations_table} table")
 
@@ -235,7 +234,7 @@ class SchemaMigrations:
         }
 
         logger.info(f"Setting baseline version {version} in {self.config.pum_migrations_table}")
-        execute_sql(connection=connection, sql=code, commit=commit, parameters=parameters)
+        SqlContent(code).execute(connection, parameters=parameters)
 
     def baseline(self, connection: psycopg.Connection) -> str:
         """
@@ -267,7 +266,7 @@ class SchemaMigrations:
             )
         }
 
-        cursor = execute_sql(connection, sql=query, parameters=parameters)
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
         return cursor.fetchone()[0]
 
     def migration_details(self, connection: psycopg.Connection, version: str = None) -> dict:
@@ -320,7 +319,7 @@ class SchemaMigrations:
                 "version": version,
             }
 
-        cursor = execute_sql(connection, sql=query, parameters=parameters)
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
             return None

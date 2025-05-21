@@ -78,6 +78,7 @@ nav:
       - MigrationParameterType: api/migration_parameter_type.md
       - PumConfig: api/pum_config.md
       - SchemaMigrations: api/schema_migrations.md
+      - SqlContent: api/sql_content.md
       - Upgrader: api/upgrader.md
       - Exceptions: api/exceptions.md
 

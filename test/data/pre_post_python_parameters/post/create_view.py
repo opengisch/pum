@@ -1,6 +1,6 @@
 from pirogue.utils import select_columns
 from psycopg import Connection
-from pum.utils.execute_sql import execute_sql
+from pum.sql_content import SqlContent
 
 
 def run_hook(connection: Connection, my_comment: str = None):
@@ -15,4 +15,4 @@ def run_hook(connection: Connection, my_comment: str = None):
 
     COMMENT ON VIEW pum_test_app.some_view IS '{my_comment}';
     """
-    execute_sql(connection=connection, sql=sql_code, commit=False)
+    SqlContent(sql_code).execute(connection=connection, commit=False)
