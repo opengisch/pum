@@ -192,7 +192,7 @@ class TestUpgrader(unittest.TestCase):
     def test_pre_post_sql_files(self) -> None:
         """Test the pre and post SQL files."""
         test_dir = Path("test") / "data" / "pre_post_sql_files"
-        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
@@ -209,7 +209,7 @@ class TestUpgrader(unittest.TestCase):
     def test_pre_post_sql_code(self) -> None:
         """Test the pre and post hooks with SQL code."""
         test_dir = Path("test") / "data" / "pre_post_sql_code"
-        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
@@ -226,7 +226,7 @@ class TestUpgrader(unittest.TestCase):
     def test_pre_post_python(self) -> None:
         """Test the pre and post python hooks."""
         test_dir = Path("test") / "data" / "pre_post_python"
-        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
@@ -243,7 +243,7 @@ class TestUpgrader(unittest.TestCase):
     def test_pre_post_python_parameters(self) -> None:
         """Test the pre and post python hooks with parameters."""
         test_dir = Path("test") / "data" / "pre_post_python_parameters"
-        cfg = PumConfig.from_yaml(str(test_dir / ".pum.yaml"))
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         with self.assertRaises(PumHookError):
