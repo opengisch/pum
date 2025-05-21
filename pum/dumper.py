@@ -27,17 +27,17 @@ class Dumper:
             the pg_dump command path
         exclude_schema: str[]
             list of schemas to be skipped
-        """
 
+        """
         command = [pg_dump_exe, "-Fc", "-f", self.file, f"service={self.pg_service}"]
         if exclude_schema:
             command.insert(-1, " ".join(f"--exclude-schema={schema}" for schema in exclude_schema))
 
         try:
             if sys.version_info[1] < 7:
-                output = subprocess.run(command, capture_output=True)
+                output = subprocess.run(command, capture_output=True, check=False)
             else:
-                output = subprocess.run(command, capture_output=True, text=True)
+                output = subprocess.run(command, capture_output=True, text=True, check=False)
             if output.returncode != 0:
                 raise PgDumpFailed(output.stderr)
         except TypeError:
@@ -50,8 +50,8 @@ class Dumper:
         ----------
         pg_restore_exe: str
             the pg_restore command path
-        """
 
+        """
         command = [pg_restore_exe, "-d", f"service={self.pg_service}", "--no-owner"]
 
         if exclude_schema:
@@ -68,9 +68,9 @@ class Dumper:
 
         try:
             if sys.version_info[1] < 7:
-                output = subprocess.run(command, capture_output=True)
+                output = subprocess.run(command, capture_output=True, check=False)
             else:
-                output = subprocess.run(command, capture_output=True, text=True)
+                output = subprocess.run(command, capture_output=True, text=True, check=False)
             if output.returncode != 0:
                 raise PgRestoreFailed(output.stderr)
         except TypeError:

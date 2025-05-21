@@ -1,18 +1,18 @@
 import unittest
 from pathlib import Path
+
 from packaging.version import parse as parse_version
 
 from pum.config import PumConfig
-from pum.migration_hook import MigrationHook, MigrationHookType
 from pum.exceptions import PumConfigError
+from pum.migration_hook import MigrationHook, MigrationHookType
 
 
 class TestConfig(unittest.TestCase):
-    """
-    Test the class PumConfig.
-    """
+    """Test the class PumConfig."""
 
-    def test_version(self):
+    def test_version(self) -> None:
+        """Test version."""
         cfg = PumConfig(dir=Path("test") / "data" / "single_changelog")
         changelogs = cfg.list_changelogs()
         self.assertEqual(len(changelogs), 1)
@@ -55,14 +55,16 @@ class TestConfig(unittest.TestCase):
         )
         self.assertIsNone(last_version_result)
 
-    def test_hooks(self):
+    def test_hooks(self) -> None:
+        """Test hooks."""
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")
 
         self.assertEqual(
             cfg.post_hooks,
             [
                 MigrationHook(
-                    MigrationHookType.POST, "test/data/pre_post_sql_files/post/create_view.sql"
+                    MigrationHookType.POST,
+                    "test/data/pre_post_sql_files/post/create_view.sql",
                 )
             ],
         )
@@ -70,12 +72,14 @@ class TestConfig(unittest.TestCase):
             cfg.pre_hooks,
             [
                 MigrationHook(
-                    MigrationHookType.PRE, "test/data/pre_post_sql_files/pre/drop_view.sql"
+                    MigrationHookType.PRE,
+                    "test/data/pre_post_sql_files/pre/drop_view.sql",
                 )
             ],
         )
 
-    def test_invalid_hooks_parameters(self):
+    def test_invalid_hooks_parameters(self) -> None:
+        """Test invalid hooks parameters."""
         with self.assertRaises(PumConfigError):
             PumConfig.from_yaml(
                 Path("test") / "data" / "pre_post_python_parameters_broken" / ".pum.yaml"
@@ -85,12 +89,14 @@ class TestConfig(unittest.TestCase):
             validate=False,
         )
 
-    def test_invalid_changelog(self):
+    def test_invalid_changelog(self) -> None:
+        """Test invalid changelog."""
         with self.assertRaises(PumConfigError):
             PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=True)
         PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=False)
 
-    def test_invalid_changelog_parameters(self):
+    def test_invalid_changelog_parameters(self) -> None:
+        """Test invalid changelog parameters."""
         PumConfig.from_yaml(Path("test") / "data" / "parameters" / ".pum.yaml", validate=True)
         with self.assertRaises(PumConfigError):
             PumConfig(dir=Path("test") / "data" / "parameters", validate=True)

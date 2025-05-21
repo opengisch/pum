@@ -5,7 +5,8 @@ import psycopg
 
 class Checker:
     """This class is used to compare 2 Postgres databases and show the
-    differences."""
+    differences.
+    """
 
     def __init__(
         self,
@@ -36,8 +37,8 @@ class Checker:
         verbose_level: int
             verbose level, 0 -> nothing, 1 -> print first 80 char of each
             difference, 2 -> print all the difference details
-        """
 
+        """
         self.conn1 = psycopg.connect(f"service={pg_service1}")
         self.cur1 = self.conn1.cursor()
 
@@ -64,8 +65,8 @@ class Checker:
             False otherwise
         dict
             Dictionary of lists of differences
-        """
 
+        """
         result = True
         differences_dict = {}
 
@@ -112,14 +113,15 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
-        query = r"""SELECT table_schema, table_name
+        query = rf"""SELECT table_schema, table_name
                 FROM information_schema.tables
-                WHERE table_schema NOT IN {}
+                WHERE table_schema NOT IN {self.exclude_schema}
                     AND table_schema NOT LIKE 'pg\_%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name
-                """.format(self.exclude_schema)
+                """
 
         return self.__check_equals(query)
 
@@ -139,26 +141,27 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
         with_query = None
         if check_views:
-            with_query = r"""WITH table_list AS (
+            with_query = rf"""WITH table_list AS (
                          SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {es}
+                         WHERE table_schema NOT IN {self.exclude_schema}
                             AND table_schema NOT LIKE 'pg\_%'
                          ORDER BY table_schema,table_name
-                         )""".format(es=self.exclude_schema)
+                         )"""
 
         else:
-            with_query = r"""WITH table_list AS (
+            with_query = rf"""WITH table_list AS (
                          SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {es}
+                         WHERE table_schema NOT IN {self.exclude_schema}
                             AND table_schema NOT LIKE 'pg\_%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
-                         )""".format(es=self.exclude_schema)
+                         )"""
 
         query = """{wq}
                 SELECT isc.table_schema, isc.table_name, column_name,
@@ -190,6 +193,7 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
         query = f""" select
                         tc.constraint_name,
@@ -224,15 +228,16 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
-        query = r"""
+        query = rf"""
         SELECT table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
-        WHERE table_schema NOT IN {}
+        WHERE table_schema NOT IN {self.exclude_schema}
         AND table_schema NOT LIKE 'pg\_%'
         AND table_name not like 'vw_export_%'
         ORDER BY table_schema, table_name
-        """.format(self.exclude_schema)
+        """
 
         return self.__check_equals(query)
 
@@ -246,6 +251,7 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
         query = f"""
         SELECT c.relname,
@@ -268,9 +274,9 @@ class Checker:
             False otherwise
         list
             A list with the differences
-        """
 
-        query = f"""
+        """
+        query = rf"""
         select
             t.relname as table_name,
             i.relname as index_name,
@@ -309,6 +315,7 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
         query = f"""
         WITH trigger_list AS (
@@ -337,19 +344,20 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
-        query = r"""
+        query = rf"""
         SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
             routines.routine_definition
         FROM information_schema.routines
         LEFT JOIN information_schema.parameters
         ON routines.specific_name=parameters.specific_name
-        WHERE routines.specific_schema NOT IN {}
+        WHERE routines.specific_schema NOT IN {self.exclude_schema}
             AND routines.specific_schema NOT LIKE 'pg\_%'
             AND routines.specific_schema <> 'information_schema'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
-            """.format(self.exclude_schema)
+            """
 
         return self.__check_equals(query)
 
@@ -363,8 +371,9 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
-        query = r"""
+        query = rf"""
         select n.nspname as rule_schema,
         c.relname as rule_table,
         r.rulename as rule_name,
@@ -379,10 +388,10 @@ class Checker:
         join pg_class c on r.ev_class = c.oid
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
-        WHERE n.nspname NOT IN {excl}
+        WHERE n.nspname NOT IN {self.exclude_schema}
             AND n.nspname NOT LIKE 'pg\_%'
         ORDER BY n.nspname, c.relname, r.rulename, rule_event
-        """.format(excl=self.exclude_schema)
+        """
 
         return self.__check_equals(query)
 
@@ -396,6 +405,7 @@ class Checker:
             False otherwise
         list
             A list with the differences
+
         """
         self.cur1.execute(query)
         records1 = self.cur1.fetchall()

@@ -1,22 +1,23 @@
-from os.path import basename
-from packaging.version import parse as parse_version
-from pathlib import Path
 from os import listdir
-from .exceptions import PumInvalidChangelog, PumSqlError
+from os.path import basename
+from pathlib import Path
+
+from packaging.version import parse as parse_version
 from psycopg import Connection
+
+from .exceptions import PumInvalidChangelog, PumSqlError
 from .sql_content import SqlContent
 
 
 class Changelog:
-    """
-    This class represent a changelog directory.
+    """This class represent a changelog directory.
     The directory name is the version of the changelog.
     """
 
     def __init__(self, dir):
-        """
-        Args:
-            dir (str): The directory where the changelog is located.
+        """Args:
+        dir (str): The directory where the changelog is located.
+
         """
         self.dir = dir
         self.version = parse_version(basename(dir))
@@ -25,12 +26,12 @@ class Changelog:
         return f"<dir: {self.dir} (v: {self.version})>"
 
     def files(self) -> list[Path]:
-        """
-        Get the ordered list of SQL files in the changelog directory.
+        """Get the ordered list of SQL files in the changelog directory.
         This is not recursive, it only returns the files in the given changelog directory.
 
         Returns:
             list[Path]: A list of paths to the changelog files.
+
         """
         files = [
             self.dir / f
@@ -41,8 +42,7 @@ class Changelog:
         return files
 
     def validate(self, parameters: dict | None = None) -> bool:
-        """
-        Validate the changelog directory.
+        """Validate the changelog directory.
         This is done by checking if the directory exists and if it contains at least one SQL file.
 
         Args:
@@ -50,6 +50,7 @@ class Changelog:
 
         Raises:
             PumInvalidChangelog: If the changelog directory does not exist or does not contain any SQL files.
+
         """
         if not self.dir.is_dir():
             raise PumInvalidChangelog(f"Changelog directory `{self.dir}` does not exist.")
@@ -82,8 +83,7 @@ class Changelog:
         parameters: dict | None = None,
         commit: bool = True,
     ) -> list[Path]:
-        """
-        Apply a changelog
+        """Apply a changelog
         This will execute all the files in the changelog directory.
         The changelog directory is the one that contains the delta files.
 
@@ -98,6 +98,7 @@ class Changelog:
         Returns:
             list[Path]
                 The list of changelogs that were executed
+
         """
         files = self.files()
         for file in files:

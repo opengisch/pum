@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+import importlib.metadata
 import logging
 import sys
-from typing import Any
-import importlib.metadata
 from pathlib import Path
+from typing import Any
 
 import psycopg
 
@@ -34,12 +34,12 @@ def setup_logging(verbosity: int = 0):
 
 class Pum:
     def __init__(self, pg_service: str, config: str | PumConfig = None) -> None:
-        """
-        Initialize the PUM class with a database connection and configuration.
+        """Initialize the PUM class with a database connection and configuration.
 
         Args:
             pg_service (str): The name of the postgres service (defined in pg_service.conf)
             config (str | PumConfig): The configuration file path or a PumConfig object.
+
         """
         self.pg_service = pg_service
 
@@ -58,32 +58,31 @@ class Pum:
         verbose_level: int = 1,
         output_file: str | None = None,
     ) -> bool:
-        """Run the check command
+        """Run the check command.
 
-        Parameters
-        ----------
-        pg_service1: string
-            The name of the postgres service (defined in pg_service.conf)
-            related to the first db to be compared
-        pg_service2: string
-            The name of the postgres service (defined in pg_service.conf)
-            related to the first db to be compared
-        ignore_list: list of strings
-            List of elements to be ignored in check (ex. tables, columns,
-            views, ...)
-        exclude_schema: list of strings
-            List of schemas to be ignored in check.
-        exclude_field_pattern: list of strings
-            List of field patterns to be ignored in check.
-        verbose_level: int
-            verbose level, 0 -> nothing, 1 -> print first 80 char of each
-            difference, 2 -> print all the difference details
-        output_file: string
-            a file path where write the differences
+        Args:
+            pg_service1:
+                The name of the postgres service (defined in pg_service.conf)
+                related to the first db to be compared
+            pg_service2:
+                The name of the postgres service (defined in pg_service.conf)
+                related to the first db to be compared
+            ignore_list:
+                List of elements to be ignored in check (ex. tables, columns,
+                views, ...)
+            exclude_schema:
+                List of schemas to be ignored in check.
+            exclude_field_pattern:
+                List of field patterns to be ignored in check.
+            verbose_level:
+                verbose level, 0 -> nothing, 1 -> print first 80 char of each
+                difference, 2 -> print all the difference details
+            output_file:
+                a file path where write the differences
 
-        Returns
-        -------
-        True if no differences are found, False otherwise.
+        Returns:
+            True if no differences are found, False otherwise.
+
         """
         # self.__out("Check...")
         verbose_level = verbose_level or 1
@@ -204,12 +203,11 @@ class Pum:
     def run_baseline(
         self, pg_service: str, table: str, delta_dirs: list[str], baseline: str
     ) -> None:
-        """
-        Run the baseline command. Set the current database version
+        """Run the baseline command. Set the current database version
         (baseline) into the specified table.
 
         Parameters
-        -----------
+        ----------
         pg_service: str
             The name of the postgres service (defined in
             pg_service.conf)
@@ -221,6 +219,7 @@ class Pum:
         baseline: str
             The version of the current database to set in the information
             table. The baseline must be in the format x.x.x where x are numbers.
+
         """
         self.__out("Set baseline...")
         try:
@@ -245,7 +244,7 @@ class Pum:
         """Apply the delta files to upgrade the database
 
         Parameters
-        -----------
+        ----------
         pg_service: str
             The name of the postgres service (defined in pg_service.conf)
         table: str
@@ -259,6 +258,7 @@ class Pum:
             Maximum (including) version to run the deltas up to.
         verbose: bool
             Whether to display extra information
+
         """
         self.__out("Upgrade...")
         try:
@@ -279,9 +279,7 @@ class Pum:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """
-    Creates the main parser with its sub-parsers
-    """
+    """Creates the main parser with its sub-parsers"""
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
@@ -406,7 +404,8 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def cli() -> int:
+def cli() -> int:  # noqa: PLR0912
+    """Main function to run the command line interface."""
     parser = create_parser()
     args = parser.parse_args()
     setup_logging(args.verbose)
@@ -426,7 +425,7 @@ def cli() -> int:
     if args.command in ("install", "upgrade"):
         for p in args.parameter or ():
             if p[0] not in config.parameters():
-                print(f"Unknown parameter: {p[0]}")
+                print(f"Unknown parameter: {p[0]}")  # noqa: T201
                 sys.exit(1)
             if config.parameter(p[0]).type == "float":
                 parameters[p[0]] = float(p[1])
@@ -435,7 +434,8 @@ def cli() -> int:
             else:
                 parameters[p[0]] = p[1]
 
-    logging.debug(f"Parameters: {parameters}")
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Parameters: {parameters}")
 
     pum = Pum(args.pg_service, config)
     exit_code = 0
@@ -476,8 +476,8 @@ def cli() -> int:
     elif args.command == "help":
         parser.print_help()
     else:
-        print(f"Unknown command: {args.command}")
-        print("Use -h or --help for help.")
+        print(f"Unknown command: {args.command}")  # noqa: T201
+        print("Use -h or --help for help.")  # noqa: T201
         exit_code = 1
 
     return exit_code

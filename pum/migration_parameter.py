@@ -2,8 +2,7 @@ from enum import Enum
 
 
 class MigrationParameterType(Enum):
-    """
-    An enumeration of parameter types.
+    """An enumeration of parameter types.
     This class defines the types of parameters that can be used in migration definitions.
 
     Attributes:
@@ -11,6 +10,7 @@ class MigrationParameterType(Enum):
         INTEGER (str): Represents an integer parameter type.
         STRING (str): Represents a string parameter type.
         DECIMAL (str): Represents a decimal parameter type.
+
     """
 
     BOOLEAN = "boolean"
@@ -20,47 +20,47 @@ class MigrationParameterType(Enum):
 
 
 class MigrationParameterDefinition:
-    """
-    A class to define a migration parameter.
-    """
+    """A class to define a migration parameter."""
 
     def __init__(
         self,
         name: str,
         type_: str | MigrationParameterType,
-        default: str | int | float = None,
-        description: str = None,
-    ):
-        """
-        Initialize a MigrationParameterDefintion instance.
+        default: str | float | None = None,
+        description: str | None = None,
+    ) -> None:
+        """Initialize a MigrationParameterDefintion instance.
 
         Args:
-            name (str): The name of the parameter.
-            type_ (str | MigrationParameterType): The type of the parameter, as a string or MigrationParameterType.
-            default (str | int | float, optional): The default value for the parameter. Defaults to None.
-            description (str, optional): A description of the parameter. Defaults to None.
+            name: The name of the parameter.
+            type_: The type of the parameter, as a string or MigrationParameterType.
+            default: The default value for the parameter. Defaults to None.
+            description: A description of the parameter. Defaults to None.
 
         Raises:
-            ValueError: If type_ is a string and not a valid MigrationParameterType.
-            TypeError: If type_ is not a string or ParameterType.
+            ValueError: If type is a string and not a valid MigrationParameterType.
+            TypeError: If type is not a string or ParameterType.
+
         """
         self.name = name
-        if isinstance(type_, MigrationParameterType):
+        if isinstance(type, MigrationParameterType):
             self.type = type_
         elif isinstance(type_, str):
             try:
                 self.type = MigrationParameterType(type_)
             except ValueError:
-                raise ValueError(f"Invalid parameter type: {type_}")
+                raise ValueError(f"Invalid parameter type: {type_}") from None
         else:
             raise TypeError("type_ must be a str or MigrationParameterType")
         self.default = default
         self.description = description
 
-    def __repr__(self):
-        return f"MigrationParameter(name={self.name}, type={self.type}, default={self.default}, description={self.description})"
+    def __repr__(self) -> str:
+        """Return a string representation of the MigrationParameterDefinition instance."""
+        return f"MigrationParameter({self.name}, type: {self.type}, default: {self.default})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: "MigrationParameterDefinition") -> bool:
+        """Check if two MigrationParameterDefinition instances are equal."""
         if not isinstance(other, MigrationParameterDefinition):
             return NotImplemented
         return (

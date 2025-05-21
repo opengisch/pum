@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import logging
+
+import packaging
 import packaging.version
 import psycopg
-import packaging
 
 from .config import PumConfig
 from .exceptions import PumException
@@ -13,10 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 class Upgrader:
-    """
-    This class is used to upgrade an existing database using sql delta files.
-
-    Stores the info about the upgrade in a table on the database.
+    """Class to handle the upgrade of a module.
+    This class is used to install a new instance or to upgrade an existing instance of a module.
+    It stores the info about the upgrade in a table on the database.
     """
 
     def __init__(
@@ -25,9 +25,8 @@ class Upgrader:
         config: PumConfig,
         parameters: dict | None = None,
         max_version: packaging.version.Version | str | None = None,
-    ):
-        """
-        Initialize the Upgrader class.
+    ) -> None:
+        """Initialize the Upgrader class.
         This class is used to install a new instance or to upgrade an existing instance of a module.
         Stores the info about the upgrade in a table on the database.
         The table is created in the schema defined in the config file if it does not exist.
@@ -42,17 +41,16 @@ class Upgrader:
                 The parameters to pass to the SQL files.
             max_version:
                 Maximum (including) version to run the deltas up to.
-        """
 
+        """
         self.pg_service = pg_service
         self.config = config
         self.max_version = packaging.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
         self.parameters = parameters
 
-    def install(self, max_version: str | packaging.version.Version | None = None):
-        """
-        Installs the given module
+    def install(self, max_version: str | packaging.version.Version | None = None) -> None:
+        """Installs the given module
         This will create the schema_migrations table if it does not exist.
         The changelogs are applied in the order they are found in the directory.
         It will also set the baseline version to the current version of the module.
@@ -60,15 +58,19 @@ class Upgrader:
         Args:
             max_version:
                 The maximum version to apply. If None, all versions are applied.
-        """
 
+        """
         with psycopg.connect(f"service={self.pg_service}") as connection:
             if self.schema_migrations.exists(connection):
-                raise PumException(
-                    f"Schema migrations '{self.config.pum_migrations_table}' table already exists. Use upgrade() to upgrade the db or start with a clean db."
+                msg = (
+                    f"Schema migrations '{self.config.pum_migrations_table}' table already exists. "
+                    "Use upgrade() to upgrade the db or start with a clean db."
                 )
+                raise PumException(msg)
             self.schema_migrations.create(connection, commit=False)
+            last_changelog = None
             for changelog in self.config.list_changelogs(max_version=max_version):
+                last_changelog = changelog
                 changelog_files = changelog.apply(
                     connection, commit=False, parameters=self.parameters
                 )
@@ -87,5 +89,7 @@ class Upgrader:
                     )
             connection.commit()
             logger.info(
-                f"Installed {self.config.pum_migrations_table} table and applied changelogs up to version {changelog.version}"
+                "Installed %s table and applied changelogs up to version %s",
+                self.config.pum_migrations_table,
+                last_changelog.version,
             )
