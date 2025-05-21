@@ -23,6 +23,9 @@ repos:
         args:
           - --fix
           - --target-version=py310
+          - --select=ALL
+          - --ignore=COM812,ISC001  # Optionally ignore conflicting rules with ruff-format
+          - --extend-select=I001   # Ensure import sorting is enabled
         types_or:
           - python
           - pyi
