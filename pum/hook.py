@@ -12,7 +12,7 @@ from .sql_content import SqlContent
 logger = logging.getLogger(__name__)
 
 
-class MigrationHookType(Enum):
+class HookType(Enum):
     """Enum for migration hook types.
 
     Attributes:
@@ -25,16 +25,16 @@ class MigrationHookType(Enum):
     POST = "post"
 
 
-class MigrationHook:
+class Hook:
     """Base class for migration hooks."""
 
     def __init__(
         self,
-        type_: str | MigrationHookType,
+        type_: str | HookType,
         file: str | Path | None = None,
         code: str | None = None,
     ) -> None:
-        """Initialize a MigrationHook instance.
+        """Initialize a Hook instance.
 
         Args:
             type_: The type of the hook (e.g., "pre", "post").
@@ -45,7 +45,7 @@ class MigrationHook:
         if file and code:
             raise ValueError("Cannot specify both file and code. Choose one.")
 
-        self.type = type_ if isinstance(type_, MigrationHookType) else MigrationHookType(type_)
+        self.type = type_ if isinstance(type_, HookType) else HookType(type_)
         self.file = file if isinstance(file, Path) else Path(file) if file else None
         self.code = code
 
@@ -67,12 +67,12 @@ class MigrationHook:
                 raise PumHookError(f"Hook function 'run_hook' not found in {self.file}.")
 
     def __repr__(self) -> str:
-        """Return a string representation of the MigrationHook instance."""
+        """Return a string representation of the Hook instance."""
         return f"<{self.type.value} hook: {self.file}>"
 
-    def __eq__(self, other: "MigrationHook") -> bool:
-        """Check if two MigrationHook instances are equal."""
-        if not isinstance(other, MigrationHook):
+    def __eq__(self, other: "Hook") -> bool:
+        """Check if two Hook instances are equal."""
+        if not isinstance(other, Hook):
             return NotImplemented
         return self.type == other.type and self.file == other.file
 

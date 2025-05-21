@@ -5,7 +5,7 @@ from packaging.version import parse as parse_version
 
 from pum.config import PumConfig
 from pum.exceptions import PumConfigError
-from pum.migration_hook import MigrationHook, MigrationHookType
+from pum.hook import Hook, HookType
 
 
 class TestConfig(unittest.TestCase):
@@ -62,8 +62,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(
             cfg.post_hooks,
             [
-                MigrationHook(
-                    MigrationHookType.POST,
+                Hook(
+                    HookType.POST,
                     "test/data/pre_post_sql_files/post/create_view.sql",
                 )
             ],
@@ -71,8 +71,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(
             cfg.pre_hooks,
             [
-                MigrationHook(
-                    MigrationHookType.PRE,
+                Hook(
+                    HookType.PRE,
                     "test/data/pre_post_sql_files/pre/drop_view.sql",
                 )
             ],

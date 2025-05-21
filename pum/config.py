@@ -5,8 +5,8 @@ from packaging.version import parse as parse_version
 
 from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
-from .migration_hook import MigrationHook, MigrationHookType
-from .migration_parameter import MigrationParameterDefinition
+from .hook import Hook, HookType
+from .parameter import ParameterDefinition
 
 
 class PumConfig:
@@ -46,17 +46,17 @@ class PumConfig:
                 type_ = p.get("type")
                 default = p.get("default")
                 description = p.get("description")
-                self.parameter_definitions[name] = MigrationParameterDefinition(
+                self.parameter_definitions[name] = ParameterDefinition(
                     name=name,
                     type_=type_,
                     default=default,
                     description=description,
                 )
-            elif isinstance(p, MigrationParameterDefinition):
+            elif isinstance(p, ParameterDefinition):
                 self.parameter_definitions[p.name] = p
             else:
                 raise PumConfigError(
-                    "parameters must be a list of dictionaries or MigrationParameterDefintion instances"
+                    "parameters must be a list of dictionaries or ParameterDefintion instances"
                 )
 
         # Migration hooks
@@ -66,8 +66,8 @@ class PumConfig:
         pre_hook_defintions = migration_hooks.get("pre", [])
         post_hook_defintions = migration_hooks.get("post", [])
         for hook_type, hook_definitions in (
-            (MigrationHookType.PRE, pre_hook_defintions),
-            (MigrationHookType.POST, post_hook_defintions),
+            (HookType.PRE, pre_hook_defintions),
+            (HookType.POST, post_hook_defintions),
         ):
             for hook_definition in hook_definitions:
                 hook = None
@@ -79,15 +79,15 @@ class PumConfig:
                         path = self.dir / path
                     if not path.exists():
                         raise PumConfigError(f"hook file {path} does not exist")
-                    hook = MigrationHook(type_=hook_type, file=path)
+                    hook = Hook(type_=hook_type, file=path)
                 elif isinstance(hook_definition.get("code"), str):
-                    hook = MigrationHook(type_=hook_type, code=hook_definition.get("code"))
+                    hook = Hook(type_=hook_type, code=hook_definition.get("code"))
                 else:
                     raise PumConfigError("invalid hook configuration")
-                assert isinstance(hook, MigrationHook)
-                if hook_type == MigrationHookType.PRE:
+                assert isinstance(hook, Hook)
+                if hook_type == HookType.PRE:
                     self.pre_hooks.append(hook)
-                elif hook_type == MigrationHookType.POST:
+                elif hook_type == HookType.POST:
                     self.post_hooks.append(hook)
                 else:
                     raise PumConfigError(f"Invalid hook type: {hook_type}")
@@ -100,24 +100,24 @@ class PumConfig:
                     f"Configuration is invalid: {e}. You can disable the validation when constructing the config."
                 ) from e
 
-    def parameters(self) -> dict[str, MigrationParameterDefinition]:
+    def parameters(self) -> dict[str, ParameterDefinition]:
         """Get all migration parameters as a dictionary.
 
         Returns:
-            dict[str, MigrationParameterDefintion]: A dictionary of migration parameters.
-            The keys are parameter names, and the values are MigrationParameterDefintion instances.
+            dict[str, ParameterDefintion]: A dictionary of migration parameters.
+            The keys are parameter names, and the values are ParameterDefintion instances.
 
         """
         return self.parameter_definitions
 
-    def parameter(self, name: str) -> MigrationParameterDefinition:
+    def parameter(self, name: str) -> ParameterDefinition:
         """Get a specific migration parameter by name.
 
         Args:
             name: The name of the parameter.
 
         Returns:
-            MigrationParameterDefintion: The migration parameter definition.
+            ParameterDefintion: The migration parameter definition.
 
         Raises:
             PumConfigError: If the parameter name does not exist.
