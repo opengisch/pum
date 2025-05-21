@@ -75,7 +75,7 @@ class TestUpgrader(unittest.TestCase):
         """Test the installation of parameters."""
         test_dir = Path("test") / "data" / "parameters"
         config_path = test_dir / ".pum.yaml"
-        cfg = PumConfig.from_yaml(str(config_path))
+        cfg = PumConfig.from_yaml(config_path)
         self.assertEqual(
             cfg.parameters()["SRID"],
             MigrationParameterDefinition(
@@ -103,7 +103,7 @@ class TestUpgrader(unittest.TestCase):
         """Test the installation of a custom directory."""
         test_dir = Path("test") / "data" / "custom_directory"
         config_path = test_dir / ".pum.yaml"
-        cfg = PumConfig.from_yaml(str(config_path))
+        cfg = PumConfig.from_yaml(config_path)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
@@ -117,7 +117,7 @@ class TestUpgrader(unittest.TestCase):
         """Test the installation of a custom migration table."""
         test_dir = Path("test") / "data" / "custom_migration_schema"
         config_path = test_dir / ".pum.yaml"
-        cfg = PumConfig.from_yaml(str(config_path))
+        cfg = PumConfig.from_yaml(config_path)
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
