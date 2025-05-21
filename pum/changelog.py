@@ -2,7 +2,7 @@ from os.path import basename
 from packaging.version import parse as parse_version
 from pathlib import Path
 from os import listdir
-from .exceptions import PumInvalidChangelog, PumSqlException, PumInvalidSqlFile
+from .exceptions import PumInvalidChangelog, PumSqlError
 from psycopg import Connection
 from .sql_content import SqlContent
 
@@ -65,7 +65,7 @@ class Changelog:
                 raise PumInvalidChangelog(f"Changelog file `{file}` is not a SQL file.")
             try:
                 SqlContent(file).validate(parameters=parameters)
-            except PumInvalidSqlFile as e:
+            except PumSqlError as e:
                 raise PumInvalidChangelog(
                     f"Changelog file `{file}` is not a valid SQL file."
                 ) from e
@@ -105,6 +105,6 @@ class Changelog:
                 SqlContent(file).execute(
                     connection=connection, commit=commit, parameters=parameters
                 )
-            except PumSqlException as e:
-                raise PumSqlException(f"Error applying changelog {file}: {e}") from e
+            except PumSqlError as e:
+                raise PumSqlError(f"Error applying changelog {file}: {e}") from e
         return files

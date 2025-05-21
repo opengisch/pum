@@ -5,7 +5,7 @@ from .exceptions import (
     PumHookError,
     PumException,
     PumInvalidChangelog,
-    PumSqlException,
+    PumSqlError,
 )
 from .migration_hook import MigrationHook, MigrationHookType
 from pathlib import Path
@@ -222,7 +222,7 @@ class PumConfig:
         for changelog in self.list_changelogs():
             try:
                 changelog.validate(parameters=parameters)
-            except (PumInvalidChangelog, PumSqlException) as e:
+            except (PumInvalidChangelog, PumSqlError) as e:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
         for hook in self.pre_hooks + self.post_hooks:
             try:

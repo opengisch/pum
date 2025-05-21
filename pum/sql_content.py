@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 import psycopg
-from .exceptions import PumInvalidSqlFile, PumSqlException
+from .exceptions import PumSqlError
 import re
 
 
@@ -38,9 +38,7 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
         forbidden_statements = ["BEGIN;", "COMMIT;"]
         for forbidden in forbidden_statements:
             if re.search(rf"\b{forbidden[:-1]}\b\s*;", sql_content, re.IGNORECASE):
-                raise PumInvalidSqlFile(
-                    f"SQL contains forbidden transaction statement: {forbidden}"
-                )
+                raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql):
             pattern = r'(?:[^;\'"]|\'[^\']*\'|"[^"]*")*;'
@@ -89,7 +87,7 @@ class SqlContent:
             bool: True if valid, False otherwise.
         """
         if not self.sql:
-            raise PumSqlException("SQL content is empty.")
+            raise PumSqlError("SQL content is empty.")
         self._prepare_sql(parameters)
         return True
 
@@ -115,7 +113,7 @@ class SqlContent:
             try:
                 statement = statement.as_string(connection)
             except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
-                raise PumSqlException(
+                raise PumSqlError(
                     f"SQL execution failed for the following code: {statement} {e}"
                 ) from e
             cursor.execute(statement)
@@ -137,7 +135,7 @@ class SqlContent:
             list: A list of prepared SQL statements.
 
         Raises:
-            PumSqlException: If SQL preparation fails.
+            PumSqlError: If SQL preparation fails.
         """
         if isinstance(self.sql, Path):
             logger.debug(
@@ -158,7 +156,7 @@ class SqlContent:
                 # if parameters is None, we can ignore this error
                 return statement
             except KeyError as e:
-                raise PumSqlException(
+                raise PumSqlError(
                     f"SQL preparation failed for the following code: missing parameter: {statement} {e}"
                 ) from e
 

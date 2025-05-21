@@ -1,24 +1,11 @@
+# Base exception for all PUM errors
 class PumException(Exception):
     """Base class for all exceptions raised by PUM."""
 
     pass
 
 
-class PumSqlException(PumException):
-    """Exception raised for SQL-related errors in PUM.
-
-    Attributes:
-        message (str): Explanation of the error.
-    """
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class PumInvalidChangelog(PumException):
-    """Exception raised for invalid changelog."""
-
-    pass
+# --- Configuration and Validation Errors ---
 
 
 class PumConfigError(PumException):
@@ -27,16 +14,13 @@ class PumConfigError(PumException):
     pass
 
 
-class PumMigrationError(PumException):
-    """Exception raised for errors in the PUM migration process."""
+class PumInvalidChangelog(PumException):
+    """Exception raised for invalid changelog."""
 
     pass
 
 
-class PumVersionError(PumException):
-    """Exception raised for version-related errors in PUM."""
-
-    pass
+# --- Hook Errors ---
 
 
 class PumHookError(PumException):
@@ -45,7 +29,37 @@ class PumHookError(PumException):
     pass
 
 
-class PumInvalidSqlFile(PumException):
-    """Exception raised for invalid SQL files."""
+# --- Changelog/SQL Errors ---
+
+
+class PumSqlError(PumException):
+    """Exception raised for SQL-related errors in PUM."""
+
+    pass
+
+
+# --- Dump/Restore Errors (for dumper.py, if needed) ---
+
+
+class PgDumpCommandError(PumException):
+    """Exception raised for invalid pg_dump command."""
+
+    pass
+
+
+class PgDumpFailed(PumException):
+    """Exception raised when pg_dump fails."""
+
+    pass
+
+
+class PgRestoreCommandError(PumException):
+    """Exception raised for invalid pg_restore command."""
+
+    pass
+
+
+class PgRestoreFailed(PumException):
+    """Exception raised when pg_restore fails."""
 
     pass
