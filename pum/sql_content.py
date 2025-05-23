@@ -76,7 +76,9 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
 
         sql_code = split_sql_statements(sql_content)
 
-        sql_code = [re.sub(r"[\r\n]+", " ", stmt) for stmt in sql_code]
+        # if we want to remove new lines from the SQL code, we need to handle comments starting with --
+        # and remove them before removing new lines
+        # sql_code = [re.sub(r"[\r\n]+", " ", stmt) for stmt in sql_code]
         sql_code = [psycopg.sql.SQL(stmt) for stmt in sql_code]
 
     return sql_code
@@ -134,8 +136,12 @@ class SqlContent:
                 raise PumSqlError(
                     f"SQL execution failed for the following code: {statement} {e}"
                 ) from e
-            cursor.execute(statement)
-
+            try:
+                cursor.execute(statement)
+            except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
+                raise PumSqlError(
+                    f"SQL execution failed for the following code: {statement} {e}"
+                ) from e
         if commit:
             connection.commit()
 
