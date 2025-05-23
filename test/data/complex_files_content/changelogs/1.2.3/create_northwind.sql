@@ -42,6 +42,13 @@ BEGIN
 END;
 $BODY$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION pum_test_data.random_between_body_lc(min_val INT, max_val INT)
+RETURNS INT AS $body$
+BEGIN
+  RETURN floor(random() * (max_val - min_val + 1) + min_val)::INT;
+END;
+$body$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION pum_test_data.random_between_do(min_val INT, max_val INT)
 RETURNS INT AS $DO$
 BEGIN

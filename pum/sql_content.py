@@ -53,9 +53,9 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql: str) -> list[str]:
-            """Split SQL statements by semicolon, ignoring those inside quotes and BODY/DO blocks, and any $$...$$ blocks."""
+            """Split SQL statements by semicolon, ignoring those inside quotes and BODY/DO blocks, and any $$...$$ blocks. Handles case-insensitive $body$ and $do$."""
             body_blocks = []
-            # Regex for $$BODY$$, $BODY$, $$DO$$, $DO$, and generic $$...$$ blocks
+            # Regex for $$BODY$$, $BODY$, $$DO$$, $DO$, and generic $$...$$ blocks, all case-insensitive
             block_pattern = (
                 r"(\$\$BODY\$\$.*?\$\$BODY\$\$"  # $$BODY$$ ... $$BODY$$
                 r"|\$BODY\$.*?\$BODY\$"  # $BODY$ ... $BODY$
@@ -69,10 +69,12 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 body_blocks.append(match.group(0))
                 return f"__BLOCK_{len(body_blocks) - 1}__"
 
-            sql_wo_blocks = re.sub(block_pattern, block_replacer, sql, flags=re.DOTALL)
+            sql_wo_blocks = re.sub(
+                block_pattern, block_replacer, sql, flags=re.DOTALL | re.IGNORECASE
+            )
 
             # Split outside of BODY/DO/$$ blocks (ignoring semicolons in quotes)
-            pattern = r'(?:[^;\'\"]|\'[^\']*\'|"[^"]*")*;'
+            pattern = r'(?:[^;\'\"]|\'[^\']*\'|"[^\"]*")*;'
             matches = re.finditer(pattern, sql_wo_blocks, re.DOTALL)
             statements = []
             last_end = 0
