@@ -53,37 +53,36 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql: str) -> list[str]:
-            """Split SQL statements by semicolon, ignoring those inside quotes and $$BODY$$/$BODY$ blocks."""
-            # Find all $$BODY$$ ... $$BODY$$ and $BODY$ ... $BODY$ blocks and replace them with placeholders
+            """Split SQL statements by semicolon, ignoring those inside quotes and BODY/DO blocks."""
             body_blocks = []
-            # Regex for both $$BODY$$ and $BODY$
-            body_pattern = r"(\$\$BODY\$\$.*?\$\$BODY\$\$|\$BODY\$.*?\$BODY\$)"
+            # Regex for $$BODY$$, $BODY$, $$DO$$, $DO$
+            block_pattern = r"(\$\$BODY\$\$.*?\$\$BODY\$\$|\$BODY\$.*?\$BODY\$|\$\$DO\$\$.*?\$\$DO\$\$|\$DO\$.*?\$DO\$)"
 
-            def body_replacer(match):
+            def block_replacer(match):
                 body_blocks.append(match.group(0))
-                return f"__BODY_BLOCK_{len(body_blocks) - 1}__"
+                return f"__BLOCK_{len(body_blocks) - 1}__"
 
-            sql_wo_body = re.sub(body_pattern, body_replacer, sql, flags=re.DOTALL)
+            sql_wo_blocks = re.sub(block_pattern, block_replacer, sql, flags=re.DOTALL)
 
-            # Split outside of BODY blocks (ignoring semicolons in quotes)
+            # Split outside of BODY/DO blocks (ignoring semicolons in quotes)
             pattern = r'(?:[^;\'\"]|\'[^\']*\'|"[^"]*")*;'
-            matches = re.finditer(pattern, sql_wo_body, re.DOTALL)
+            matches = re.finditer(pattern, sql_wo_blocks, re.DOTALL)
             statements = []
             last_end = 0
             for match in matches:
                 end = match.end()
-                statements.append(sql_wo_body[last_end : end - 1].strip())
+                statements.append(sql_wo_blocks[last_end : end - 1].strip())
                 last_end = end
-            if last_end < len(sql_wo_body):
-                statements.append(sql_wo_body[last_end:].strip())
+            if last_end < len(sql_wo_blocks):
+                statements.append(sql_wo_blocks[last_end:].strip())
 
-            # Restore BODY blocks
-            def restore_body(stmt):
-                for i, body in enumerate(body_blocks):
-                    stmt = stmt.replace(f"__BODY_BLOCK_{i}__", body)
+            # Restore BODY/DO blocks
+            def restore_block(stmt):
+                for i, block in enumerate(body_blocks):
+                    stmt = stmt.replace(f"__BLOCK_{i}__", block)
                 return stmt
 
-            return [restore_body(stmt) for stmt in statements if stmt]
+            return [restore_block(stmt) for stmt in statements if stmt]
 
         sql_code = split_sql_statements(sql_content)
 
