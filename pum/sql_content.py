@@ -53,10 +53,17 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql: str) -> list[str]:
-            """Split SQL statements by semicolon, ignoring those inside quotes and BODY/DO blocks."""
+            """Split SQL statements by semicolon, ignoring those inside quotes and BODY/DO blocks, and any $$...$$ blocks."""
             body_blocks = []
-            # Regex for $$BODY$$, $BODY$, $$DO$$, $DO$
-            block_pattern = r"(\$\$BODY\$\$.*?\$\$BODY\$\$|\$BODY\$.*?\$BODY\$|\$\$DO\$\$.*?\$\$DO\$\$|\$DO\$.*?\$DO\$)"
+            # Regex for $$BODY$$, $BODY$, $$DO$$, $DO$, and generic $$...$$ blocks
+            block_pattern = (
+                r"(\$\$BODY\$\$.*?\$\$BODY\$\$"  # $$BODY$$ ... $$BODY$$
+                r"|\$BODY\$.*?\$BODY\$"  # $BODY$ ... $BODY$
+                r"|\$\$DO\$\$.*?\$\$DO\$\$"  # $$DO$$ ... $$DO$$
+                r"|\$DO\$.*?\$DO\$"  # $DO$ ... $DO$
+                r"|\$\$.*?\$\$"  # generic $$ ... $$
+                r")"
+            )
 
             def block_replacer(match):
                 body_blocks.append(match.group(0))
@@ -64,7 +71,7 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
 
             sql_wo_blocks = re.sub(block_pattern, block_replacer, sql, flags=re.DOTALL)
 
-            # Split outside of BODY/DO blocks (ignoring semicolons in quotes)
+            # Split outside of BODY/DO/$$ blocks (ignoring semicolons in quotes)
             pattern = r'(?:[^;\'\"]|\'[^\']*\'|"[^"]*")*;'
             matches = re.finditer(pattern, sql_wo_blocks, re.DOTALL)
             statements = []
@@ -76,7 +83,7 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
             if last_end < len(sql_wo_blocks):
                 statements.append(sql_wo_blocks[last_end:].strip())
 
-            # Restore BODY/DO blocks
+            # Restore BODY/DO/$$ blocks
             def restore_block(stmt):
                 for i, block in enumerate(body_blocks):
                     stmt = stmt.replace(f"__BLOCK_{i}__", block)
