@@ -20,3 +20,11 @@ ALTER TABLE mytable ADD COLUMN newcol2 varchar (16); */
 -- This is a comment with a semicolon; and a quote ' and a backslash \
 
 COMMENT ON TABLE pum_test_data.some_table IS 'Une table écrite en français avec un commentaire contenant un point-virgule ; et une apostrophe '' et un antislash \\';
+
+
+CREATE OR REPLACE FUNCTION pum_test_data.random_between(min_val INT, max_val INT)
+RETURNS INT AS $BODY$
+BEGIN
+  RETURN floor(random() * (max_val - min_val + 1) + min_val)::INT;
+END;
+$BODY$ LANGUAGE plpgsql;

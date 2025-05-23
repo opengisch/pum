@@ -53,26 +53,37 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql: str) -> list[str]:
-            """Split SQL statements by semicolon, ignoring those inside quotes.
+            """Split SQL statements by semicolon, ignoring those inside quotes and $$BODY$$/$BODY$ blocks."""
+            # Find all $$BODY$$ ... $$BODY$$ and $BODY$ ... $BODY$ blocks and replace them with placeholders
+            body_blocks = []
+            # Regex for both $$BODY$$ and $BODY$
+            body_pattern = r"(\$\$BODY\$\$.*?\$\$BODY\$\$|\$BODY\$.*?\$BODY\$)"
 
-            Args:
-                sql (str): The SQL string to split.
+            def body_replacer(match):
+                body_blocks.append(match.group(0))
+                return f"__BODY_BLOCK_{len(body_blocks) - 1}__"
 
-            Returns:
-                list[str]: A list of SQL statements.
+            sql_wo_body = re.sub(body_pattern, body_replacer, sql, flags=re.DOTALL)
 
-            """
-            pattern = r'(?:[^;\'"]|\'[^\']*\'|"[^"]*")*;'
-            matches = re.finditer(pattern, sql, re.DOTALL)
+            # Split outside of BODY blocks (ignoring semicolons in quotes)
+            pattern = r'(?:[^;\'\"]|\'[^\']*\'|"[^"]*")*;'
+            matches = re.finditer(pattern, sql_wo_body, re.DOTALL)
             statements = []
             last_end = 0
             for match in matches:
                 end = match.end()
-                statements.append(sql[last_end : end - 1].strip())
+                statements.append(sql_wo_body[last_end : end - 1].strip())
                 last_end = end
-            if last_end < len(sql):
-                statements.append(sql[last_end:].strip())
-            return [stmt for stmt in statements if stmt]
+            if last_end < len(sql_wo_body):
+                statements.append(sql_wo_body[last_end:].strip())
+
+            # Restore BODY blocks
+            def restore_body(stmt):
+                for i, body in enumerate(body_blocks):
+                    stmt = stmt.replace(f"__BODY_BLOCK_{i}__", body)
+                return stmt
+
+            return [restore_body(stmt) for stmt in statements if stmt]
 
         sql_code = split_sql_statements(sql_content)
 
