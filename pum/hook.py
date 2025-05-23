@@ -1,10 +1,10 @@
 import importlib.util
 import inspect
 import logging
+import sys
+from psycopg import Connection
 from enum import Enum
 from pathlib import Path
-
-from psycopg import Connection
 
 from .exceptions import PumHookError
 from .sql_content import SqlContent
@@ -50,9 +50,19 @@ class Hook:
         self.code = code
 
         if self.file and self.file.suffix == ".py":
-            spec = importlib.util.spec_from_file_location(self.file.stem, self.file)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            # Support local imports in hook files by adding parent dir to sys.path
+            parent_dir = str(self.file.parent.resolve())
+            sys_path_modified = False
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+                sys_path_modified = True
+            try:
+                spec = importlib.util.spec_from_file_location(self.file.stem, self.file)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            finally:
+                if sys_path_modified:
+                    sys.path.remove(parent_dir)
             if hasattr(module, "run_hook"):
                 run_hook = module.run_hook
                 arg_names = list(inspect.signature(run_hook).parameters.keys())

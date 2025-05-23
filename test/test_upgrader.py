@@ -263,6 +263,23 @@ class TestUpgrader(unittest.TestCase):
         comment = cursor.fetchone()[0]
         self.assertEqual(comment, "how cool")
 
+    def test_pre_post_python_local_import(self) -> None:
+        """Test the pre and post python hooks with local import."""
+        test_dir = Path("test") / "data" / "pre_post_python_local_import"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(pg_service=self.pg_service, config=cfg)
+        upgrader.install()
+        self.assertTrue(sm.exists(self.conn))
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.views "
+            "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+        )
+        exists = cursor.fetchone()[0]
+        self.assertTrue(exists)
+
 
 if __name__ == "__main__":
     unittest.main()
