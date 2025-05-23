@@ -78,6 +78,11 @@ def run_hook(connection: Connection, srid: int):
     execute_sql(connection=connection, sql=sql_code)
 ```
 
+
+> **Note:**  
+> Local imports within the hook file are supported. The parent directory of the hook file is temporarily added to `sys.path` during execution, so you can use local imports in your hook scripts. Ensure your hook files and their dependencies are structured accordingly.
+
+
 ## Data and application isoltion
 
 We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
