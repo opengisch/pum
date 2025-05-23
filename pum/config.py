@@ -69,28 +69,29 @@ class PumConfig:
             (HookType.PRE, pre_hook_defintions),
             (HookType.POST, post_hook_defintions),
         ):
-            for hook_definition in hook_definitions:
-                hook = None
-                if not isinstance(hook_definition, dict):
-                    raise PumConfigError("hook must be a list of key-value pairs")
-                if isinstance(hook_definition.get("file"), str):
-                    path = Path(hook_definition.get("file"))
-                    if not path.is_absolute():
-                        path = self.dir / path
-                    if not path.exists():
-                        raise PumConfigError(f"hook file {path} does not exist")
-                    hook = Hook(type_=hook_type, file=path)
-                elif isinstance(hook_definition.get("code"), str):
-                    hook = Hook(type_=hook_type, code=hook_definition.get("code"))
-                else:
-                    raise PumConfigError("invalid hook configuration")
-                assert isinstance(hook, Hook)
-                if hook_type == HookType.PRE:
-                    self.pre_hooks.append(hook)
-                elif hook_type == HookType.POST:
-                    self.post_hooks.append(hook)
-                else:
-                    raise PumConfigError(f"Invalid hook type: {hook_type}")
+            if hook_definitions:
+                for hook_definition in hook_definitions:
+                    hook = None
+                    if not isinstance(hook_definition, dict):
+                        raise PumConfigError("hook must be a list of key-value pairs")
+                    if isinstance(hook_definition.get("file"), str):
+                        path = Path(hook_definition.get("file"))
+                        if not path.is_absolute():
+                            path = self.dir / path
+                        if not path.exists():
+                            raise PumConfigError(f"hook file {path} does not exist")
+                        hook = Hook(type_=hook_type, file=path)
+                    elif isinstance(hook_definition.get("code"), str):
+                        hook = Hook(type_=hook_type, code=hook_definition.get("code"))
+                    else:
+                        raise PumConfigError("invalid hook configuration")
+                    assert isinstance(hook, Hook)
+                    if hook_type == HookType.PRE:
+                        self.pre_hooks.append(hook)
+                    elif hook_type == HookType.POST:
+                        self.post_hooks.append(hook)
+                    else:
+                        raise PumConfigError(f"Invalid hook type: {hook_type}")
 
         if validate:
             try:
