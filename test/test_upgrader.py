@@ -130,6 +130,10 @@ class TestUpgrader(unittest.TestCase):
         srid = self.cur.fetchone()[0]
         self.assertEqual(srid, 2056)
 
+    @unittest.skipIf(
+        os.name == "nt" and os.getenv("CI") == "true",
+        "Test not supported on Windows CI (postgis not installed)",
+    )
     def test_parameters_injection(self) -> None:
         """Test the installation of parameters with SQL injection."""
         test_dir = Path("test") / "data" / "parameters"
