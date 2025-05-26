@@ -114,7 +114,7 @@ class SchemaMigrations:
                 distinct schemas. Default is false.
         """
         if self.exists(connection):
-            logger.debug(f"{self.config.pum_migrations_table} table already exists")
+            logger.info(f"{self.config.pum_migrations_table} table already exists")
             return
 
         if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
