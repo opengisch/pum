@@ -148,6 +148,12 @@ class TestUpgrader(unittest.TestCase):
                 "default_integer_value": 1806,
             }
         )
+        # Assert that pum_test_data.some_table2 exists (i.e., SQL injection did not drop it)
+        self.cur.execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pum_test_data' AND table_name = 'some_table2');"
+        )
+        exists = self.cur.fetchone()[0]
+        self.assertTrue(exists)
 
     def test_install_custom_directory(self) -> None:
         """Test the installation of a custom directory."""

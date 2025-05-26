@@ -153,9 +153,10 @@ class SqlContent:
                 statement = sql_code.as_string(connection)
             except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
                 raise PumSqlError(
-                    f"SQL execution failed for the following code: {statement} {e}"
+                    f"SQL preparation failed for the following code: {statement} {e}"
                 ) from e
             try:
+                logger.debug(f"Executing SQL statement: {statement}")
                 cursor.execute(statement)
             except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
                 raise PumSqlError(
