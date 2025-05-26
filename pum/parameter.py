@@ -50,7 +50,7 @@ class ParameterDefinition:
             try:
                 self.type = ParameterType(type_)
             except ValueError:
-                raise ValueError(f"Invalid parameter type: {type_}") from None
+                raise ValueError(f"Parameter '{name}' has an invalid type: {type_}. ") from None
         else:
             raise TypeError("type_ must be a str or ParameterType")
         self.default = psycopg.sql.Literal(default)
