@@ -1,7 +1,7 @@
 
 parameters:
   - name: my_comment
-    type: string
+    type: text
     default: "This is a comment"
 
 

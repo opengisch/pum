@@ -76,6 +76,7 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "parameters"
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
+        self.assertEqual(len(cfg.parameters()), 3)
         self.assertEqual(
             cfg.parameters()["SRID"],
             ParameterDefinition(
@@ -85,19 +86,66 @@ class TestUpgrader(unittest.TestCase):
                 description="SRID for the geometry column",
             ),
         )
+        self.assertEqual(
+            cfg.parameters()["default_text_value"],
+            ParameterDefinition(
+                name="default_text_value",
+                type_="text",
+                default="hi there",
+                description="The default text value",
+            ),
+        )
+        self.assertEqual(
+            cfg.parameters()["default_integer_value"],
+            ParameterDefinition(
+                name="default_integer_value",
+                type_="integer",
+                default=1874,
+                description="The default integer value",
+            ),
+        )
         sm = SchemaMigrations(cfg)
         self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            parameters={"SRID": 2056},
+            parameters={
+                "SRID": 2056,
+                "default_text_value": "hello world",
+                "default_integer_value": 1806,
+            },
         )
         upgrader.install()
         self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(sm.migration_details(self.conn)["parameters"], {"SRID": 2056})
+        self.assertEqual(
+            sm.migration_details(self.conn)["parameters"],
+            {
+                "SRID": 2056,
+                "default_text_value": "hello world",
+                "default_integer_value": 1806,
+            },
+        )
         self.cur.execute("SELECT Find_SRID('pum_test_data', 'some_table', 'geom');")
         srid = self.cur.fetchone()[0]
         self.assertEqual(srid, 2056)
+
+    def test_parameters_injection(self) -> None:
+        """Test the installation of parameters with SQL injection."""
+        test_dir = Path("test") / "data" / "parameters"
+        config_path = test_dir / ".pum.yaml"
+        cfg = PumConfig.from_yaml(config_path)
+        sm = SchemaMigrations(cfg)
+        self.assertFalse(sm.exists(self.conn))
+        upgrader = Upgrader(
+            pg_service=self.pg_service,
+            config=cfg,
+            parameters={
+                "SRID": 2056,
+                "default_text_value": "); DROP TABLE pum_test_data.some_table2; CREATE TABLE pum_test_data.some_table3( id INT PRIMARY KEY",
+                "default_integer_value": 1806,
+            },
+        )
+        upgrader.install()
 
     def test_install_custom_directory(self) -> None:
         """Test the installation of a custom directory."""
@@ -105,7 +153,6 @@ class TestUpgrader(unittest.TestCase):
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,

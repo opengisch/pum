@@ -4,3 +4,13 @@ parameters:
     type: integer
     default: 2056
     description: SRID for the geometry column
+
+  - name: default_text_value
+    type: text
+    default: hi there
+    description: The default text value
+
+  - name: default_integer_value
+    type: integer
+    default: 1874
+    description: The default integer value

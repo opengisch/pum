@@ -8,14 +8,14 @@ class ParameterType(Enum):
     Attributes:
         BOOLEAN (str): Represents a boolean parameter type.
         INTEGER (str): Represents an integer parameter type.
-        STRING (str): Represents a string parameter type.
+        TEXT (str): Represents a text parameter type.
         DECIMAL (str): Represents a decimal parameter type.
 
     """
 
     BOOLEAN = "boolean"
     INTEGER = "integer"
-    STRING = "string"
+    TEXT = "text"
     DECIMAL = "decimal"
 
 
