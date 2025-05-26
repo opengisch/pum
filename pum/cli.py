@@ -443,8 +443,8 @@ def cli() -> int:  # noqa: PLR0912
     if args.command == "info":
         run_info(args.pg_service, config)
     elif args.command == "install":
-        Upgrader(args.pg_service, config=config, parameters=parameters).install(
-            max_version=args.max_version
+        Upgrader(args.pg_service, config=config).install(
+            parameters=parameters, max_version=args.max_version
         )
     elif args.command == "check":
         success = pum.run_check(
