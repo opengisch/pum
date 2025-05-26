@@ -5,6 +5,7 @@ import logging
 import packaging
 import packaging.version
 import psycopg
+import copy
 
 from .config import PumConfig
 from .exceptions import PumException
@@ -23,7 +24,6 @@ class Upgrader:
         self,
         pg_service: str,
         config: PumConfig,
-        parameters: dict | None = None,
         max_version: packaging.version.Version | str | None = None,
     ) -> None:
         """Initialize the Upgrader class.
@@ -37,8 +37,6 @@ class Upgrader:
                 related to the db
             config:
                 The configuration object
-            parameters:
-                The parameters to pass to the SQL files.
             max_version:
                 Maximum (including) version to run the deltas up to.
 
@@ -47,19 +45,29 @@ class Upgrader:
         self.config = config
         self.max_version = packaging.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
-        self.parameters = parameters
 
-    def install(self, max_version: str | packaging.version.Version | None = None) -> None:
+    def install(
+        self,
+        *,
+        parameters: dict | None = None,
+        max_version: str | packaging.version.Version | None = None,
+    ) -> None:
         """Installs the given module
         This will create the schema_migrations table if it does not exist.
         The changelogs are applied in the order they are found in the directory.
         It will also set the baseline version to the current version of the module.
 
         Args:
+            parameters:
+                The parameters to pass for the migration.
             max_version:
                 The maximum version to apply. If None, all versions are applied.
 
         """
+        parameters_literals = copy.deepcopy(parameters) if parameters else {}
+        for key, value in parameters_literals.items():
+            parameters_literals[key] = psycopg.sql.Literal(value)
+
         with psycopg.connect(f"service={self.pg_service}") as connection:
             if self.schema_migrations.exists(connection):
                 msg = (
@@ -72,7 +80,7 @@ class Upgrader:
             for changelog in self.config.list_changelogs(max_version=max_version):
                 last_changelog = changelog
                 changelog_files = changelog.apply(
-                    connection, commit=False, parameters=self.parameters
+                    connection, commit=False, parameters=parameters_literals
                 )
                 changelog_files = [str(f) for f in changelog_files]
                 self.schema_migrations.set_baseline(
@@ -81,11 +89,11 @@ class Upgrader:
                     beta_testing=False,
                     commit=False,
                     changelog_files=changelog_files,
-                    parameters=self.parameters,
+                    parameters=parameters,
                 )
                 for post_hook in self.config.post_hooks:
                     post_hook.execute(
-                        connection=connection, commit=False, parameters=self.parameters
+                        connection=connection, commit=False, parameters=parameters_literals
                     )
             connection.commit()
             logger.info(

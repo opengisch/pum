@@ -109,13 +109,14 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
+        )
+        upgrader.install(
             parameters={
                 "SRID": 2056,
                 "default_text_value": "hello world",
                 "default_integer_value": 1806,
-            },
+            }
         )
-        upgrader.install()
         self.assertTrue(sm.exists(self.conn))
         self.assertEqual(
             sm.migration_details(self.conn)["parameters"],
@@ -139,13 +140,14 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
+        )
+        upgrader.install(
             parameters={
                 "SRID": 2056,
                 "default_text_value": "); DROP TABLE pum_test_data.some_table2; CREATE TABLE pum_test_data.some_table3( id INT PRIMARY KEY",
                 "default_integer_value": 1806,
-            },
+            }
         )
-        upgrader.install()
 
     def test_install_custom_directory(self) -> None:
         """Test the installation of a custom directory."""
@@ -299,9 +301,8 @@ class TestUpgrader(unittest.TestCase):
         upgrader = Upgrader(
             pg_service=self.pg_service,
             config=cfg,
-            parameters={"my_comment": "how cool"},
         )
-        upgrader.install(max_version="1.2.3")
+        upgrader.install(max_version="1.2.3", parameters={"my_comment": "how cool"})
         self.assertTrue(sm.exists(self.conn))
         cursor = self.conn.cursor()
         cursor.execute(

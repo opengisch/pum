@@ -17,6 +17,9 @@ def run_hook(connection: psycopg.Connection, my_comment: str) -> None:
     FROM pum_test_data.some_table
     WHERE is_active = TRUE;
 
-    COMMENT ON VIEW pum_test_app.some_view IS '{my_comment}';
-    """  # noqa: S608
-    SqlContent(sql_code).execute(connection=connection, commit=False)
+    COMMENT ON VIEW pum_test_app.some_view IS {{my_comment}};
+    """
+
+    SqlContent(sql_code).execute(
+        connection=connection, parameters={"my_comment": my_comment}, commit=False
+    )

@@ -193,6 +193,14 @@ class SqlContent:
         def format_sql(
             statement: psycopg.sql.SQL, parameters: dict | None = None
         ) -> psycopg.sql.SQL:
+            for key, value in (parameters or {}).items():
+                if not isinstance(value, psycopg.sql.Literal) and not isinstance(
+                    value, psycopg.sql.Identifier
+                ):
+                    raise PumSqlError(
+                        f"Invalid parameter type for key '{key}': {type(value)}. "
+                        "Parameters must be psycopg.sql.Literal or psycopg.sql.Identifier."
+                    )
             try:
                 return statement.format(**parameters)
             except TypeError:

@@ -4,6 +4,7 @@ import re
 
 import packaging
 import psycopg
+import psycopg.sql
 
 from .config import PumConfig
 from .exceptions import PumException
@@ -70,7 +71,7 @@ class SchemaMigrations:
         """
         )
 
-        parameters = {"schema": schema, "table": table}
+        parameters = {"schema": psycopg.sql.Literal(schema), "table": psycopg.sql.Literal(table)}
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         return cursor.fetchone()[0]
@@ -94,8 +95,7 @@ class SchemaMigrations:
         """
         )
 
-        parameters = {"schema": schema, "table": table}
-
+        parameters = {"schema": psycopg.sql.Literal(schema), "table": psycopg.sql.Literal(table)}
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         return [row[0] for row in cursor.fetchall()]
 
@@ -134,7 +134,7 @@ class SchemaMigrations:
             "pum_migrations_table": psycopg.sql.Identifier(
                 *self.config.pum_migrations_table.split(".")
             ),
-            "version": migration_table_version,
+            "version": psycopg.sql.Literal(migration_table_version),
             "schema": psycopg.sql.Identifier(schema),
         }
 
@@ -197,37 +197,34 @@ class SchemaMigrations:
         if not re.match(pattern, version):
             raise ValueError(f"Wrong version format: {version}. Must be x.x.x")
 
-        code = psycopg.sql.SQL(
-            """
-            INSERT INTO {pum_migrations_table} (
-            version,
-            beta_testing,
-            migration_table_version,
-            changelog_files,
-            parameters
-            ) VALUES (
-            {version},
-            {beta_testing},
-            {migration_table_version},
-            {changelog_files},
-            {parameters}
-            );
-        """.replace("\n", " ").replace("            ", " ")
-        )
+        code = psycopg.sql.SQL("""
+INSERT INTO {pum_migrations_table} (
+    version,
+    beta_testing,
+    migration_table_version,
+    changelog_files,
+    parameters
+) VALUES (
+    {version},
+    {beta_testing},
+    {migration_table_version},
+    {changelog_files},
+    {parameters}
+);""")
 
-        parameters = {
+        query_parameters = {
             "pum_migrations_table": psycopg.sql.Identifier(
                 *self.config.pum_migrations_table.split(".")
             ),
-            "version": version,
-            "beta_testing": beta_testing,
-            "migration_table_version": migration_table_version,
-            "changelog_files": changelog_files or [],
-            "parameters": json.dumps(parameters or {}),
+            "version": psycopg.sql.Literal(version),
+            "beta_testing": psycopg.sql.Literal(beta_testing),
+            "migration_table_version": psycopg.sql.Literal(migration_table_version),
+            "changelog_files": psycopg.sql.Literal(changelog_files or []),
+            "parameters": psycopg.sql.Literal(json.dumps(parameters or {})),
         }
 
         logger.info(f"Setting baseline version {version} in {self.config.pum_migrations_table}")
-        SqlContent(code).execute(connection, parameters=parameters, commit=commit)
+        SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
     def baseline(self, connection: psycopg.Connection) -> str:
         """Return the baseline version from the migration table.
@@ -310,7 +307,7 @@ class SchemaMigrations:
                 "pum_migrations_table": psycopg.sql.Identifier(
                     *self.config.pum_migrations_table.split(".")
                 ),
-                "version": version,
+                "version": psycopg.sql.Literal(version),
             }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)

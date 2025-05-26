@@ -1,4 +1,5 @@
 from enum import Enum
+import psycopg
 
 
 class ParameterType(Enum):
@@ -26,7 +27,7 @@ class ParameterDefinition:
         self,
         name: str,
         type_: str | ParameterType,
-        default: str | float | None = None,
+        default: str | float | int | None = None,
         description: str | None = None,
     ) -> None:
         """Initialize a ParameterDefintion instance.
@@ -52,7 +53,7 @@ class ParameterDefinition:
                 raise ValueError(f"Invalid parameter type: {type_}") from None
         else:
             raise TypeError("type_ must be a str or ParameterType")
-        self.default = default
+        self.default = psycopg.sql.Literal(default)
         self.description = description
 
     def __repr__(self) -> str:

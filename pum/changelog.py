@@ -3,7 +3,7 @@ from os.path import basename
 from pathlib import Path
 
 from packaging.version import parse as parse_version
-from psycopg import Connection
+import psycopg
 
 from .exceptions import PumInvalidChangelog, PumSqlError
 from .sql_content import SqlContent
@@ -79,7 +79,7 @@ class Changelog:
 
     def apply(
         self,
-        connection: Connection,
+        connection: psycopg.Connection,
         parameters: dict | None = None,
         commit: bool = True,
     ) -> list[Path]:

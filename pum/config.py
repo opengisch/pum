@@ -1,7 +1,7 @@
 from pathlib import Path
-
+import psycopg
 import yaml
-from packaging.version import parse as parse_version
+import packaging
 
 from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
@@ -58,6 +58,9 @@ class PumConfig:
                 raise PumConfigError(
                     "parameters must be a list of dictionaries or ParameterDefintion instances"
                 )
+        self.parameter_defaults = {}
+        for name, parameter in self.parameter_definitions.items():
+            self.parameter_defaults[name] = psycopg.sql.Literal(parameter.default)
 
         # Migration hooks
         self.pre_hooks = []
@@ -172,9 +175,13 @@ class PumConfig:
         if not changelogs:
             return None
         if min_version:
-            changelogs = [c for c in changelogs if c.version >= parse_version(min_version)]
+            changelogs = [
+                c for c in changelogs if c.version >= packaging.version.parse(min_version)
+            ]
         if max_version:
-            changelogs = [c for c in changelogs if c.version <= parse_version(max_version)]
+            changelogs = [
+                c for c in changelogs if c.version <= packaging.version.parse(max_version)
+            ]
         if not changelogs:
             return None
         return changelogs[-1].version
@@ -202,26 +209,26 @@ class PumConfig:
         changelogs = [Changelog(d) for d in path.iterdir() if d.is_dir()]
 
         if min_version:
-            changelogs = [c for c in changelogs if c.version >= parse_version(min_version)]
+            changelogs = [
+                c for c in changelogs if c.version >= packaging.version.parse(min_version)
+            ]
         if max_version:
-            changelogs = [c for c in changelogs if c.version <= parse_version(max_version)]
+            changelogs = [
+                c for c in changelogs if c.version <= packaging.version.parse(max_version)
+            ]
 
         changelogs.sort(key=lambda c: c.version)
         return changelogs
 
     def validate(self) -> None:
         """Validate the chanbgelogs and hooks."""
-        parameters = {}
-        for parameter in self.parameter_definitions.values():
-            parameters[parameter.name] = parameter.default
-
         for changelog in self.list_changelogs():
             try:
-                changelog.validate(parameters=parameters)
+                changelog.validate(parameters=self.parameter_defaults)
             except (PumInvalidChangelog, PumSqlError) as e:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
         for hook in self.pre_hooks + self.post_hooks:
             try:
-                hook.validate(self.parameter_definitions)
+                hook.validate(self.parameter_defaults)
             except PumHookError as e:
                 raise PumHookError(f"Hook `{hook}` is invalid.") from e
