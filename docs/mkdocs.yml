@@ -69,7 +69,16 @@ nav:
   - Getting Started: getting_started.md
   - Configuration: configuration.md
   - Hooks: hooks.md
-  - CLI: cli.md
+  - CLI:
+      - Overview: cli.md
+      - info: cli/info.md
+      - install: cli/install.md
+      - check: cli/check.md
+      - dump: cli/dump.md
+      - restore: cli/restore.md
+      - baseline: cli/baseline.md
+      - upgrade: cli/upgrade.md
+      - help: cli/help.md
   - API:
       - Changelog: api/changelog.md
       - Hook: api/hook.md
