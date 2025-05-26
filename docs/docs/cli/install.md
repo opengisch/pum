@@ -3,7 +3,7 @@
 Installs the module and applies changelogs up to the specified version.
 
 ```sh
-pum [OPTIONS] install [OPTIONS]
+pum [GLOBAL_OPTIONS] install [OPTIONS]
 ```
 
 **Options:**

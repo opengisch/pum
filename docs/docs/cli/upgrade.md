@@ -3,7 +3,7 @@
 Upgrade the database.
 
 ```sh
-pum [OPTIONS] upgrade [OPTIONS]
+pum [GLOBAL_OPTIONS] upgrade [OPTIONS]
 ```
 
 **Options:**

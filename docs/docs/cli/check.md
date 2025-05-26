@@ -3,7 +3,7 @@
 Check the differences between two databases.
 
 ```sh
-pum [OPTIONS] check [OPTIONS]
+pum [GLOBAL_OPTIONS] check [OPTIONS]
 ```
 
 **Options:**

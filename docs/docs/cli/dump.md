@@ -3,7 +3,7 @@
 Dump a Postgres database.
 
 ```sh
-pum [OPTIONS] dump [OPTIONS] <file>
+pum [GLOBAL_OPTIONS] dump [OPTIONS] <file>
 ```
 
 **Options:**

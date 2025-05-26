@@ -3,7 +3,7 @@
 For help on any command, use:
 
 ```sh
-pum [OPTIONS] <command> --help
+pum [GLOBAL_OPTIONS] <command> --help
 ```
 
 ---

@@ -3,7 +3,7 @@
 Restore a Postgres database from a dump file.
 
 ```sh
-pum [OPTIONS] restore [OPTIONS] <file>
+pum [GLOBAL_OPTIONS] restore [OPTIONS] <file>
 ```
 
 **Options:**

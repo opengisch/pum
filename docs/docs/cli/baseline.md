@@ -3,7 +3,7 @@
 Create upgrade information table and set baseline.
 
 ```sh
-pum [OPTIONS] baseline [OPTIONS]
+pum [GLOBAL_OPTIONS] baseline [OPTIONS]
 ```
 
 **Options:**

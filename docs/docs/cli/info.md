@@ -3,7 +3,7 @@
 Show info about schema migrations history.
 
 ```sh
-pum [OPTIONS] info [OPTIONS]
+pum [GLOBAL_OPTIONS] info [OPTIONS]
 ```
 
 ---
