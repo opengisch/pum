@@ -81,7 +81,7 @@ nav:
       - help: cli/help.md
   - API:
       - Changelog: api/changelog.md
-      - Hook: api/hook.md
+      - HookBase: api/hook_base.md
       - HookHandler: api/hook_handler.md
       - HookType: api/hook_type.md
       - ParameterDefinition: api/parameter_definition.md

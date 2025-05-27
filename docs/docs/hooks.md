@@ -46,21 +46,22 @@ With `post/create_view.py`:
 ```py
 from pirogue.utils import select_columns
 from psycopg import Connection
-from pum import SqlContent
+from pum import HookBase
 
-def run_hook(connection: Connection):
-    columns=select_columns(
-        pg_cur=connection.cursor(),
-        table_schema="pum_test_data",
-        table_name="some_table"  
-    )
-    sql_code = f"""
-        CREATE OR REPLACE VIEW pum_test_app.some_view AS
-        SELECT {columns}
-        FROM pum_test_data.some_table
-        WHERE is_active = TRUE;
-    """
-    execute_sql(connection=connection, sql=sql_code)
+class Hook(HookBase):
+  def run_hook(connection: Connection):
+      columns=select_columns(
+          pg_cur=connection.cursor(),
+          table_schema="pum_test_data",
+          table_name="some_table"  
+      )
+      sql_code = f"""
+          CREATE OR REPLACE VIEW pum_test_app.some_view AS
+          SELECT {columns}
+          FROM pum_test_data.some_table
+          WHERE is_active = TRUE;
+      """
+      self.execute(sql=sql_code)
 ```
 
 or with extra parameters:
@@ -70,12 +71,12 @@ from psycopg import Connection
 from pum.utils.execute_sql import execute_sql
 
 def run_hook(connection: Connection, srid: int):
-    sql_code = f"""
+    sql_code = """
         CREATE OR REPLACE VIEW pum_test_app.some_view AS
         SELECT ST_Tramsform(geometry, {srid})
         FROM pum_test_data.some_table;
     """
-    execute_sql(connection=connection, sql=sql_code)
+    self.execute(sql=sql_code)
 ```
 
 

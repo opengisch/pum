@@ -12,13 +12,13 @@ class Hook(HookBase):
             table_schema="pum_test_data",
             table_name="some_table",
         )
-        sql_code = psycopg.sql.SQL(f"""
+        sql_code = f"""
         CREATE OR REPLACE VIEW pum_test_app.some_view AS
         SELECT {columns}
         FROM pum_test_data.some_table
         WHERE is_active = TRUE;
 
         COMMENT ON VIEW pum_test_app.some_view IS {{my_comment}};
-        """)
+        """
 
         self.execute(sql=sql_code)
