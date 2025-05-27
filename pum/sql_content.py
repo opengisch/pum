@@ -53,15 +53,21 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql: str) -> list[str]:
-            """Split SQL statements by semicolon, ignoring those inside quotes and BODY/DO blocks, and any $$...$$ blocks. Handles case-insensitive $body$ and $do$."""
+            """
+            Split SQL statements by semicolon, ignoring those inside single/double quotes, dollar-quoted blocks, and DO/BODY blocks.
+            Do NOT split on semicolons inside string literals (e.g. COMMENT ON ... IS '...;...'),
+            and do NOT split on semicolons inside dollar-quoted blocks (e.g. $$...;...$$, $BODY$...;...$BODY$),
+            but DO split on semicolons that are not inside a string, block, or quote, even if the statement contains a SQL comment with a semicolon.
+            """
+            # Step 1: Replace all dollar-quoted blocks with placeholders
             body_blocks = []
-            # Regex for $$BODY$$, $BODY$, $$DO$$, $DO$, and generic $$...$$ blocks, all case-insensitive
             block_pattern = (
-                r"(\$\$BODY\$\$.*?\$\$BODY\$\$"  # $$BODY$$ ... $$BODY$$
-                r"|\$BODY\$.*?\$BODY\$"  # $BODY$ ... $BODY$
-                r"|\$\$DO\$\$.*?\$\$DO\$\$"  # $$DO$$ ... $$DO$$
-                r"|\$DO\$.*?\$DO\$"  # $DO$ ... $DO$
-                r"|\$\$.*?\$\$"  # generic $$ ... $$
+                r"(\$\$BODY\$\$.*?\$\$BODY\$\$"
+                r"|\$BODY\$.*?\$BODY\$"
+                r"|\$\$DO\$\$.*?\$\$DO\$\$"
+                r"|\$DO\$.*?\$DO\$"
+                r"|\$[A-Za-z0-9_]*\$.*?\$[A-Za-z0-9_]*\$"  # generic $tag$...$tag$
+                r"|\$\$.*?\$\$"  # generic $$...$$
                 r")"
             )
 
@@ -73,25 +79,54 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
                 block_pattern, block_replacer, sql, flags=re.DOTALL | re.IGNORECASE
             )
 
-            # Split outside of BODY/DO/$$ blocks (ignoring semicolons in quotes)
-            pattern = r'(?:[^;\'\"]|\'[^\']*\'|"[^\"]*")*;'
-            matches = re.finditer(pattern, sql_wo_blocks, re.DOTALL)
+            # Step 2: Split by semicolon, but only when not inside a string or comment
             statements = []
-            last_end = 0
-            for match in matches:
-                end = match.end()
-                statements.append(sql_wo_blocks[last_end : end - 1].strip())
-                last_end = end
-            if last_end < len(sql_wo_blocks):
-                statements.append(sql_wo_blocks[last_end:].strip())
+            current = []
+            in_single = False
+            in_double = False
+            in_line_comment = False
+            i = 0
+            while i < len(sql_wo_blocks):
+                c = sql_wo_blocks[i]
+                next2 = sql_wo_blocks[i : i + 2]
+                if in_line_comment:
+                    current.append(c)
+                    if c == "\n":
+                        in_line_comment = False
+                    i += 1
+                    continue
+                if not in_single and not in_double and next2 == "--":
+                    in_line_comment = True
+                    current.append("--")
+                    i += 2
+                    continue
+                if not in_double and c == "'":
+                    in_single = not in_single
+                    current.append(c)
+                    i += 1
+                    continue
+                if not in_single and c == '"':
+                    in_double = not in_double
+                    current.append(c)
+                    i += 1
+                    continue
+                if not in_single and not in_double and not in_line_comment and c == ";":
+                    statements.append("".join(current).strip())
+                    current = []
+                    i += 1
+                    continue
+                current.append(c)
+                i += 1
+            if current:
+                statements.append("".join(current).strip())
 
-            # Restore BODY/DO/$$ blocks
-            def restore_block(stmt):
-                for i, block in enumerate(body_blocks):
-                    stmt = stmt.replace(f"__BLOCK_{i}__", block)
+            # Step 3: Restore dollar-quoted blocks
+            def restore_blocks(stmt):
+                for idx, block in enumerate(body_blocks):
+                    stmt = stmt.replace(f"__BLOCK_{idx}__", block)
                 return stmt
 
-            return [restore_block(stmt) for stmt in statements if stmt]
+            return [restore_blocks(stmt) for stmt in statements if stmt]
 
         sql_code = split_sql_statements(sql_content)
 
