@@ -21,4 +21,4 @@ class Hook(HookBase):
         COMMENT ON VIEW pum_test_app.some_view IS {{my_comment}};
         """)
 
-        self.execute(connection=connection, sql=sql_code)
+        self.execute(sql=sql_code)

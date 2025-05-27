@@ -18,4 +18,4 @@ class Hook(HookBase):
             FROM pum_test_data.some_table
             WHERE is_active = TRUE;
             """  # noqa: S608
-        self.execute(connection=connection, sql=sql_code)
+        self.execute(sql=sql_code)

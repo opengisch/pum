@@ -39,7 +39,15 @@ class HookBase(abc.ABC):
         """Initialize the HookBase class."""
         self._parameters: dict | None = None
 
-    def _set_parameters(self, parameters: dict | None = None) -> None:
+    def _prepare(self, connection: psycopg.Connection, parameters: dict | None = None) -> None:
+        """Prepare the hook with the given connection and parameters.
+        Args:
+            connection: The database connection.
+            parameters: Parameters to bind to the SQL statement. Defaults to None.
+        Note:
+            Parameters are stored as a deep copy, any modification will not be used when calling execute.
+        """
+        self._connection = connection
         self._parameters = copy.deepcopy(parameters)
 
     @abc.abstractmethod
@@ -56,7 +64,6 @@ class HookBase(abc.ABC):
 
     def execute(
         self,
-        connection: psycopg.Connection,
         sql: str | psycopg.sql.SQL | Path,
     ) -> None:
         """Execute the migration hook with the provided SQL and parameters for the migration.
@@ -66,7 +73,9 @@ class HookBase(abc.ABC):
             connection: The database connection.
             sql: The SQL statement to execute or a path to a SQL file..
         """
-        SqlContent(sql).execute(connection=connection, parameters=self._parameters, commit=False)
+        SqlContent(sql).execute(
+            connection=self._connection, parameters=self._parameters, commit=False
+        )
 
     execute.__isfinal__ = True
 
@@ -191,8 +200,6 @@ class HookHandler:
                     connection=connection, commit=False, parameters=parameters
                 )
             elif self.file.suffix == ".py":
-                if parameters:
-                    self.hook_instance._set_parameters(parameters=parameters)
                 for parameter_arg in self.parameter_args:
                     if not parameters or parameter_arg not in self.parameter_args:
                         raise PumHookError(
@@ -204,9 +211,10 @@ class HookHandler:
                 for key, value in parameters.items():
                     if key in self.parameter_args:
                         _hook_parameters[key] = value
+                self.hook_instance._prepare(connection=connection, parameters=parameters)
                 try:
                     if _hook_parameters:
-                        self.hook_instance.run_hook(connection=connection, **parameters)
+                        self.hook_instance.run_hook(connection=connection, **_hook_parameters)
                     else:
                         self.hook_instance.run_hook(connection=connection)
                 except PumSqlError as e:

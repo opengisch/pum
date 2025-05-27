@@ -15,4 +15,4 @@ class Hook(HookBase):
             table_name="some_table",
         )
         sql_code = produce_sql_code(columns)
-        self.execute(connection=connection, sql=sql_code)
+        self.execute(sql=sql_code)
