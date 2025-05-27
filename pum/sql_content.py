@@ -115,7 +115,7 @@ class SqlContent:
         """
         self.sql = sql
 
-    def validate(self, parameters: dict | None = None) -> bool:
+    def validate(self, parameters: dict | None) -> bool:
         """Validate the SQL content.
         This is done by checking if the SQL content is not empty.
 
@@ -167,7 +167,7 @@ class SqlContent:
 
         return cursor
 
-    def _prepare_sql(self, parameters: dict | None = None) -> list[psycopg.sql.SQL]:
+    def _prepare_sql(self, parameters: dict | None) -> list[psycopg.sql.SQL]:
         """Prepare SQL for execution.
 
         Args:

@@ -10,7 +10,7 @@ class Hook(HookBase):
     def run_hook(self, connection: psycopg.Connection) -> None:
         """Run the migration hook to create a view."""
         columns = select_columns(
-            pg_cur=connection.cursor(),
+            connection=connection,
             table_schema="pum_test_data",
             table_name="some_table",
         )

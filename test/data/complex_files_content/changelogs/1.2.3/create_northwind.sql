@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS pum_test_data;
 CREATE TABLE pum_test_data.some_table (
     id INT PRIMARY KEY, -- comment in code
     name VARCHAR(100) NOT NULL,
-    created_date DATE DEFAULT CURRENT_DATE,
+    created_date DATE DEFAULT CURRENT_DATE, -- comment with a semicolon;
     is_active BOOLEAN DEFAULT TRUE,
     amount NUMERIC(10,2)
 );
