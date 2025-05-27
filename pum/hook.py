@@ -2,12 +2,15 @@ import importlib.util
 import inspect
 import logging
 import sys
-from psycopg import Connection
+import psycopg
+import copy
+
 from enum import Enum
 from pathlib import Path
 
-from .exceptions import PumHookError
+from .exceptions import PumHookError, PumSqlError
 from .sql_content import SqlContent
+import abc
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +28,52 @@ class HookType(Enum):
     POST = "post"
 
 
-class Hook:
-    """Base class for migration hooks."""
+class HookBase(abc.ABC):
+    """Base class for Python migration hooks.
+    This class defines the interface for migration hooks that can be implemented in Python.
+    It requires the implementation of the `run_hook` method, which will be called during the migration process.
+    It can call the execute method to run SQL statements with the provided connection and parameters.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the HookBase class."""
+        self._parameters: dict | None = None
+
+    def _set_parameters(self, parameters: dict | None = None) -> None:
+        self._parameters = copy.deepcopy(parameters)
+
+    @abc.abstractmethod
+    def run_hook(self, connection: psycopg.Connection, parameters: dict | None = None) -> None:
+        """Run the migration hook.
+        Args:
+            connection: The database connection.
+            parameters: Parameters to bind to the SQL statement. Defaults to None.
+
+        Note:
+            Parameters are given as a deep copy, any modification will not be used when calling execute.
+        """
+        raise NotImplementedError("The run_hook method must be implemented in the subclass.")
+
+    def execute(
+        self,
+        connection: psycopg.Connection,
+        sql: str | psycopg.sql.SQL | Path,
+    ) -> None:
+        """Execute the migration hook with the provided SQL and parameters for the migration.
+        This is not committing the transaction and will be handled afterwards.
+
+        Args:
+            connection: The database connection.
+            sql: The SQL statement to execute or a path to a SQL file..
+        """
+        SqlContent(sql).execute(connection=connection, parameters=self._parameters, commit=False)
+
+    execute.__isfinal__ = True
+
+
+class HookHandler:
+    """Handler for migration hooks.
+    This class manages the execution of migration hooks, which can be either SQL files or Python functions."""
 
     def __init__(
         self,
@@ -48,6 +95,7 @@ class Hook:
         self.type = type_ if isinstance(type_, HookType) else HookType(type_)
         self.file = file if isinstance(file, Path) else Path(file) if file else None
         self.code = code
+        self.hook_instance = None
 
         if self.file and self.file.suffix == ".py":
             # Support local imports in hook files by adding parent dir to sys.path
@@ -63,26 +111,32 @@ class Hook:
             finally:
                 if sys_path_modified:
                     sys.path.remove(parent_dir)
-            if hasattr(module, "run_hook"):
-                run_hook = module.run_hook
-                arg_names = list(inspect.signature(run_hook).parameters.keys())
-                if "connection" not in arg_names:
-                    raise PumHookError(
-                        f"Hook function 'run_hook' in {self.file} must accept 'connection' as an argument."
-                    )
-                self.callable = run_hook
-                parameter_args = {arg: None for arg in arg_names if arg != "connection"}
-                self.parameter_args = parameter_args
-            else:
+            # Check that the module contains a class named Hook inheriting from HookBase
+            hook_class = getattr(module, "Hook", None)
+            if not hook_class or not inspect.isclass(hook_class):
+                raise PumHookError(
+                    f"Python hook file {self.file} must define a class named 'Hook'."
+                )
+            if not issubclass(hook_class, HookBase):
+                raise PumHookError(f"Class 'Hook' in {self.file} must inherit from HookBase.")
+            if not hasattr(hook_class, "run_hook"):
                 raise PumHookError(f"Hook function 'run_hook' not found in {self.file}.")
+
+            self.hook_instance = hook_class()
+            arg_names = list(inspect.signature(hook_class.run_hook).parameters.keys())
+            if "connection" not in arg_names:
+                raise PumHookError(
+                    f"Hook function 'run_hook' in {self.file} must accept 'connection' as an argument."
+                )
+            self.parameter_args = [arg for arg in arg_names if arg not in ("self", "connection")]
 
     def __repr__(self) -> str:
         """Return a string representation of the Hook instance."""
         return f"<{self.type.value} hook: {self.file}>"
 
-    def __eq__(self, other: "Hook") -> bool:
+    def __eq__(self, other: "HookHandler") -> bool:
         """Check if two Hook instances are equal."""
-        if not isinstance(other, Hook):
+        if not isinstance(other, HookHandler):
             return NotImplemented
         return self.type == other.type and self.file == other.file
 
@@ -104,12 +158,13 @@ class Hook:
                         f"Hook function 'run_hook' in {self.file} has an unexpected argument "
                         f"'{parameter_arg}' which is not specified in the parameters."
                     )
+
         if self.file and self.file.suffix == ".sql":
             SqlContent(self.file).validate(parameters=parameters)
 
     def execute(
         self,
-        connection: Connection,
+        connection: psycopg.Connection,
         *,
         commit: bool = False,
         parameters: dict | None = None,
@@ -136,16 +191,26 @@ class Hook:
                     connection=connection, commit=False, parameters=parameters
                 )
             elif self.file.suffix == ".py":
+                if parameters:
+                    self.hook_instance._set_parameters(parameters=parameters)
                 for parameter_arg in self.parameter_args:
                     if not parameters or parameter_arg not in self.parameter_args:
                         raise PumHookError(
                             f"Hook function 'run_hook' in {self.file} has an unexpected "
                             f"argument '{parameter_arg}' which is not specified in the parameters."
                         )
-                if parameters:
-                    self.callable(connection=connection, **parameters)
-                else:
-                    self.callable(connection=connection)
+
+                _hook_parameters = {}
+                for key, value in parameters.items():
+                    if key in self.parameter_args:
+                        _hook_parameters[key] = value
+                try:
+                    if _hook_parameters:
+                        self.hook_instance.run_hook(connection=connection, **parameters)
+                    else:
+                        self.hook_instance.run_hook(connection=connection)
+                except PumSqlError as e:
+                    raise PumHookError(f"Error executing Python hook from {self.file}: {e}") from e
 
             else:
                 raise PumHookError(

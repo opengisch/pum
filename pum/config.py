@@ -5,7 +5,7 @@ import packaging
 
 from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
-from .hook import Hook, HookType
+from .hook import HookHandler, HookType
 from .parameter import ParameterDefinition
 
 
@@ -83,12 +83,12 @@ class PumConfig:
                             path = self.dir / path
                         if not path.exists():
                             raise PumConfigError(f"hook file {path} does not exist")
-                        hook = Hook(type_=hook_type, file=path)
+                        hook = HookHandler(type_=hook_type, file=path)
                     elif isinstance(hook_definition.get("code"), str):
-                        hook = Hook(type_=hook_type, code=hook_definition.get("code"))
+                        hook = HookHandler(type_=hook_type, code=hook_definition.get("code"))
                     else:
                         raise PumConfigError("invalid hook configuration")
-                    assert isinstance(hook, Hook)
+                    assert isinstance(hook, HookHandler)
                     if hook_type == HookType.PRE:
                         self.pre_hooks.append(hook)
                     elif hook_type == HookType.POST:

@@ -1,20 +1,21 @@
 from pirogue.utils import select_columns
-from psycopg import Connection
+import psycopg
 
-from pum.sql_content import SqlContent
+from pum import HookBase
 
 
-def run_hook(connection: Connection) -> None:
-    """Run the migration hook to create a view."""
-    columns = select_columns(
-        pg_cur=connection.cursor(),
-        table_schema="pum_test_data",
-        table_name="some_table",
-    )
-    sql_code = f"""
-        CREATE OR REPLACE VIEW pum_test_app.some_view AS
-        SELECT {columns}
-        FROM pum_test_data.some_table
-        WHERE is_active = TRUE;
-        """  # noqa: S608
-    SqlContent(sql_code).execute(connection=connection, commit=False)
+class Hook(HookBase):
+    def run_hook(self, connection: psycopg.Connection) -> None:
+        """Run the migration hook to create a view."""
+        columns = select_columns(
+            pg_cur=connection.cursor(),
+            table_schema="pum_test_data",
+            table_name="some_table",
+        )
+        sql_code = f"""
+            CREATE OR REPLACE VIEW pum_test_app.some_view AS
+            SELECT {columns}
+            FROM pum_test_data.some_table
+            WHERE is_active = TRUE;
+            """  # noqa: S608
+        self.execute(connection=connection, sql=sql_code)

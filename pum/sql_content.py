@@ -134,8 +134,8 @@ class SqlContent:
     def execute(
         self,
         connection: psycopg.Connection,
-        parameters: dict | None = None,
         *,
+        parameters: dict | None = None,
         commit: bool = False,
     ) -> psycopg.Cursor:
         """Execute a SQL statement with optional parameters.

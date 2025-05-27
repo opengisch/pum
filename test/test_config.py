@@ -5,7 +5,7 @@ from packaging.version import parse as parse_version
 
 from pum.config import PumConfig
 from pum.exceptions import PumConfigError
-from pum.hook import Hook, HookType
+from pum.hook import HookHandler, HookType
 
 
 class TestConfig(unittest.TestCase):
@@ -62,7 +62,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(
             cfg.post_hooks,
             [
-                Hook(
+                HookHandler(
                     HookType.POST,
                     "test/data/pre_post_sql_files/post/create_view.sql",
                 )
@@ -71,7 +71,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(
             cfg.pre_hooks,
             [
-                Hook(
+                HookHandler(
                     HookType.PRE,
                     "test/data/pre_post_sql_files/pre/drop_view.sql",
                 )
