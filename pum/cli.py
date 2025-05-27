@@ -15,6 +15,7 @@ from .config import PumConfig
 # from .dumper import Dumper
 from .info import run_info
 from .upgrader import Upgrader
+from .parameter import ParameterType
 
 
 def setup_logging(verbosity: int = 0):
@@ -427,12 +428,18 @@ def cli() -> int:  # noqa: PLR0912
             if p[0] not in config.parameters():
                 print(f"Unknown parameter: {p[0]}")  # noqa: T201
                 sys.exit(1)
-            if config.parameter(p[0]).type == "float":
+            if config.parameter(p[0]).type == ParameterType.DECIMAL:
                 parameters[p[0]] = float(p[1])
-            if config.parameter(p[0]).type == "integer":
+            elif config.parameter(p[0]).type == ParameterType.INTEGER:
                 parameters[p[0]] = int(p[1])
-            else:
+            elif config.parameter(p[0]).type == ParameterType.BOOLEAN:
+                parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
+            elif config.parameter(p[0]).type == ParameterType.STRING:
                 parameters[p[0]] = p[1]
+            else:
+                raise ValueError(
+                    f"Unsupported parameter type for {p[0]}: {config.parameter(p[0]).type}"
+                )
 
     logger = logging.getLogger(__name__)
     logger.debug(f"Parameters: {parameters}")
