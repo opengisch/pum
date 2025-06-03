@@ -30,7 +30,6 @@ class Role:
         *,
         inherit: Optional["Role"] = None,
         description: str | None = None,
-        other_roles: Optional[list["Role"]] = None,
     ) -> None:
         """Initialize the Role class.
         Args:
@@ -38,7 +37,6 @@ class Role:
             permissions: List of permissions associated with the role.
             inherit: Optional role to inherit permissions from.
             description: Optional description of the role.
-            other_roles: Optional list of other roles used for inheritance.
         """
         self.name = name
         if isinstance(permissions, list) and all(isinstance(p, dict) for p in permissions):
@@ -48,16 +46,9 @@ class Role:
         else:
             raise TypeError("Permissions must be a list of dictionnaries or Permission instances.")
 
-        self.inherit = None
-        if inherit is not None:
-            if not isinstance(inherit, Role):
-                if inherit not in other_roles:
-                    raise ValueError(
-                        f"Inherited role {inherit.name} is not defined in other roles."
-                    )
-                self.inherit = other_roles[other_roles.index(inherit)]
-            else:
-                self.inherit = inherit
+        if inherit is not None and not isinstance(inherit, Role):
+            raise TypeError("Inherit must be a Role instance or None.")
+        self.inherit = inherit
         self.description = description
 
     def permissions(self):
@@ -72,6 +63,14 @@ class RoleManager:
             Each role can be a dictionary with keys 'name', 'permissions', and optional 'description' and 'inherit'.
         """
         if isinstance(roles, list) and all(isinstance(role, dict) for role in roles):
+            for role in roles:
+                _inherit = role.get("inherit")
+                if _inherit is not None:
+                    if _inherit not in roles:
+                        raise ValueError(
+                            f"Inherited role {_inherit} does not exist in the already defined roles. Pay attention to the order of the roles in the list."
+                        )
+                    role["inherit"] = self.roles[_inherit]
             _roles = [Role(**role) for role in roles]
         elif isinstance(roles, list) and all(isinstance(role, Role) for role in roles):
             _roles = copy.deepcopy(roles)
