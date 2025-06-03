@@ -100,3 +100,32 @@ class TestConfig(unittest.TestCase):
         PumConfig.from_yaml(Path("test") / "data" / "parameters" / ".pum.yaml", validate=True)
         with self.assertRaises(PumConfigError):
             PumConfig(dir=Path("test") / "data" / "parameters", validate=True)
+
+    def test_roles(self) -> None:
+        """Test roles."""
+        cfg = PumConfig(
+            dir=Path("test") / "data" / "single_changelog",
+            roles=[
+                {
+                    "name": "viewer",
+                    "permissions": [
+                        {
+                            "type": "read",
+                            "schemas": ["public", "pum_test_app"],
+                        }
+                    ],
+                    "description": "Viewer role with read permissions.",
+                },
+                {
+                    "name": "user",
+                    "permissions": [
+                        {
+                            "type": "write",
+                            "schemas": ["public", "pum_test_app"],
+                        }
+                    ],
+                    "description": "User role with read and write permissions.",
+                },
+            ],
+        )
+        self.assertIsNotNone(cfg.role_manager)

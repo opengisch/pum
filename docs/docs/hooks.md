@@ -70,13 +70,14 @@ or with extra parameters:
 from psycopg import Connection
 from pum.utils.execute_sql import execute_sql
 
-def run_hook(connection: Connection, srid: int):
-    sql_code = """
-        CREATE OR REPLACE VIEW pum_test_app.some_view AS
-        SELECT ST_Tramsform(geometry, {srid})
-        FROM pum_test_data.some_table;
-    """
-    self.execute(sql=sql_code)
+class Hook(HookBase):
+    def run_hook(connection: Connection, srid: int):
+        sql_code = """
+            CREATE OR REPLACE VIEW pum_test_app.some_view AS
+            SELECT ST_Tramsform(geometry, {srid})
+            FROM pum_test_data.some_table;
+        """
+        self.execute(sql=sql_code)
 ```
 
 

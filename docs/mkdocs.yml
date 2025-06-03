@@ -86,7 +86,11 @@ nav:
       - HookType: api/hook_type.md
       - ParameterDefinition: api/parameter_definition.md
       - ParameterType: api/parameter_type.md
+      - Permission: api/permission.md
+      - PermissionType: api/permission_type.md
       - PumConfig: api/pum_config.md
+      - Role: api/role.md
+      - RoleManager: api/role_manafer.md
       - SchemaMigrations: api/schema_migrations.md
       - SqlContent: api/sql_content.md
       - Upgrader: api/upgrader.md

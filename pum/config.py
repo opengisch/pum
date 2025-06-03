@@ -7,12 +7,13 @@ from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
 from .hook import HookHandler, HookType
 from .parameter import ParameterDefinition
+from .role_manager import RoleManager
 
 
 class PumConfig:
     """A class to hold configuration settings."""
 
-    def __init__(self, dir: str | Path, validate: bool = True, **kwargs: dict) -> None:  # noqa: C901, FBT001, FBT002, PLR0912
+    def __init__(self, dir: str | Path, validate: bool = True, **kwargs: dict) -> None:
         """Initialize the configuration with key-value pairs.
 
         Args:
@@ -95,6 +96,11 @@ class PumConfig:
                         self.post_hooks.append(hook)
                     else:
                         raise PumConfigError(f"Invalid hook type: {hook_type}")
+
+        # Role Manager
+        self.role_manager = kwargs.get("roles", None)
+        if self.role_manager is not None and not isinstance(self.role_manager, RoleManager):
+            self.role_manager = RoleManager(self.role_manager)
 
         if validate:
             try:
