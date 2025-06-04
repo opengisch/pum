@@ -89,7 +89,7 @@ nav:
       - PermissionType: api/permission_type.md
       - PumConfig: api/pum_config.md
       - Role: api/role.md
-      - RoleManager: api/role_manafer.md
+      - RoleManager: api/role_manager.md
       - SchemaMigrations: api/schema_migrations.md
       - SqlContent: api/sql_content.md
       - Upgrader: api/upgrader.md
