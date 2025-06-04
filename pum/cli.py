@@ -493,18 +493,18 @@ def cli() -> int:  # noqa: PLR0912
                 exit_code = 1
             else:
                 # Create a RoleManager instance and manage roles based on the action
-                if not config.role_manager:
-                    logger.error("No role manager configured in the PUM configuration.")
+                if not config.roles:
+                    logger.error("No roles configured in the PUM configuration.")
                     exit_code = 1
                 else:
                     if args.action == "create":
-                        config.role_manager.create(connection=conn)
+                        config.roles.create(connection=conn)
                     elif args.action == "grant":
-                        config.role_manager(config).grant(connection=conn)
+                        config.roles(config).grant(connection=conn)
                     elif args.action == "revoke":
-                        config.role_manager(config).revoke(connection=conn)
+                        config.roles(config).revoke(connection=conn)
                     elif args.action == "drop":
-                        config.role_manager(config).drop(connection=conn)
+                        config.roles(config).drop(connection=conn)
                     else:
                         logger.error(f"Unknown action: {args.action}")
                         exit_code = 1

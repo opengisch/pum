@@ -26,4 +26,4 @@ parameters:
 
 ## Complete documentation
 
-::: pum.config.PumModel
+::: pum.config.ConfigModel

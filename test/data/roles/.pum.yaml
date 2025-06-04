@@ -1,16 +1,16 @@
 
 roles:
-  - name: tww_viewer
+  - name: pum_test_viewer
     description: Role for users who can view the TWW data.
     permissions:
       - type: view
         schemas:
-          - [tww_od, tww_vl, tww_sys, tww_app, tww_cfg]
+          - [pum_test_data_schema_1]
 
-  - name: tww_user
+  - name: pum_test_user
     description: Role for users who can view and edit the TWW data.
-    inherit: tww_viewer
+    inherit: pum_test_viewer
     permissions:
       - type: edit
         schemas:
-          - [tww_od]
+          - [pum_test_data_schema_2]
