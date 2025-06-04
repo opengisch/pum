@@ -2,15 +2,90 @@ from pathlib import Path
 import psycopg
 import yaml
 import packaging
+from pydantic import BaseModel, Field, ValidationError, model_validator
+from typing import List, Optional, Any, Literal
+import logging
 
 from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
-from .hook import HookHandler, HookType
-from .parameter import ParameterDefinition
-from .role_manager import RoleManager
+from .hook import HookHandler
+from .parameter import ParameterDefinition, ParameterType
+
+DIR = "."
 
 
-class PumConfig:
+class ParameterDefinitionModel(BaseModel):
+    name: str
+    type: ParameterType = Field(default=ParameterType.TEXT, description="Type of the parameter")
+    default: Optional[Any] = None
+    description: Optional[str] = None
+
+
+class HookModel(BaseModel):
+    file: Optional[str] = None
+    code: Optional[str] = None
+    hook_handler: HookHandler = None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    @model_validator(mode="after")
+    def build_handler(self):
+        file, code = self.file, self.code
+        if (file and code) or (not file and not code):
+            raise ValueError("Exactly one of 'file' or 'code' must be set in a hook.")
+        if file:
+            path = Path(file)
+            if not path.is_absolute():
+                path = DIR / path
+            if not path.exists():
+                raise PumConfigError(f"hook file {path} does not exist")
+            self.hook_handler = HookHandler(file=path)
+        elif code:
+            self.hook_handler = HookHandler(code=code)
+        return self
+
+
+class MigrationHooksModel(BaseModel):
+    pre: Optional[List[HookModel]] = []
+    post: Optional[List[HookModel]] = []
+
+
+class PumModel(BaseModel):
+    migration_table_schema: Optional[str] = Field(
+        default="public", description="Name of schema for the migration table"
+    )
+    migration_table_name: Literal["pum_migrations"] = Field(default="pum_migrations")
+    minimum_version: Optional[str] = None
+    minimum_version: Optional[str] = None
+
+
+class PermissionModel(BaseModel):
+    type: Literal["read", "write"] = Field(..., description="Permission type ('read' or 'write').")
+    schemas: List[str] = Field(
+        default_factory=list, description="List of schemas this permission applies to."
+    )
+
+
+class RoleModel(BaseModel):
+    name: str = Field(..., description="Name of the role.")
+    permissions: List[PermissionModel] = Field(..., description="List of permissions for the role.")
+    inherit: Optional[str] = Field(None, description="Name of the role to inherit from.")
+    description: Optional[str] = Field(None, description="Description of the role.")
+
+
+class ConfigModel(BaseModel):
+    pum: Optional[PumModel] = Field(default_factory=PumModel)
+    parameters: Optional[List[ParameterDefinitionModel]] = []
+    migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
+    pum_migrations_schema: Optional[str] = None
+    changelogs_directory: Optional[str] = "changelogs"
+    roles: Optional[List[RoleModel]] = None  # You can make this more specific
+
+
+logger = logging.getLogger(__name__)
+
+
+class PumConfig(ConfigModel):
     """A class to hold configuration settings."""
 
     def __init__(self, dir: str | Path, validate: bool = True, **kwargs: dict) -> None:
@@ -30,77 +105,16 @@ class PumConfig:
         # )
         # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
-        self.dir = dir if isinstance(dir, Path) else Path(dir)
-        if not self.dir.is_dir():
-            raise PumConfigError(f"Directory `{self.dir}` does not exist.")
+        global DIR
+        DIR = dir if isinstance(dir, Path) else Path(dir)
+        if not DIR.is_dir():
+            raise PumConfigError(f"Directory `{DIR}` does not exist.")
 
-        self.pum_migrations_table: str = (
-            f"{(kwargs.get('pum_migrations_schema') or 'public')}.pum_migrations"
-        )
-        self.changelogs_directory: str = kwargs.get("changelogs_directory", "changelogs")
-
-        # parameters
-        self.parameter_definitions = {}
-        for p in kwargs.get("parameters") or ():
-            if isinstance(p, dict):
-                name = p.get("name")
-                type_ = p.get("type")
-                default = p.get("default")
-                description = p.get("description")
-                self.parameter_definitions[name] = ParameterDefinition(
-                    name=name,
-                    type_=type_,
-                    default=default,
-                    description=description,
-                )
-            elif isinstance(p, ParameterDefinition):
-                self.parameter_definitions[p.name] = p
-            else:
-                raise PumConfigError(
-                    "parameters must be a list of dictionaries or ParameterDefintion instances"
-                )
-        self.parameter_defaults = {}
-        for name, parameter in self.parameter_definitions.items():
-            self.parameter_defaults[name] = psycopg.sql.Literal(parameter.default)
-
-        # Migration hooks
-        self.pre_hooks = []
-        self.post_hooks = []
-        migration_hooks = kwargs.get("migration_hooks", {})
-        pre_hook_defintions = migration_hooks.get("pre", [])
-        post_hook_defintions = migration_hooks.get("post", [])
-        for hook_type, hook_definitions in (
-            (HookType.PRE, pre_hook_defintions),
-            (HookType.POST, post_hook_defintions),
-        ):
-            if hook_definitions:
-                for hook_definition in hook_definitions:
-                    hook = None
-                    if not isinstance(hook_definition, dict):
-                        raise PumConfigError("hook must be a list of key-value pairs")
-                    if isinstance(hook_definition.get("file"), str):
-                        path = Path(hook_definition.get("file"))
-                        if not path.is_absolute():
-                            path = self.dir / path
-                        if not path.exists():
-                            raise PumConfigError(f"hook file {path} does not exist")
-                        hook = HookHandler(type_=hook_type, file=path)
-                    elif isinstance(hook_definition.get("code"), str):
-                        hook = HookHandler(type_=hook_type, code=hook_definition.get("code"))
-                    else:
-                        raise PumConfigError("invalid hook configuration")
-                    assert isinstance(hook, HookHandler)
-                    if hook_type == HookType.PRE:
-                        self.pre_hooks.append(hook)
-                    elif hook_type == HookType.POST:
-                        self.post_hooks.append(hook)
-                    else:
-                        raise PumConfigError(f"Invalid hook type: {hook_type}")
-
-        # Role Manager
-        self.role_manager = kwargs.get("roles", None)
-        if self.role_manager is not None and not isinstance(self.role_manager, RoleManager):
-            self.role_manager = RoleManager(self.role_manager)
+        try:
+            super().__init__(**kwargs)  # Initialize the base model
+        except ValidationError as e:
+            logger.error("Config validation error: %s", e)
+            raise PumConfigError(e)
 
         if validate:
             try:
@@ -109,16 +123,6 @@ class PumConfig:
                 raise PumConfigError(
                     f"Configuration is invalid: {e}. You can disable the validation when constructing the config."
                 ) from e
-
-    def parameters(self) -> dict[str, ParameterDefinition]:
-        """Get all migration parameters as a dictionary.
-
-        Returns:
-            dict[str, ParameterDefintion]: A dictionary of migration parameters.
-            The keys are parameter names, and the values are ParameterDefintion instances.
-
-        """
-        return self.parameter_definitions
 
     def parameter(self, name: str) -> ParameterDefinition:
         """Get a specific migration parameter by name.
@@ -133,10 +137,10 @@ class PumConfig:
             PumConfigError: If the parameter name does not exist.
 
         """
-        try:
-            return self.parameter_definitions[name]
-        except KeyError:
-            raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
+        for parameter in self.parameters:
+            if parameter.name == name:
+                return ParameterDefinition(**parameter.model_dump())
+        raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
 
     @classmethod
     def from_yaml(cls, file_path: str | Path, *, validate: bool = True) -> "PumConfig":
@@ -206,7 +210,7 @@ class PumConfig:
             list: A list of changelogs. Each changelog is represented by a Changelog object.
 
         """
-        path = self.dir / self.changelogs_directory
+        path = DIR / self.changelogs_directory
         if not path.is_dir():
             raise PumException(f"Changelogs directory `{path}` does not exist.")
         if not path.iterdir():
@@ -228,13 +232,24 @@ class PumConfig:
 
     def validate(self) -> None:
         """Validate the chanbgelogs and hooks."""
+
+        parameter_defaults = {}
+        for parameter in self.parameters:
+            parameter_defaults[parameter.name] = psycopg.sql.Literal(parameter.default)
+
         for changelog in self.list_changelogs():
             try:
-                changelog.validate(parameters=self.parameter_defaults)
+                changelog.validate(parameters=parameter_defaults)
             except (PumInvalidChangelog, PumSqlError) as e:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
-        for hook in self.pre_hooks + self.post_hooks:
+
+        migration_hooks = []
+        if self.migration_hooks.pre:
+            migration_hooks.extend(self.migration_hooks.pre)
+        if self.migration_hooks.post:
+            migration_hooks.extend(self.migration_hooks.post)
+        for hook in migration_hooks:
             try:
-                hook.validate(self.parameter_defaults)
+                hook.hook_handler.validate(parameter_defaults)
             except PumHookError as e:
                 raise PumHookError(f"Hook `{hook}` is invalid.") from e

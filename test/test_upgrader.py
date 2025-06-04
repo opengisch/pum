@@ -77,30 +77,30 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "parameters"
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
-        self.assertEqual(len(cfg.parameters()), 3)
+        self.assertEqual(len(cfg.parameters), 3)
         self.assertEqual(
-            cfg.parameters()["SRID"],
+            cfg.parameter("SRID"),
             ParameterDefinition(
                 name="SRID",
-                type_="integer",
+                type="integer",
                 default=2056,
                 description="SRID for the geometry column",
             ),
         )
         self.assertEqual(
-            cfg.parameters()["default_text_value"],
+            cfg.parameter("default_text_value"),
             ParameterDefinition(
                 name="default_text_value",
-                type_="text",
+                type="text",
                 default="hi there",
                 description="The default text value",
             ),
         )
         self.assertEqual(
-            cfg.parameters()["default_integer_value"],
+            cfg.parameter("default_integer_value"),
             ParameterDefinition(
                 name="default_integer_value",
-                type_="integer",
+                type="integer",
                 default=1874,
                 description="The default integer value",
             ),

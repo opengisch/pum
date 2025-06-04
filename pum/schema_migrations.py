@@ -30,26 +30,6 @@ class SchemaMigrations:
         """
         self.config = config
 
-    def _pum_migrations_table_schema_name(self) -> tuple[str, str]:
-        """Return the pum_migrations table name and schema.
-
-        Returns:
-            tuple[str, str]: A tuple containing the schema and table name.
-
-        """
-        schema = "public"
-        table = None
-        table_identifiers = self.config.pum_migrations_table.split(".")
-        if len(table_identifiers) > 2:
-            msg = f"The pum_migrations_table '{self.config.pum_migrations_table}' must be in the format 'schema.table'"
-            raise ValueError(msg)
-        if len(table_identifiers) == 2:
-            schema = table_identifiers[0]
-            table = table_identifiers[1]
-        else:
-            table = table_identifiers[0]
-        return schema, table
-
     def exists(self, connection: psycopg.Connection) -> bool:
         """Check if the schema_migrations information table exists.
 
@@ -60,18 +40,20 @@ class SchemaMigrations:
             bool: True if the table exists, False otherwise.
 
         """
-        schema, table = self._pum_migrations_table_schema_name()
         query = psycopg.sql.SQL(
             """
         SELECT EXISTS (
             SELECT 1
             FROM information_schema.tables
-            WHERE table_name = {table} AND table_schema = {schema}
+            WHERE table_name = 'pum_migrations' AND table_schema = {schema}
         );
         """
         )
 
-        parameters = {"schema": psycopg.sql.Literal(schema), "table": psycopg.sql.Literal(table)}
+        parameters = {
+            "schema": psycopg.sql.Literal(self.config.pum.migration_table_schema),
+            "table": psycopg.sql.Literal(self.config.pum.migration_table_name),
+        }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         return cursor.fetchone()[0]
@@ -86,7 +68,6 @@ class SchemaMigrations:
             List[str]: List of schemas where the table exists.
 
         """
-        schema, table = self._pum_migrations_table_schema_name()
         query = psycopg.sql.SQL(
             """
             SELECT table_schema
@@ -95,7 +76,10 @@ class SchemaMigrations:
         """
         )
 
-        parameters = {"schema": psycopg.sql.Literal(schema), "table": psycopg.sql.Literal(table)}
+        parameters = {
+            "schema": psycopg.sql.Literal(self.config.pum.migration_table_schema),
+            "table": psycopg.sql.Literal(self.config.pum.migration_table_name),
+        }
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         return [row[0] for row in cursor.fetchall()]
 
@@ -114,35 +98,30 @@ class SchemaMigrations:
                 distinct schemas. Default is false.
         """
         if self.exists(connection):
-            logger.info(f"{self.config.pum_migrations_table} table already exists")
+            logger.info(
+                f"{self.config.pum.migration_table_schema}.{self.config.pum.migration_table_name} table already exists."
+            )
             return
 
         if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
             raise PumException(
-                f"Another {self.config.pum_migrations_table} table exists in another schema (). "
+                f"Another {self.config.pum.migration_table_schema}.{self.config.pum.migration_table_name} table exists in another schema (). "
                 "Please use the allow_multiple_schemas option to create a new one."
             )
 
         # Create the schema if it doesn't exist
-        create_schema_query = None
-        schema = "public"
-        table_identifiers = self.config.pum_migrations_table.split(".")
-        if len(table_identifiers) == 2:
-            schema = table_identifiers[0]
-
         parameters = {
-            "pum_migrations_table": psycopg.sql.Identifier(
-                *self.config.pum_migrations_table.split(".")
-            ),
             "version": psycopg.sql.Literal(migration_table_version),
-            "schema": psycopg.sql.Identifier(schema),
+            "schema": psycopg.sql.Identifier(self.config.pum.migration_table_schema),
+            "table": psycopg.sql.Identifier(self.config.pum.migration_table_name),
         }
 
-        if schema != "public":
+        create_schema_query = None
+        if self.config.pum.migration_table_schema != "public":
             create_schema_query = psycopg.sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema};")
 
         create_table_query = psycopg.sql.SQL(
-            """CREATE TABLE IF NOT EXISTS {pum_migrations_table}
+            """CREATE TABLE IF NOT EXISTS {schema}.{table}
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             date_installed timestamp without time zone NOT NULL DEFAULT now(),
@@ -157,7 +136,7 @@ class SchemaMigrations:
         )
 
         comment_query = psycopg.sql.SQL(
-            "COMMENT ON TABLE {pum_migrations_table} IS 'version: 1 --  schema_migration table version';"
+            "COMMENT ON TABLE {schema}.{table} IS 'version: 1 --  schema_migration table version';"
         )
 
         if create_schema_query:
@@ -165,7 +144,7 @@ class SchemaMigrations:
         SqlContent(create_table_query).execute(connection, parameters=parameters)
         SqlContent(comment_query).execute(connection, parameters=parameters)
 
-        logger.info(f"Created {self.config.pum_migrations_table} table")
+        logger.info(f"Created {parameters['schema']}.{parameters['table']} table")
 
         if commit:
             connection.commit()
@@ -198,7 +177,7 @@ class SchemaMigrations:
             raise ValueError(f"Wrong version format: {version}. Must be x.x.x")
 
         code = psycopg.sql.SQL("""
-INSERT INTO {pum_migrations_table} (
+INSERT INTO {schema}.{table} (
     version,
     beta_testing,
     migration_table_version,
@@ -213,9 +192,8 @@ INSERT INTO {pum_migrations_table} (
 );""")
 
         query_parameters = {
-            "pum_migrations_table": psycopg.sql.Identifier(
-                *self.config.pum_migrations_table.split(".")
-            ),
+            "schema": psycopg.sql.Identifier(self.config.pum.migration_table_schema),
+            "table": psycopg.sql.Identifier(self.config.pum.migration_table_name),
             "version": psycopg.sql.Literal(version),
             "beta_testing": psycopg.sql.Literal(beta_testing),
             "migration_table_version": psycopg.sql.Literal(migration_table_version),
@@ -223,7 +201,9 @@ INSERT INTO {pum_migrations_table} (
             "parameters": psycopg.sql.Literal(json.dumps(parameters or {})),
         }
 
-        logger.info(f"Setting baseline version {version} in {self.config.pum_migrations_table}")
+        logger.info(
+            f"Setting baseline version {version} in {query_parameters['schema']}.{query_parameters['table']} table"
+        )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
     def baseline(self, connection: psycopg.Connection) -> str:
@@ -240,10 +220,10 @@ INSERT INTO {pum_migrations_table} (
         query = psycopg.sql.SQL(
             """
             SELECT version
-            FROM {pum_migrations_table}
+            FROM {schema}.{table}
             WHERE id = (
                 SELECT id
-                FROM {pum_migrations_table}
+                FROM {schema}.{table}
                 ORDER BY version DESC, date_installed DESC
                 LIMIT 1
             )
@@ -251,9 +231,8 @@ INSERT INTO {pum_migrations_table} (
         )
 
         parameters = {
-            "pum_migrations_table": psycopg.sql.Identifier(
-                *self.config.pum_migrations_table.split(".")
-            )
+            "schema": psycopg.sql.Identifier(self.config.pum.migration_table_schema),
+            "table": psycopg.sql.Identifier(self.config.pum.migration_table_name),
         }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
@@ -278,10 +257,10 @@ INSERT INTO {pum_migrations_table} (
             query = psycopg.sql.SQL(
                 """
                 SELECT *
-                FROM {pum_migrations_table}
+                FROM {schema}.{table}
                 WHERE id = (
                         SELECT id
-                        FROM {pum_migrations_table}
+                        FROM {schema}.{table}
                         ORDER BY version DESC, date_installed DESC
                         LIMIT 1
                     )
@@ -290,23 +269,21 @@ INSERT INTO {pum_migrations_table} (
             )
 
             parameters = {
-                "pum_migrations_table": psycopg.sql.Identifier(
-                    *self.config.pum_migrations_table.split(".")
-                ),
+                "schema": psycopg.sql.Identifier(self.config.pum.migration_table_schema),
+                "table": psycopg.sql.Identifier(self.config.pum.migration_table_name),
             }
         else:
             query = psycopg.sql.SQL(
                 """
                 SELECT *
-                FROM {pum_migrations_table}
+                FROM {schema}.{table}
                 WHERE version = {version}
             """
             )
 
             parameters = {
-                "pum_migrations_table": psycopg.sql.Identifier(
-                    *self.config.pum_migrations_table.split(".")
-                ),
+                "schema": psycopg.sql.Identifier(self.config.pum.migration_table_schema),
+                "table": psycopg.sql.Identifier(self.config.pum.migration_table_name),
                 "version": psycopg.sql.Literal(version),
             }
 

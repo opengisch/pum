@@ -26,7 +26,7 @@ class ParameterDefinition:
     def __init__(
         self,
         name: str,
-        type_: str | ParameterType,
+        type: str | ParameterType,
         default: str | float | int | None = None,
         description: str | None = None,
     ) -> None:
@@ -34,7 +34,7 @@ class ParameterDefinition:
 
         Args:
             name: The name of the parameter.
-            type_: The type of the parameter, as a string or ParameterType.
+            type: The type of the parameter, as a string or ParameterType.
             default: The default value for the parameter. Defaults to None.
             description: A description of the parameter. Defaults to None.
 
@@ -45,14 +45,14 @@ class ParameterDefinition:
         """
         self.name = name
         if isinstance(type, ParameterType):
-            self.type = type_
-        elif isinstance(type_, str):
+            self.type = type
+        elif isinstance(type, str):
             try:
-                self.type = ParameterType(type_)
+                self.type = ParameterType(type)
             except ValueError:
-                raise ValueError(f"Parameter '{name}' has an invalid type: {type_}. ") from None
+                raise ValueError(f"Parameter '{name}' has an invalid type: {type}. ") from None
         else:
-            raise TypeError("type_ must be a str or ParameterType")
+            raise TypeError("type must be a str or ParameterType")
         self.default = psycopg.sql.Literal(default)
         self.description = description
 

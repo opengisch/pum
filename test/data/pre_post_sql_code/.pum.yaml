@@ -1,7 +1,7 @@
 
 migration_hooks:
   pre:
-    - code: DROP VEW IF EXISTS pum_test_app.some_view;
+    - code: DROP VIEW IF EXISTS pum_test_app.some_view;
 
   post:
     - code: CREATE SCHEMA IF NOT EXISTS pum_test_app;

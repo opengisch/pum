@@ -5,7 +5,7 @@ from packaging.version import parse as parse_version
 
 from pum.config import PumConfig
 from pum.exceptions import PumConfigError
-from pum.hook import HookHandler, HookType
+from pum.hook import HookHandler
 
 
 class TestConfig(unittest.TestCase):
@@ -60,22 +60,16 @@ class TestConfig(unittest.TestCase):
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")
 
         self.assertEqual(
-            cfg.post_hooks,
-            [
-                HookHandler(
-                    HookType.POST,
-                    "test/data/pre_post_sql_files/post/create_view.sql",
-                )
-            ],
+            cfg.migration_hooks.post[0].hook_handler,
+            HookHandler(
+                "test/data/pre_post_sql_files/post/create_view.sql",
+            ),
         )
         self.assertEqual(
-            cfg.pre_hooks,
-            [
-                HookHandler(
-                    HookType.PRE,
-                    "test/data/pre_post_sql_files/pre/drop_view.sql",
-                )
-            ],
+            cfg.migration_hooks.pre[0].hook_handler,
+            HookHandler(
+                "test/data/pre_post_sql_files/pre/drop_view.sql",
+            ),
         )
 
     def test_invalid_hooks_parameters(self) -> None:
@@ -128,4 +122,4 @@ class TestConfig(unittest.TestCase):
                 },
             ],
         )
-        self.assertIsNotNone(cfg.role_manager)
+        self.assertIsNotNone(cfg.roles)

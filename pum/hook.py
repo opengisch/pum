@@ -5,7 +5,6 @@ import sys
 import psycopg
 import copy
 
-from enum import Enum
 from pathlib import Path
 
 from .exceptions import PumHookError, PumSqlError
@@ -13,19 +12,6 @@ from .sql_content import SqlContent
 import abc
 
 logger = logging.getLogger(__name__)
-
-
-class HookType(Enum):
-    """Enum for migration hook types.
-
-    Attributes:
-        PRE (str): Pre-migration hook.
-        POST (str): Post-migration hook.
-
-    """
-
-    PRE = "pre"
-    POST = "post"
 
 
 class HookBase(abc.ABC):
@@ -86,14 +72,13 @@ class HookHandler:
 
     def __init__(
         self,
-        type_: str | HookType,
         file: str | Path | None = None,
         code: str | None = None,
     ) -> None:
         """Initialize a Hook instance.
 
         Args:
-            type_: The type of the hook (e.g., "pre", "post").
+            type: The type of the hook (e.g., "pre", "post").
             file: The file path of the hook.
             code: The SQL code for the hook.
 
@@ -101,7 +86,6 @@ class HookHandler:
         if file and code:
             raise ValueError("Cannot specify both file and code. Choose one.")
 
-        self.type = type_ if isinstance(type_, HookType) else HookType(type_)
         self.file = file if isinstance(file, Path) else Path(file) if file else None
         self.code = code
         self.hook_instance = None
@@ -141,13 +125,15 @@ class HookHandler:
 
     def __repr__(self) -> str:
         """Return a string representation of the Hook instance."""
-        return f"<{self.type.value} hook: {self.file}>"
+        return f"<hook: {self.file}>"
 
     def __eq__(self, other: "HookHandler") -> bool:
         """Check if two Hook instances are equal."""
         if not isinstance(other, HookHandler):
             return NotImplemented
-        return self.type == other.type and self.file == other.file
+        return (not self.file or self.file == other.file) and (
+            not self.code or self.code == other.code
+        )
 
     def validate(self, parameters: dict) -> None:
         """Check if the parameters match the expected parameter definitions.
@@ -188,7 +174,7 @@ class HookHandler:
 
         """
         logger.info(
-            f"Executing {self.type.value} hook from file: {self.file} or SQL code with parameters: {parameters}",
+            f"Executing hook from file: {self.file} or SQL code with parameters: {parameters}",
         )
 
         if self.file is None and self.code is None:

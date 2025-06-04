@@ -19,7 +19,9 @@ def run_info(connection: psycopg.Connection, config: PumConfig) -> None:
     try:
         schema_migrations = SchemaMigrations(connection, config)
         if not schema_migrations.exists():
-            logger.info(f"No migrations found in {config.pum_migrations_table}")
+            logger.info(
+                f"No migrations found in {config.pum.migration_table_schema}.{config.pum.migration_table_name}."
+            )
         else:
             # Add your logic for when migrations exist; for now, we simply print a message.
             logger.info("Migrations found.")

@@ -83,7 +83,6 @@ nav:
       - Changelog: api/changelog.md
       - HookBase: api/hook_base.md
       - HookHandler: api/hook_handler.md
-      - HookType: api/hook_type.md
       - ParameterDefinition: api/parameter_definition.md
       - ParameterType: api/parameter_type.md
       - Permission: api/permission.md

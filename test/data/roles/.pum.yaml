@@ -1,0 +1,16 @@
+
+roles:
+  - name: tww_viewer
+    description: Role for users who can view the TWW data.
+    permissions:
+      - type: view
+        schemas:
+          - [tww_od, tww_vl, tww_sys, tww_app, tww_cfg]
+
+  - name: tww_user
+    description: Role for users who can view and edit the TWW data.
+    inherit: tww_viewer
+    permissions:
+      - type: edit
+        schemas:
+          - [tww_od]
