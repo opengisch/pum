@@ -10,4 +10,4 @@ pre-commit
 
 # for testing
 nose2
-git+https://github.com/opengisch/pirogue.git@v3
+git+https://github.com/opengisch/pirogue.git@v3#egg=pirogue
