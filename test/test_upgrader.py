@@ -18,12 +18,12 @@ class TestUpgrader(unittest.TestCase):
 
     def tearDown(self) -> None:
         """Clean up the test environment."""
-        self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
-        self.cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
-        self.cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
-        self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
-        self.conn.commit()
-        self.conn.close()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
+            cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
 
         self.tmpdir.cleanup()
         self.tmp = None
@@ -35,13 +35,13 @@ class TestUpgrader(unittest.TestCase):
         self.maxDiff = 5000
 
         self.pg_service = "pum_test"
-        self.conn = psycopg.connect(f"service={self.pg_service}")
-        self.cur = self.conn.cursor()
-        self.cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
-        self.cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
-        self.cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
-        self.cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
-        self.conn.commit()
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
+            cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
@@ -52,20 +52,21 @@ class TestUpgrader(unittest.TestCase):
         changelog_file = test_dir / "changelogs" / "1.2.3" / "single_changelog.sql"
         cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install()
-        self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(sm.baseline(self.conn), "1.2.3")
-        self.assertEqual(sm.migration_details(self.conn), sm.migration_details(self.conn, "1.2.3"))
-        self.assertEqual(sm.migration_details(self.conn)["version"], "1.2.3")
-        self.assertEqual(
-            sm.migration_details(self.conn)["changelog_files"],
-            [str(changelog_file)],
-        )
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install()
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(sm.baseline(conn), "1.2.3")
+            self.assertEqual(sm.migration_details(conn), sm.migration_details(conn, "1.2.3"))
+            self.assertEqual(sm.migration_details(conn)["version"], "1.2.3")
+            self.assertEqual(
+                sm.migration_details(conn)["changelog_files"],
+                [str(changelog_file)],
+            )
 
     @unittest.skipIf(
         os.name == "nt" and os.getenv("CI") == "true",
@@ -105,30 +106,32 @@ class TestUpgrader(unittest.TestCase):
             ),
         )
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install(
-            parameters={
-                "SRID": 2056,
-                "default_text_value": "hello world",
-                "default_integer_value": 1806,
-            }
-        )
-        self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(
-            sm.migration_details(self.conn)["parameters"],
-            {
-                "SRID": 2056,
-                "default_text_value": "hello world",
-                "default_integer_value": 1806,
-            },
-        )
-        self.cur.execute("SELECT Find_SRID('pum_test_data', 'some_table', 'geom');")
-        srid = self.cur.fetchone()[0]
-        self.assertEqual(srid, 2056)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install(
+                parameters={
+                    "SRID": 2056,
+                    "default_text_value": "hello world",
+                    "default_integer_value": 1806,
+                }
+            )
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(
+                sm.migration_details(conn)["parameters"],
+                {
+                    "SRID": 2056,
+                    "default_text_value": "hello world",
+                    "default_integer_value": 1806,
+                },
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT Find_SRID('pum_test_data', 'some_table', 'geom');")
+            srid = cur.fetchone()[0]
+            self.assertEqual(srid, 2056)
 
     @unittest.skipIf(
         os.name == "nt" and os.getenv("CI") == "true",
@@ -140,24 +143,26 @@ class TestUpgrader(unittest.TestCase):
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install(
-            parameters={
-                "SRID": 2056,
-                "default_text_value": "); DROP TABLE pum_test_data.some_table2; CREATE TABLE pum_test_data.some_table3( id INT PRIMARY KEY",
-                "default_integer_value": 1806,
-            }
-        )
-        # Assert that pum_test_data.some_table2 exists (i.e., SQL injection did not drop it)
-        self.cur.execute(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pum_test_data' AND table_name = 'some_table2');"
-        )
-        exists = self.cur.fetchone()[0]
-        self.assertTrue(exists)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install(
+                parameters={
+                    "SRID": 2056,
+                    "default_text_value": "); DROP TABLE pum_test_data.some_table2; CREATE TABLE pum_test_data.some_table3( id INT PRIMARY KEY",
+                    "default_integer_value": 1806,
+                }
+            )
+            # Assert that pum_test_data.some_table2 exists (i.e., SQL injection did not drop it)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pum_test_data' AND table_name = 'some_table2');"
+            )
+            exists = cur.fetchone()[0]
+            self.assertTrue(exists)
 
     def test_install_custom_directory(self) -> None:
         """Test the installation of a custom directory."""
@@ -165,12 +170,13 @@ class TestUpgrader(unittest.TestCase):
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
         sm = SchemaMigrations(cfg)
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install()
-        self.assertTrue(sm.exists(self.conn))
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install()
+            self.assertTrue(sm.exists(conn))
 
     def test_install_custom_migration_table(self) -> None:
         """Test the installation of a custom migration table."""
@@ -178,26 +184,28 @@ class TestUpgrader(unittest.TestCase):
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install()
-        self.assertTrue(sm.exists(self.conn))
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install()
+            self.assertTrue(sm.exists(conn))
 
     def test_install_complex_files_content(self) -> None:
         """Test the installation of complex files content."""
         complex_dir = Path("test") / "data" / "complex_files_content"
         cfg = PumConfig(complex_dir)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install()
-        self.assertTrue(sm.exists(self.conn))
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install()
+            self.assertTrue(sm.exists(conn))
 
     def test_install_multiple_changelogs(self) -> None:
         """Test the installation of multiple changelogs."""
@@ -206,137 +214,148 @@ class TestUpgrader(unittest.TestCase):
         changelog_file_2 = test_dir / "changelogs" / "2.0.0" / "create_third_table.sql"
         cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install()
-        self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(sm.baseline(self.conn), "2.0.0")
-        self.assertEqual(
-            sm.migration_details(self.conn),
-            sm.migration_details(self.conn, "2.0.0"),
-        )
-        self.assertEqual(sm.migration_details(self.conn)["version"], "2.0.0")
-        self.assertEqual(
-            sm.migration_details(self.conn)["changelog_files"],
-            [str(changelog_file_1), str(changelog_file_2)],
-        )
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install()
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(sm.baseline(conn), "2.0.0")
+            self.assertEqual(
+                sm.migration_details(conn),
+                sm.migration_details(conn, "2.0.0"),
+            )
+            self.assertEqual(sm.migration_details(conn)["version"], "2.0.0")
+            self.assertEqual(
+                sm.migration_details(conn)["changelog_files"],
+                [str(changelog_file_1), str(changelog_file_2)],
+            )
 
     def test_install_multiple_changelogs_max_version(self) -> None:
         """Test the installation of multiple changelogs with max_version."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
         cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(connection=self.conn, config=cfg)
-        upgrader.install(max_version="1.2.4")
-        self.assertTrue(sm.exists(self.conn))
-        self.assertEqual(sm.baseline(self.conn), "1.2.4")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(connection=conn, config=cfg)
+            upgrader.install(max_version="1.2.4")
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(sm.baseline(conn), "1.2.4")
 
     def test_invalid_changelog(self) -> None:
         """Test the invalid changelog."""
         test_dir = Path("test") / "data" / "invalid_changelog"
         cfg = PumConfig(dir=test_dir, validate=False)
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(connection=self.conn, config=cfg)
-        with self.assertRaises(Exception) as context:
-            upgrader.install()
-        self.assertTrue(
-            "SQL contains forbidden transaction statement: BEGIN;" in str(context.exception)
-        )
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(connection=conn, config=cfg)
+            with self.assertRaises(Exception) as context:
+                upgrader.install()
+            self.assertTrue(
+                "SQL contains forbidden transaction statement: BEGIN;" in str(context.exception)
+            )
 
     def test_pre_post_sql_files(self) -> None:
         """Test the pre and post SQL files."""
         test_dir = Path("test") / "data" / "pre_post_sql_files"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(connection=self.conn, config=cfg)
-        upgrader.install(max_version="1.2.3")
-        self.assertTrue(sm.exists(self.conn))
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.views "
-            "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
-        )
-        exists = cursor.fetchone()[0]
-        self.assertTrue(exists)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(connection=conn, config=cfg)
+            upgrader.install(max_version="1.2.3")
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.views "
+                "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+            )
+            exists = cursor.fetchone()[0]
+            self.assertTrue(exists)
 
     def test_pre_post_sql_code(self) -> None:
         """Test the pre and post hooks with SQL code."""
         test_dir = Path("test") / "data" / "pre_post_sql_code"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(connection=self.conn, config=cfg)
-        upgrader.install(max_version="1.2.3")
-        self.assertTrue(sm.exists(self.conn))
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.views "
-            "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
-        )
-        exists = cursor.fetchone()[0]
-        self.assertTrue(exists)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(connection=conn, config=cfg)
+            upgrader.install(max_version="1.2.3")
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.views "
+                "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+            )
+            exists = cursor.fetchone()[0]
+            self.assertTrue(exists)
 
     def test_pre_post_python(self) -> None:
         """Test the pre and post python hooks."""
         test_dir = Path("test") / "data" / "pre_post_python"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(connection=self.conn, config=cfg)
-        upgrader.install(max_version="1.2.3")
-        self.assertTrue(sm.exists(self.conn))
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.views "
-            "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
-        )
-        exists = cursor.fetchone()[0]
-        self.assertTrue(exists)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(connection=conn, config=cfg)
+            upgrader.install(max_version="1.2.3")
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.views "
+                "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+            )
+            exists = cursor.fetchone()[0]
+            self.assertTrue(exists)
 
     def test_pre_post_python_parameters(self) -> None:
         """Test the pre and post python hooks with parameters."""
         test_dir = Path("test") / "data" / "pre_post_python_parameters"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        with self.assertRaises(PumHookError):
-            upgrader = Upgrader(connection=self.conn, config=cfg)
-            upgrader.install(max_version="1.2.3")
-        upgrader = Upgrader(
-            connection=self.conn,
-            config=cfg,
-        )
-        upgrader.install(max_version="1.2.3", parameters={"my_comment": "how cool"})
-        self.assertTrue(sm.exists(self.conn))
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT obj_description(('pum_test_app.some_view'::regclass)::oid, 'pg_class');"
-        )
-        comment = cursor.fetchone()[0]
-        self.assertEqual(comment, "how cool")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            with self.assertRaises(PumHookError):
+                upgrader = Upgrader(connection=conn, config=cfg)
+                upgrader.install(max_version="1.2.3")
+            conn.rollback()
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(
+                connection=conn,
+                config=cfg,
+            )
+            upgrader.install(max_version="1.2.3", parameters={"my_comment": "how cool"})
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT obj_description(('pum_test_app.some_view'::regclass)::oid, 'pg_class');"
+            )
+            comment = cursor.fetchone()[0]
+            self.assertEqual(comment, "how cool")
 
     def test_pre_post_python_local_import(self) -> None:
         """Test the pre and post python hooks with local import."""
         test_dir = Path("test") / "data" / "pre_post_python_local_import"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
-        self.assertFalse(sm.exists(self.conn))
-        upgrader = Upgrader(connection=self.conn, config=cfg)
-        upgrader.install()
-        self.assertTrue(sm.exists(self.conn))
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.views "
-            "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
-        )
-        exists = cursor.fetchone()[0]
-        self.assertTrue(exists)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(connection=conn, config=cfg)
+            upgrader.install()
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.views "
+                "WHERE table_schema = 'pum_test_app' AND table_name = 'some_view');"
+            )
+            exists = cursor.fetchone()[0]
+            self.assertTrue(exists)
 
 
 if __name__ == "__main__":
