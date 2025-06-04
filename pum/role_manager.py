@@ -1,6 +1,7 @@
 import enum
 from typing import Optional
 import copy
+import psycopg
 
 
 class PermissionType(enum.Enum):
@@ -84,3 +85,27 @@ class RoleManager:
                 raise ValueError(
                     f"Inherited role {role.inherit.name} does not exist in the defined roles."
                 )
+
+    def create(self, connection: psycopg.Connection, commit: bool = False) -> None:
+        """Create roles in the database.
+        Args:
+            connection: The database connection to execute the SQL statements.
+            commit: Whether to commit the transaction. Defaults to False.
+        """
+        cursor = connection.cursor()
+        for role in self.roles.values():
+            cursor.execute(
+                "CREATE ROLE IF NOT EXISTS %s",
+                (role.name,),
+            )
+            if role.description:
+                cursor.execute(
+                    "COMMENT ON ROLE %s IS %s",
+                    (role.name, role.description),
+                )
+            for permission in role.permissions():
+                cursor.execute(
+                    f"GRANT {permission.type.value} ON SCHEMA {', '.join(permission.schemas)} TO {role.name}"
+                )
+        if commit:
+            connection.commit()

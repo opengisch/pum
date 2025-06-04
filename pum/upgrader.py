@@ -22,7 +22,7 @@ class Upgrader:
 
     def __init__(
         self,
-        pg_service: str,
+        connection: psycopg.Connection,
         config: PumConfig,
         max_version: packaging.version.Version | str | None = None,
     ) -> None:
@@ -32,16 +32,15 @@ class Upgrader:
         The table is created in the schema defined in the config file if it does not exist.
 
         Args:
-            pg_service:
-                The name of the postgres service (defined in pg_service.conf)
-                related to the db
+            connection:
+                The database connection to use for the upgrade.
             config:
                 The configuration object
             max_version:
                 Maximum (including) version to run the deltas up to.
 
         """
-        self.pg_service = pg_service
+        self.connection = connection
         self.config = config
         self.max_version = packaging.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
@@ -68,36 +67,34 @@ class Upgrader:
         for key, value in parameters_literals.items():
             parameters_literals[key] = psycopg.sql.Literal(value)
 
-        with psycopg.connect(f"service={self.pg_service}") as connection:
-            if self.schema_migrations.exists(connection):
-                msg = (
-                    f"Schema migrations '{self.config.pum_migrations_table}' table already exists. "
-                    "Use upgrade() to upgrade the db or start with a clean db."
-                )
-                raise PumException(msg)
-            self.schema_migrations.create(connection, commit=False)
-            last_changelog = None
-            for changelog in self.config.list_changelogs(max_version=max_version):
-                last_changelog = changelog
-                changelog_files = changelog.apply(
-                    connection, commit=False, parameters=parameters_literals
-                )
-                changelog_files = [str(f) for f in changelog_files]
-                self.schema_migrations.set_baseline(
-                    connection=connection,
-                    version=changelog.version,
-                    beta_testing=False,
-                    commit=False,
-                    changelog_files=changelog_files,
-                    parameters=parameters,
-                )
-                for post_hook in self.config.post_hooks:
-                    post_hook.execute(
-                        connection=connection, commit=False, parameters=parameters_literals
-                    )
-            connection.commit()
-            logger.info(
-                "Installed %s table and applied changelogs up to version %s",
-                self.config.pum_migrations_table,
-                last_changelog.version,
+        if self.schema_migrations.exists(self.connection):
+            msg = (
+                f"Schema migrations '{self.config.pum_migrations_table}' table already exists. "
+                "Use upgrade() to upgrade the db or start with a clean db."
             )
+            raise PumException(msg)
+        self.schema_migrations.create(self.connection, commit=False)
+        last_changelog = None
+        for changelog in self.config.list_changelogs(max_version=max_version):
+            last_changelog = changelog
+            changelog_files = changelog.apply(
+                self.connection, commit=False, parameters=parameters_literals
+            )
+            changelog_files = [str(f) for f in changelog_files]
+            self.schema_migrations.set_baseline(
+                connection=self.connection,
+                version=changelog.version,
+                beta_testing=False,
+                commit=False,
+                changelog_files=changelog_files,
+                parameters=parameters,
+            )
+            for post_hook in self.config.post_hooks:
+                post_hook.execute(
+                    connection=self.connection, commit=False, parameters=parameters_literals
+                )
+        logger.info(
+            "Installed %s table and applied changelogs up to version %s",
+            self.config.pum_migrations_table,
+            last_changelog.version,
+        )

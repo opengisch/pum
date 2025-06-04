@@ -1,5 +1,6 @@
 import logging
 import sys
+import psycopg
 
 from .config import PumConfig
 from .schema_migrations import SchemaMigrations
@@ -7,17 +8,16 @@ from .schema_migrations import SchemaMigrations
 logger = logging.getLogger(__name__)
 
 
-def run_info(pg_service: str, config: PumConfig) -> None:
+def run_info(connection: psycopg.Connection, config: PumConfig) -> None:
     """Print info about the schema migrations.
 
     Args:
-        pg_service (str): The name of the PostgreSQL service to connect to.
-        config (PumConfig): An instance of the PumConfig class containing configuration settings for the PUM system.
-        out_fn (callable): Function to print output messages.
+        connection: The database connection to use for checking migrations.
+        config: An instance of the PumConfig class containing configuration settings for the PUM system.
 
     """
     try:
-        schema_migrations = SchemaMigrations(pg_service, config)
+        schema_migrations = SchemaMigrations(connection, config)
         if not schema_migrations.exists():
             logger.info(f"No migrations found in {config.pum_migrations_table}")
         else:

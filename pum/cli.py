@@ -19,7 +19,7 @@ from .parameter import ParameterType
 
 
 def setup_logging(verbosity: int = 0):
-    """Setup logging based on verbosity level (0=WARNING, 1=INFO, 2+=DEBUG)"""
+    """Setup logging based on verbosity level (0=WARNING, 1=INFO, 2+=DEBUG) with colored output."""
     level = logging.WARNING  # default
 
     if verbosity == 1:
@@ -27,9 +27,29 @@ def setup_logging(verbosity: int = 0):
     elif verbosity >= 2:
         level = logging.DEBUG
 
+    class ColorFormatter(logging.Formatter):
+        COLORS = {
+            logging.ERROR: "\033[31m",  # Red
+            logging.WARNING: "\033[33m",  # Yellow
+            logging.INFO: "\033[36m",  # Cyan
+            logging.DEBUG: "\033[35m",  # Magenta
+        }
+        RESET = "\033[0m"
+
+        def format(self, record):
+            color = self.COLORS.get(record.levelno, "")
+            message = super().format(record)
+            if color:
+                message = f"{color}{message}{self.RESET}"
+            return message
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(ColorFormatter("%(message)s"))
     logging.basicConfig(
         level=level,
+        handlers=[handler],
         format="%(message)s",
+        force=True,
     )
 
 
@@ -323,6 +343,12 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_install.add_argument("--max-version", help="maximum version to install")
 
+    # Role management parser
+    parser_role = subparsers.add_parser("role", help="manage roles in the database")
+    parser_role.add_argument(
+        "action", choices=["create", "grant", "revoke", "drop"], help="Action to perform"
+    )
+
     # Parser for the "check" command
     parser_check = subparsers.add_parser(
         "check", help="check the differences between two databases"
@@ -409,7 +435,9 @@ def cli() -> int:  # noqa: PLR0912
     """Main function to run the command line interface."""
     parser = create_parser()
     args = parser.parse_args()
+
     setup_logging(args.verbose)
+    logger = logging.getLogger(__name__)
 
     if args.config_file:
         config = PumConfig.from_yaml(args.config_file)
@@ -421,71 +449,98 @@ def cli() -> int:  # noqa: PLR0912
         parser.print_help()
         parser.exit()
 
-    # Build parameters dict for install and upgrade commands
-    parameters = {}
-    if args.command in ("install", "upgrade"):
-        for p in args.parameter or ():
-            if p[0] not in config.parameters():
-                print(f"Unknown parameter: {p[0]}")  # noqa: T201
-                sys.exit(1)
-            if config.parameter(p[0]).type == ParameterType.DECIMAL:
-                parameters[p[0]] = float(p[1])
-            elif config.parameter(p[0]).type == ParameterType.INTEGER:
-                parameters[p[0]] = int(p[1])
-            elif config.parameter(p[0]).type == ParameterType.BOOLEAN:
-                parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
-            elif config.parameter(p[0]).type == ParameterType.STRING:
-                parameters[p[0]] = p[1]
-            else:
-                raise ValueError(
-                    f"Unsupported parameter type for {p[0]}: {config.parameter(p[0]).type}"
+    with psycopg.connect(f"service={args.pg_service}") as conn:
+        # Check if the connection is successful
+        if not conn:
+            logger.error(f"Could not connect to the database using service: {args.pg_service}")
+            sys.exit(1)
+
+        # Build parameters dict for install and upgrade commands
+        parameters = {}
+        if args.command in ("install", "upgrade"):
+            for p in args.parameter or ():
+                if p[0] not in config.parameters():
+                    logger.error(f"Unknown parameter: {p[0]}")
+                    sys.exit(1)
+                if config.parameter(p[0]).type == ParameterType.DECIMAL:
+                    parameters[p[0]] = float(p[1])
+                elif config.parameter(p[0]).type == ParameterType.INTEGER:
+                    parameters[p[0]] = int(p[1])
+                elif config.parameter(p[0]).type == ParameterType.BOOLEAN:
+                    parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
+                elif config.parameter(p[0]).type == ParameterType.STRING:
+                    parameters[p[0]] = p[1]
+                else:
+                    raise ValueError(
+                        f"Unsupported parameter type for {p[0]}: {config.parameter(p[0]).type}"
+                    )
+            logger.debug(f"Parameters: {parameters}")
+
+        pum = Pum(args.pg_service, config)
+        exit_code = 0
+
+        if args.command == "info":
+            run_info(connection=conn, config=config)
+        elif args.command == "install":
+            Upgrader(connection=conn, config=config).install(
+                parameters=parameters, max_version=args.max_version
+            )
+        elif args.command == "role":
+            if not args.action:
+                logger.error(
+                    "You must specify an action for the role command (create, grant, revoke, drop)."
                 )
-
-    logger = logging.getLogger(__name__)
-    logger.debug(f"Parameters: {parameters}")
-
-    pum = Pum(args.pg_service, config)
-    exit_code = 0
-
-    if args.command == "info":
-        run_info(args.pg_service, config)
-    elif args.command == "install":
-        Upgrader(args.pg_service, config=config).install(
-            parameters=parameters, max_version=args.max_version
-        )
-    elif args.command == "check":
-        success = pum.run_check(
-            args.pg_service1,
-            args.pg_service2,
-            ignore_list=args.ignore,
-            exclude_schema=args.exclude_schema,
-            exclude_field_pattern=args.exclude_field_pattern,
-            verbose_level=args.verbose_level,
-            output_file=args.output_file,
-        )
-        if not success:
+                exit_code = 1
+            else:
+                # Create a RoleManager instance and manage roles based on the action
+                if not config.role_manager:
+                    logger.error("No role manager configured in the PUM configuration.")
+                    exit_code = 1
+                else:
+                    if args.action == "create":
+                        config.role_manager.create(connection=conn)
+                    elif args.action == "grant":
+                        config.role_manager(config).grant(connection=conn)
+                    elif args.action == "revoke":
+                        config.role_manager(config).revoke(connection=conn)
+                    elif args.action == "drop":
+                        config.role_manager(config).drop(connection=conn)
+                    else:
+                        logger.error(f"Unknown action: {args.action}")
+                        exit_code = 1
+        elif args.command == "check":
+            success = pum.run_check(
+                args.pg_service1,
+                args.pg_service2,
+                ignore_list=args.ignore,
+                exclude_schema=args.exclude_schema,
+                exclude_field_pattern=args.exclude_field_pattern,
+                verbose_level=args.verbose_level,
+                output_file=args.output_file,
+            )
+            if not success:
+                exit_code = 1
+        elif args.command == "dump":
+            pum.run_dump(args.pg_service, args.file, args.exclude_schema)
+        elif args.command == "restore":
+            pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
+        elif args.command == "baseline":
+            pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
+        elif args.command == "upgrade":
+            pum.run_upgrade(
+                args.pg_service,
+                args.table,
+                args.dir,
+                parameters,
+                args.max_version,
+                args.verbose,
+            )
+        elif args.command == "help":
+            parser.print_help()
+        else:
+            logger.error(f"Unknown command: {args.command}")
+            logger.error("Use -h or --help for help.")
             exit_code = 1
-    elif args.command == "dump":
-        pum.run_dump(args.pg_service, args.file, args.exclude_schema)
-    elif args.command == "restore":
-        pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
-    elif args.command == "baseline":
-        pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
-    elif args.command == "upgrade":
-        pum.run_upgrade(
-            args.pg_service,
-            args.table,
-            args.dir,
-            parameters,
-            args.max_version,
-            args.verbose,
-        )
-    elif args.command == "help":
-        parser.print_help()
-    else:
-        print(f"Unknown command: {args.command}")  # noqa: T201
-        print("Use -h or --help for help.")  # noqa: T201
-        exit_code = 1
 
     return exit_code
 

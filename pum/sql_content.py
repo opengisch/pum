@@ -218,7 +218,7 @@ class SqlContent:
         """
         if isinstance(self.sql, Path):
             logger.info(
-                f"Preparing SQL from file: {self.sql} with parameters: {parameters}",
+                f"Checking SQL from file: {self.sql} with parameters: {parameters}",
             )
             sql_code = sql_chunks_from_file(self.sql)
         elif isinstance(self.sql, str):
