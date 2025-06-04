@@ -95,6 +95,18 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(PumConfigError):
             PumConfig(dir=Path("test") / "data" / "parameters", validate=True)
 
+    def test_minimum_version(self) -> None:
+        with self.assertRaises(PumConfigError):
+            PumConfig(
+                dir=Path("test") / "data" / "single_changelog",
+                pum={"minimum_version": "9.9.9"},
+                validate=True,
+            )
+        PumConfig(
+            dir=Path("test") / "data" / "single_changelog",
+            pum={"minimum_version": "0.1"},
+        )
+
     def test_roles(self) -> None:
         """Test roles."""
         cfg = PumConfig(

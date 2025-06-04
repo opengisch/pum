@@ -5,6 +5,8 @@ import packaging
 from pydantic import BaseModel, Field, ValidationError, model_validator
 from typing import List, Optional, Any, Literal
 import logging
+import importlib.metadata
+
 
 from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
@@ -12,6 +14,11 @@ from .hook import HookHandler
 from .parameter import ParameterDefinition, ParameterType
 
 DIR = "."
+
+try:
+    PUM_VERSION = packaging.version.Version(importlib.metadata.version("pum"))
+except importlib.metadata.PackageNotFoundError:
+    PUM_VERSION = packaging.version.Version("0.0.0")
 
 
 class ParameterDefinitionModel(BaseModel):
@@ -51,12 +58,22 @@ class MigrationHooksModel(BaseModel):
 
 
 class PumModel(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
     migration_table_schema: Optional[str] = Field(
         default="public", description="Name of schema for the migration table"
     )
     migration_table_name: Literal["pum_migrations"] = Field(default="pum_migrations")
-    minimum_version: Optional[str] = None
-    minimum_version: Optional[str] = None
+    minimum_version: Optional[packaging.version.Version] = Field(
+        default=None,
+        description="Minimum required version of pum.",
+    )
+
+    @model_validator(mode="before")
+    def parse_minimum_version(cls, values):
+        min_ver = values.get("minimum_version")
+        if isinstance(min_ver, str):
+            values["minimum_version"] = packaging.version.Version(min_ver)
+        return values
 
 
 class PermissionModel(BaseModel):
@@ -117,6 +134,10 @@ class PumConfig(ConfigModel):
             raise PumConfigError(e)
 
         if validate:
+            if self.pum.minimum_version and PUM_VERSION < self.pum.minimum_version:
+                raise PumConfigError(
+                    f"Minimum required version of pum is {self.pum.minimum_version}, but the current version is {PUM_VERSION}. Please upgrade pum."
+                )
             try:
                 self.validate()
             except (PumInvalidChangelog, PumHookError) as e:
