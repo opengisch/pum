@@ -44,6 +44,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -56,11 +58,8 @@ jobs:
           python -m pip install -r requirements/development.txt
           python -m pip install git+https://github.com/opengisch/pirogue.git@v3#egg=pirogue
 
-      - name: Fake version for setuptools-git-versioning
-        run: echo "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_PUM=1.2.3" >> $GITHUB_ENV
-
       - name: Install pum
-        run: python -m pip install --root-user-action=ignore .
+        run: python -m pip install .
 
       - name: Setup db
         shell: bash
