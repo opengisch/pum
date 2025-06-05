@@ -3,7 +3,7 @@ roles:
   - name: pum_test_viewer
     description: Role for users who can view the TWW data.
     permissions:
-      - type: view
+      - type: read
         schemas:
           - [pum_test_data_schema_1]
 
@@ -11,6 +11,6 @@ roles:
     description: Role for users who can view and edit the TWW data.
     inherit: pum_test_viewer
     permissions:
-      - type: edit
+      - type: write
         schemas:
           - [pum_test_data_schema_2]
