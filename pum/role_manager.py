@@ -106,10 +106,13 @@ class Role:
             parameters={"name": psycopg.sql.Literal(self.name)},
         ).fetchone() is not None
 
-    def create(self, connection: psycopg.Connection, commit: bool = False) -> None:
+    def create(
+        self, connection: psycopg.Connection, grant: bool = False, commit: bool = False
+    ) -> None:
         """Create the role in the database.
         Args:
             connection: The database connection to execute the SQL statements.
+            grant: Whether to grant permissions to the role. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
         """
         if self.exists(connection):
@@ -130,8 +133,9 @@ class Role:
                         "description": psycopg.sql.Literal(self.description),
                     },
                 )
-        for permission in self.permissions():
-            permission.grant(role=self.name, connection=connection, commit=commit)
+        if grant:
+            for permission in self.permissions():
+                permission.grant(role=self.name, connection=connection, commit=commit)
 
         if commit:
             connection.commit()
