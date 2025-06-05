@@ -2,6 +2,11 @@ import enum
 from typing import Optional
 import copy
 import psycopg
+import logging
+
+from .sql_content import SqlContent
+
+logger = logging.getLogger(__name__)
 
 
 class PermissionType(enum.Enum):
@@ -10,7 +15,6 @@ class PermissionType(enum.Enum):
     Attributes:
         READ (str): Read permission.
         WRITE (str): Write permission.
-        EXECUTE (str): Execute permission.
     """
 
     READ = "read"
@@ -21,6 +25,40 @@ class Permission:
     def __init__(self, type: PermissionType | str, schemas: list[str] = None) -> None:
         if not isinstance(type, PermissionType):
             type = PermissionType(type)
+        self.type = type
+        self.schemas = schemas
+
+    def grant(
+        self,
+        role: str,
+        connection: psycopg.Connection,
+        commit: bool = False,
+    ) -> None:
+        """Grant the permission to the specified role.
+        Args:
+            role: The name of the role to grant the permission to.
+            connection: The database connection to execute the SQL statements.
+            commit: Whether to commit the transaction. Defaults to False.
+        """
+        if not isinstance(role, str):
+            raise TypeError("Role must be a string.")
+
+        if not self.schemas:
+            raise ValueError("Schemas must be defined for the permission.")
+
+        for schema in self.schemas:
+            SqlContent("GRANT {type} ON SCHEMA {schema} TO {role}").execute(
+                connection=connection,
+                commit=False,
+                parameters={
+                    "type": psycopg.sql.Identifier(self.type.value),
+                    "schema": psycopg.sql.Identifier(schema),
+                    "role": psycopg.sql.Identifier(role),
+                },
+            )
+
+        if commit:
+            connection.commit()
 
 
 class Role:
@@ -55,6 +93,49 @@ class Role:
     def permissions(self):
         return self._permissions
 
+    def exists(self, connection: psycopg.Connection) -> bool:
+        """Check if the role exists in the database.
+        Args:
+            connection: The database connection to execute the SQL statements.
+        Returns:
+            bool: True if the role exists, False otherwise.
+        """
+        SqlContent("SELECT 1 FROM pg_roles WHERE rolname = {name}").execute(
+            connection=connection,
+            commit=False,
+            parameters={"name": psycopg.sql.Literal(self.name)},
+        ).fetchone() is not None
+
+    def create(self, connection: psycopg.Connection, commit: bool = False) -> None:
+        """Create the role in the database.
+        Args:
+            connection: The database connection to execute the SQL statements.
+            commit: Whether to commit the transaction. Defaults to False.
+        """
+        if self.exists(connection):
+            logger.info(f"Role {self.name} already exists, skipping creation.")
+        else:
+            logger.info(f"Creating role {self.name}.")
+            SqlContent("CREATE ROLE {name}").execute(
+                connection=connection,
+                commit=False,
+                parameters={"name": psycopg.sql.Identifier(self.name)},
+            )
+            if self.description:
+                SqlContent("COMMENT ON ROLE {name} IS {description}").execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
+                        "name": psycopg.sql.Identifier(self.name),
+                        "description": psycopg.sql.Literal(self.description),
+                    },
+                )
+        for permission in self.permissions():
+            permission.grant(role=self.name, connection=connection, commit=commit)
+
+        if commit:
+            connection.commit()
+
 
 class RoleManager:
     def __init__(self, roles=list[Role] | list[dict]) -> None:
@@ -66,11 +147,9 @@ class RoleManager:
         if isinstance(roles, list) and all(isinstance(role, dict) for role in roles):
             self.roles = {}
             for role in roles:
-                print("xxxx", role)
                 _inherit = role.get("inherit")
                 if _inherit is not None:
                     if _inherit not in self.roles:
-                        print(123, self.roles)
                         raise ValueError(
                             f"Inherited role {_inherit} does not exist in the already defined roles. Pay attention to the order of the roles in the list."
                         )
@@ -94,20 +173,7 @@ class RoleManager:
             connection: The database connection to execute the SQL statements.
             commit: Whether to commit the transaction. Defaults to False.
         """
-        cursor = connection.cursor()
         for role in self.roles.values():
-            cursor.execute(
-                "CREATE ROLE IF NOT EXISTS %s",
-                (role.name,),
-            )
-            if role.description:
-                cursor.execute(
-                    "COMMENT ON ROLE %s IS %s",
-                    (role.name, role.description),
-                )
-            for permission in role.permissions():
-                cursor.execute(
-                    f"GRANT {permission.type.value} ON SCHEMA {', '.join(permission.schemas)} TO {role.name}"
-                )
+            role.create(connection=connection, commit=commit)
         if commit:
             connection.commit()
