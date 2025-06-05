@@ -57,7 +57,7 @@ jobs:
           python -m pip install git+https://github.com/opengisch/pirogue.git@v3#egg=pirogue
 
       - name: Fake version for setuptools-git-versioning
-        run: echo "SETUPTOOLS_SCM_PRETEND_VERSION=1.2.3" >> $GITHUB_ENV
+        run: echo "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_PUM=1.2.3" >> $GITHUB_ENV
 
       - name: Install pum
         run: python -m pip install .
