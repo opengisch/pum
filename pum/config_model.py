@@ -9,6 +9,14 @@ from .parameter import ParameterType
 
 
 class ParameterDefinitionModel(BaseModel):
+    """ParameterDefinitionModel represents a parameter definition in the configuration.
+    Attributes:
+        name: Name of the parameter.
+        type: Type of the parameter (default is TEXT).
+        default: Optional default value for the parameter.
+        description: Optional description of the parameter.
+    """
+
     name: str
     type: ParameterType = Field(default=ParameterType.TEXT, description="Type of the parameter")
     default: Optional[Any] = None
@@ -16,6 +24,13 @@ class ParameterDefinitionModel(BaseModel):
 
 
 class HookModel(BaseModel):
+    """
+    HookModel represents a migration hook configuration.
+    Attributes:
+        file: Optional path to a SQL file to execute as a hook.
+        code: Optional Python code to execute as a hook.
+    """
+
     file: Optional[str] = None
     code: Optional[str] = None
 
@@ -28,6 +43,13 @@ class HookModel(BaseModel):
 
 
 class MigrationHooksModel(BaseModel):
+    """
+    MigrationHooksModel holds the configuration for migration hooks.
+    Attributes:
+        pre: List of pre-migration hooks.
+        post: List of post-migration hooks.
+    """
+
     pre: Optional[List[HookModel]] = []
     post: Optional[List[HookModel]] = []
 
@@ -41,11 +63,23 @@ class MigrationHooksModel(BaseModel):
 
 
 class PumModel(BaseModel):
+    """
+    PumModel holds some PUM specifics.
+    Attributes:
+        migration_table_schema: Name of schema for the migration table.
+        minimum_version: Minimum required version of PUM.
+    """
+
     model_config = {"arbitrary_types_allowed": True}
     migration_table_schema: Optional[str] = Field(
         default="public", description="Name of schema for the migration table"
     )
-    migration_table_name: Literal["pum_migrations"] = Field(default="pum_migrations")
+    _migration_table_name: str = PrivateAttr(default="pum_migrations")
+
+    @property
+    def migration_table_name(self) -> str:
+        return self._migration_table_name
+
     minimum_version: Optional[packaging.version.Version] = Field(
         default=None,
         description="Minimum required version of pum.",
@@ -60,6 +94,13 @@ class PumModel(BaseModel):
 
 
 class PermissionModel(BaseModel):
+    """
+    PermissionModel represents a permission for a database role.
+    Attributes:
+        type: Type of permission ('read' or 'write').
+        schemas: List of schemas this permission applies to.
+    """
+
     type: Literal["read", "write"] = Field(..., description="Permission type ('read' or 'write').")
     schemas: List[str] = Field(
         default_factory=list, description="List of schemas this permission applies to."
@@ -67,6 +108,15 @@ class PermissionModel(BaseModel):
 
 
 class RoleModel(BaseModel):
+    """
+    RoleModel represents a database role with associated permissions.
+    Attributes:
+        name: Name of the role.
+        permissions: List of permissions associated with the role.
+        inherit: Optional name of another role to inherit permissions from.
+        description: Optional description of the role.
+    """
+
     name: str = Field(..., description="Name of the role.")
     permissions: List[PermissionModel] = Field(
         default_factory=list, description="List of permissions for the role."
@@ -76,6 +126,17 @@ class RoleModel(BaseModel):
 
 
 class ConfigModel(BaseModel):
+    """
+    ConfigModel represents the main configuration schema for the application.
+
+    Attributes:
+        pum: The PUM (Project Update Manager) configuration. Defaults to a new PumModel instance.
+        parameters: List of parameter definitions. Defaults to an empty list.
+        migration_hooks: Configuration for migration hooks. Defaults to a new MigrationHooksModel instance.
+        changelogs_directory: Directory path for changelogs. Defaults to "changelogs".
+        roles: List of role definitions. Defaults to None.
+    """
+
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
     migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
