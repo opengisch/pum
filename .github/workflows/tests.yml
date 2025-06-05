@@ -60,7 +60,7 @@ jobs:
         run: echo "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_PUM=1.2.3" >> $GITHUB_ENV
 
       - name: Install pum
-        run: python -m pip install .
+        run: python -m pip install --root-user-action=ignore .
 
       - name: Setup db
         shell: bash
