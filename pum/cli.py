@@ -459,21 +459,20 @@ def cli() -> int:  # noqa: PLR0912
         parameters = {}
         if args.command in ("install", "upgrade"):
             for p in args.parameter or ():
-                if p[0] not in config.parameters():
+                param = config.parameter(p[0])
+                if not param:
                     logger.error(f"Unknown parameter: {p[0]}")
                     sys.exit(1)
-                if config.parameter(p[0]).type == ParameterType.DECIMAL:
+                if param.type == ParameterType.DECIMAL:
                     parameters[p[0]] = float(p[1])
-                elif config.parameter(p[0]).type == ParameterType.INTEGER:
+                elif param.type == ParameterType.INTEGER:
                     parameters[p[0]] = int(p[1])
-                elif config.parameter(p[0]).type == ParameterType.BOOLEAN:
+                elif param.type == ParameterType.BOOLEAN:
                     parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
-                elif config.parameter(p[0]).type == ParameterType.STRING:
+                elif param.type == ParameterType.STRING:
                     parameters[p[0]] = p[1]
                 else:
-                    raise ValueError(
-                        f"Unsupported parameter type for {p[0]}: {config.parameter(p[0]).type}"
-                    )
+                    raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
             logger.debug(f"Parameters: {parameters}")
 
         pum = Pum(args.pg_service, config)
