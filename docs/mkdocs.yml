@@ -69,7 +69,16 @@ markdown_extensions:
 nav:
   - About: index.md
   - Getting Started: getting_started.md
-  - Configuration: configuration.md
+  - Configuration:
+      - Overview: configuration/configuration.md
+      - ConfigModel: configuration/config_model.md
+      - HookModel: configuration/hook_model.md
+      - MigrationHooksModel: configuration/migration_hooks_model.md
+      - ParameterDefinitionModel: configuration/parameter_definition_model.md
+      - PermissionModel: configuration/permission_model.md
+      - PumModel: configuration/pum_model.md
+      - RoleModel: configuration/role_model.md
+
   - Hooks: hooks.md
   - CLI:
       - Overview: cli.md

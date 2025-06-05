@@ -79,7 +79,6 @@ class ConfigModel(BaseModel):
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
     migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
-    pum_migrations_schema: Optional[str] = None
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = None
     _base_path: Path = PrivateAttr(default=None)
