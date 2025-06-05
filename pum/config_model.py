@@ -10,6 +10,7 @@ from .parameter import ParameterType
 
 class ParameterDefinitionModel(BaseModel):
     """ParameterDefinitionModel represents a parameter definition in the configuration.
+
     Attributes:
         name: Name of the parameter.
         type: Type of the parameter (default is TEXT).
@@ -26,6 +27,7 @@ class ParameterDefinitionModel(BaseModel):
 class HookModel(BaseModel):
     """
     HookModel represents a migration hook configuration.
+
     Attributes:
         file: Optional path to a SQL file to execute as a hook.
         code: Optional Python code to execute as a hook.
@@ -45,6 +47,7 @@ class HookModel(BaseModel):
 class MigrationHooksModel(BaseModel):
     """
     MigrationHooksModel holds the configuration for migration hooks.
+
     Attributes:
         pre: List of pre-migration hooks.
         post: List of post-migration hooks.
@@ -65,6 +68,7 @@ class MigrationHooksModel(BaseModel):
 class PumModel(BaseModel):
     """
     PumModel holds some PUM specifics.
+
     Attributes:
         migration_table_schema: Name of schema for the migration table.
         minimum_version: Minimum required version of PUM.
@@ -96,6 +100,7 @@ class PumModel(BaseModel):
 class PermissionModel(BaseModel):
     """
     PermissionModel represents a permission for a database role.
+
     Attributes:
         type: Type of permission ('read' or 'write').
         schemas: List of schemas this permission applies to.
