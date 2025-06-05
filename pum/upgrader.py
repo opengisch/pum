@@ -7,7 +7,7 @@ import packaging.version
 import psycopg
 import copy
 
-from .config import PumConfig
+from .pum_config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
 
@@ -75,8 +75,8 @@ class Upgrader:
             )
             raise PumException(msg)
         self.schema_migrations.create(self.connection, commit=False)
-        for pre_hook in self.config.migration_hooks.pre:
-            pre_hook.hook_handler.execute(
+        for pre_hook in self.config.pre_hook_handlers():
+            pre_hook.execute(
                 connection=self.connection, commit=False, parameters=parameters_literals
             )
         last_changelog = None
@@ -94,8 +94,8 @@ class Upgrader:
                 changelog_files=changelog_files,
                 parameters=parameters,
             )
-        for post_hook in self.config.migration_hooks.post:
-            post_hook.hook_handler.execute(
+        for post_hook in self.config.post_hook_handlers():
+            post_hook.execute(
                 connection=self.connection, commit=False, parameters=parameters_literals
             )
         logger.info(

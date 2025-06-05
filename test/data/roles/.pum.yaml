@@ -5,7 +5,7 @@ roles:
     permissions:
       - type: read
         schemas:
-          - [pum_test_data_schema_1]
+          - pum_test_data_schema_1
 
   - name: pum_test_user
     description: Role for users who can view and edit the TWW data.
@@ -13,4 +13,4 @@ roles:
     permissions:
       - type: write
         schemas:
-          - [pum_test_data_schema_2]
+          - pum_test_data_schema_2

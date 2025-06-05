@@ -3,7 +3,7 @@ from pathlib import Path
 
 from packaging.version import parse as parse_version
 
-from pum.config import PumConfig
+from pum.pum_config import PumConfig
 from pum.exceptions import PumConfigError
 from pum.hook import HookHandler
 
@@ -13,12 +13,12 @@ class TestConfig(unittest.TestCase):
 
     def test_version(self) -> None:
         """Test version."""
-        cfg = PumConfig(dir=Path("test") / "data" / "single_changelog")
+        cfg = PumConfig(base_path=Path("test") / "data" / "single_changelog")
         changelogs = cfg.list_changelogs()
         self.assertEqual(len(changelogs), 1)
         self.assertEqual(changelogs[0].version, parse_version("1.2.3"))
 
-        cfg = PumConfig(dir=Path("test") / "data" / "multiple_changelogs")
+        cfg = PumConfig(base_path=Path("test") / "data" / "multiple_changelogs")
         changelogs = cfg.list_changelogs()
         self.assertEqual(len(changelogs), 4)
         self.assertEqual(changelogs[0].version, parse_version("1.2.3"))
@@ -60,15 +60,17 @@ class TestConfig(unittest.TestCase):
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")
 
         self.assertEqual(
-            cfg.migration_hooks.post[0].hook_handler,
+            cfg.post_hook_handlers()[0],
             HookHandler(
-                "test/data/pre_post_sql_files/post/create_view.sql",
+                base_path=Path(".").absolute(),
+                file="test/data/pre_post_sql_files/post/create_view.sql",
             ),
         )
         self.assertEqual(
-            cfg.migration_hooks.pre[0].hook_handler,
+            cfg.pre_hook_handlers()[0],
             HookHandler(
-                "test/data/pre_post_sql_files/pre/drop_view.sql",
+                base_path=Path(".").absolute(),
+                file="test/data/pre_post_sql_files/pre/drop_view.sql",
             ),
         )
 
@@ -86,31 +88,31 @@ class TestConfig(unittest.TestCase):
     def test_invalid_changelog(self) -> None:
         """Test invalid changelog."""
         with self.assertRaises(PumConfigError):
-            PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=True)
-        PumConfig(dir=Path("test") / "data" / "invalid_changelog", validate=False)
+            PumConfig(base_path=Path("test") / "data" / "invalid_changelog", validate=True)
+        PumConfig(base_path=Path("test") / "data" / "invalid_changelog", validate=False)
 
     def test_invalid_changelog_parameters(self) -> None:
         """Test invalid changelog parameters."""
         PumConfig.from_yaml(Path("test") / "data" / "parameters" / ".pum.yaml", validate=True)
         with self.assertRaises(PumConfigError):
-            PumConfig(dir=Path("test") / "data" / "parameters", validate=True)
+            PumConfig(base_path=Path("test") / "data" / "parameters", validate=True)
 
     def test_minimum_version(self) -> None:
         with self.assertRaises(PumConfigError):
             PumConfig(
-                dir=Path("test") / "data" / "single_changelog",
+                base_path=Path("test") / "data" / "single_changelog",
                 pum={"minimum_version": "9.9.9"},
                 validate=True,
             )
         PumConfig(
-            dir=Path("test") / "data" / "single_changelog",
+            base_path=Path("test") / "data" / "single_changelog",
             pum={"minimum_version": "0.1"},
         )
 
     def test_roles(self) -> None:
         """Test roles."""
         cfg = PumConfig(
-            dir=Path("test") / "data" / "single_changelog",
+            base_path=Path("test") / "data" / "single_changelog",
             roles=[
                 {
                     "name": "viewer",

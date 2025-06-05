@@ -6,7 +6,7 @@ from pathlib import Path
 
 import psycopg
 
-from pum.config import PumConfig
+from pum.pum_config import PumConfig
 from pum.exceptions import PumHookError
 from pum.parameter import ParameterDefinition
 from pum.schema_migrations import SchemaMigrations
@@ -248,7 +248,7 @@ class TestUpgrader(unittest.TestCase):
     def test_invalid_changelog(self) -> None:
         """Test the invalid changelog."""
         test_dir = Path("test") / "data" / "invalid_changelog"
-        cfg = PumConfig(dir=test_dir, validate=False)
+        cfg = PumConfig(base_path=test_dir, validate=False)
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))

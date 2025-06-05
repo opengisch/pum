@@ -10,7 +10,7 @@ from typing import Any
 import psycopg
 
 from .checker import Checker
-from .config import PumConfig
+from .pum_config import PumConfig
 
 # from .dumper import Dumper
 from .info import run_info
@@ -497,13 +497,13 @@ def cli() -> int:  # noqa: PLR0912
                     exit_code = 1
                 else:
                     if args.action == "create":
-                        config.roles.create(connection=conn)
+                        config.role_manager().create_roles(connection=conn)
                     elif args.action == "grant":
-                        config.roles(config).grant(connection=conn)
+                        config.role_manager().grant_roles(connection=conn)
                     elif args.action == "revoke":
-                        config.roles(config).revoke(connection=conn)
+                        config.role_manager().revoke_roles(connection=conn)
                     elif args.action == "drop":
-                        config.roles(config).drop(connection=conn)
+                        config.role_manager().drop_roles(connection=conn)
                     else:
                         logger.error(f"Unknown action: {args.action}")
                         exit_code = 1

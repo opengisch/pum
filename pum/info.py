@@ -2,7 +2,7 @@ import logging
 import sys
 import psycopg
 
-from .config import PumConfig
+from .pum_config import PumConfig
 from .schema_migrations import SchemaMigrations
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from pum.config import PumConfig
+from pum.pum_config import PumConfig
 from pum.exceptions import PumInvalidChangelog
 
 

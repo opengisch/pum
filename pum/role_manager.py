@@ -64,29 +64,31 @@ class RoleManager:
             Each role can be a dictionary with keys 'name', 'permissions', and optional 'description' and 'inherit'.
         """
         if isinstance(roles, list) and all(isinstance(role, dict) for role in roles):
+            self.roles = {}
             for role in roles:
+                print("xxxx", role)
                 _inherit = role.get("inherit")
                 if _inherit is not None:
-                    if _inherit not in roles:
+                    if _inherit not in self.roles:
+                        print(123, self.roles)
                         raise ValueError(
                             f"Inherited role {_inherit} does not exist in the already defined roles. Pay attention to the order of the roles in the list."
                         )
                     role["inherit"] = self.roles[_inherit]
-            _roles = [Role(**role) for role in roles]
+                self.roles[role["name"]] = Role(**role)
         elif isinstance(roles, list) and all(isinstance(role, Role) for role in roles):
             _roles = copy.deepcopy(roles)
+            self.roles = {role.name: role for role in _roles}
         else:
             raise TypeError("Roles must be a list of dictionaries or Role instances.")
 
-        self.roles = {role.name: role for role in _roles}
-
         for role in self.roles.values():
-            if role.inherit is not None and role.inherit not in self.roles:
+            if role.inherit is not None and role.inherit not in self.roles.values():
                 raise ValueError(
                     f"Inherited role {role.inherit.name} does not exist in the defined roles."
                 )
 
-    def create(self, connection: psycopg.Connection, commit: bool = False) -> None:
+    def create_roles(self, connection: psycopg.Connection, commit: bool = False) -> None:
         """Create roles in the database.
         Args:
             connection: The database connection to execute the SQL statements.

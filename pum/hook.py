@@ -72,8 +72,10 @@ class HookHandler:
 
     def __init__(
         self,
+        *,
         file: str | Path | None = None,
         code: str | None = None,
+        base_path: Path | None = None,
     ) -> None:
         """Initialize a Hook instance.
 
@@ -86,9 +88,21 @@ class HookHandler:
         if file and code:
             raise ValueError("Cannot specify both file and code. Choose one.")
 
-        self.file = file if isinstance(file, Path) else Path(file) if file else None
+        self.file = file
         self.code = code
         self.hook_instance = None
+
+        if file:
+            if isinstance(file, str):
+                self.file = Path(file)
+            if not self.file.is_absolute():
+                if base_path is None:
+                    raise ValueError("Base path must be provided for relative file paths.")
+                self.file = base_path.absolute() / self.file
+            if not self.file.exists():
+                raise PumHookError(f"Hook file {self.file} does not exist.")
+            if not self.file.is_file():
+                raise PumHookError(f"Hook file {self.file} is not a file.")
 
         if self.file and self.file.suffix == ".py":
             # Support local imports in hook files by adding parent dir to sys.path

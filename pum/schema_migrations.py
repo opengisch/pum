@@ -6,7 +6,7 @@ import packaging
 import psycopg
 import psycopg.sql
 
-from .config import PumConfig
+from .pum_config import PumConfig
 from .exceptions import PumException
 from .sql_content import SqlContent
 

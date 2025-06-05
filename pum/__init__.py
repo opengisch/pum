@@ -1,5 +1,5 @@
 from .changelog import Changelog
-from .config import PumConfig
+from .pum_config import PumConfig
 from .hook import HookHandler, HookBase
 from .parameter import ParameterDefinition, ParameterType
 from .role_manager import RoleManager, Role, Permission, PermissionType

@@ -2,101 +2,23 @@ from pathlib import Path
 import psycopg
 import yaml
 import packaging
-from pydantic import BaseModel, Field, ValidationError, model_validator
-from typing import List, Optional, Any, Literal
+from pydantic import ValidationError
 import logging
 import importlib.metadata
 
 
 from .changelog import Changelog
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
+from .parameter import ParameterDefinition
+from .role_manager import RoleManager
+from .config_model import ConfigModel
 from .hook import HookHandler
-from .parameter import ParameterDefinition, ParameterType
 
-DIR = "."
 
 try:
     PUM_VERSION = packaging.version.Version(importlib.metadata.version("pum"))
 except importlib.metadata.PackageNotFoundError:
     PUM_VERSION = packaging.version.Version("0.0.0")
-
-
-class ParameterDefinitionModel(BaseModel):
-    name: str
-    type: ParameterType = Field(default=ParameterType.TEXT, description="Type of the parameter")
-    default: Optional[Any] = None
-    description: Optional[str] = None
-
-
-class HookModel(BaseModel):
-    file: Optional[str] = None
-    code: Optional[str] = None
-    hook_handler: HookHandler = None
-
-    model_config = {"arbitrary_types_allowed": True}
-
-    @model_validator(mode="after")
-    def build_handler(self):
-        file, code = self.file, self.code
-        if (file and code) or (not file and not code):
-            raise ValueError("Exactly one of 'file' or 'code' must be set in a hook.")
-        if file:
-            path = Path(file)
-            if not path.is_absolute():
-                path = DIR / path
-            if not path.exists():
-                raise PumConfigError(f"hook file {path} does not exist")
-            self.hook_handler = HookHandler(file=path)
-        elif code:
-            self.hook_handler = HookHandler(code=code)
-        return self
-
-
-class MigrationHooksModel(BaseModel):
-    pre: Optional[List[HookModel]] = []
-    post: Optional[List[HookModel]] = []
-
-
-class PumModel(BaseModel):
-    model_config = {"arbitrary_types_allowed": True}
-    migration_table_schema: Optional[str] = Field(
-        default="public", description="Name of schema for the migration table"
-    )
-    migration_table_name: Literal["pum_migrations"] = Field(default="pum_migrations")
-    minimum_version: Optional[packaging.version.Version] = Field(
-        default=None,
-        description="Minimum required version of pum.",
-    )
-
-    @model_validator(mode="before")
-    def parse_minimum_version(cls, values):
-        min_ver = values.get("minimum_version")
-        if isinstance(min_ver, str):
-            values["minimum_version"] = packaging.version.Version(min_ver)
-        return values
-
-
-class PermissionModel(BaseModel):
-    type: Literal["read", "write"] = Field(..., description="Permission type ('read' or 'write').")
-    schemas: List[str] = Field(
-        default_factory=list, description="List of schemas this permission applies to."
-    )
-
-
-class RoleModel(BaseModel):
-    name: str = Field(..., description="Name of the role.")
-    permissions: List[PermissionModel] = Field(..., description="List of permissions for the role.")
-    inherit: Optional[str] = Field(None, description="Name of the role to inherit from.")
-    description: Optional[str] = Field(None, description="Description of the role.")
-
-
-class ConfigModel(BaseModel):
-    pum: Optional[PumModel] = Field(default_factory=PumModel)
-    parameters: Optional[List[ParameterDefinitionModel]] = []
-    migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
-    pum_migrations_schema: Optional[str] = None
-    changelogs_directory: Optional[str] = "changelogs"
-    roles: Optional[List[RoleModel]] = None  # You can make this more specific
 
 
 logger = logging.getLogger(__name__)
@@ -105,11 +27,11 @@ logger = logging.getLogger(__name__)
 class PumConfig(ConfigModel):
     """A class to hold configuration settings."""
 
-    def __init__(self, dir: str | Path, validate: bool = True, **kwargs: dict) -> None:
+    def __init__(self, base_path: str | Path, validate: bool = True, **kwargs: dict) -> None:
         """Initialize the configuration with key-value pairs.
 
         Args:
-            dir: The directory where the changelogs are located.
+            base_path: The directory where the changelogs are located.
             validate: Whether to validate the changelogs and hooks.
             **kwargs: Key-value pairs representing configuration settings.
 
@@ -122,13 +44,14 @@ class PumConfig(ConfigModel):
         # )
         # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
-        global DIR
-        DIR = dir if isinstance(dir, Path) else Path(dir)
-        if not DIR.is_dir():
-            raise PumConfigError(f"Directory `{DIR}` does not exist.")
+        if not isinstance(base_path, Path):
+            base_path = Path(base_path)
+        if not base_path.is_dir():
+            raise PumConfigError(f"Directory `{base_path}` does not exist.")
 
         try:
-            super().__init__(**kwargs)  # Initialize the base model
+            super().__init__(**kwargs)
+            self.set_base_path(base_path=base_path)
         except ValidationError as e:
             logger.error("Config validation error: %s", e)
             raise PumConfigError(e)
@@ -144,24 +67,6 @@ class PumConfig(ConfigModel):
                 raise PumConfigError(
                     f"Configuration is invalid: {e}. You can disable the validation when constructing the config."
                 ) from e
-
-    def parameter(self, name: str) -> ParameterDefinition:
-        """Get a specific migration parameter by name.
-
-        Args:
-            name: The name of the parameter.
-
-        Returns:
-            ParameterDefintion: The migration parameter definition.
-
-        Raises:
-            PumConfigError: If the parameter name does not exist.
-
-        """
-        for parameter in self.parameters:
-            if parameter.name == name:
-                return ParameterDefinition(**parameter.model_dump())
-        raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
 
     @classmethod
     def from_yaml(cls, file_path: str | Path, *, validate: bool = True) -> "PumConfig":
@@ -182,11 +87,29 @@ class PumConfig(ConfigModel):
         with Path.open(file_path) as file:
             data = yaml.safe_load(file)
 
-        if "dir" in data:
-            raise PumConfigError("dir not allowed in configuration instead.")
+        if "base_path" in data:
+            raise PumConfigError("base_path not allowed in configuration instead.")
 
-        dir_ = Path(file_path).parent
-        return cls(dir=dir_, validate=validate, **data)
+        base_path = Path(file_path).parent
+        return cls(base_path=base_path, validate=validate, **data)
+
+    def parameter(self, name: str) -> ParameterDefinition:
+        """Get a specific migration parameter by name.
+
+        Args:
+            name: The name of the parameter.
+
+        Returns:
+            ParameterDefintion: The migration parameter definition.
+
+        Raises:
+            PumConfigError: If the parameter name does not exist.
+
+        """
+        for parameter in self.parameters:
+            if parameter.name == name:
+                return ParameterDefinition(**parameter.model_dump())
+        raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
 
     def last_version(
         self, min_version: str | None = None, max_version: str | None = None
@@ -231,7 +154,7 @@ class PumConfig(ConfigModel):
             list: A list of changelogs. Each changelog is represented by a Changelog object.
 
         """
-        path = DIR / self.changelogs_directory
+        path = self._base_path / self.changelogs_directory
         if not path.is_dir():
             raise PumException(f"Changelogs directory `{path}` does not exist.")
         if not path.iterdir():
@@ -251,6 +174,34 @@ class PumConfig(ConfigModel):
         changelogs.sort(key=lambda c: c.version)
         return changelogs
 
+    def role_manager(self) -> RoleManager:
+        """Return a RoleManager instance based on the roles defined in the configuration."""
+        if not self.roles:
+            return RoleManager()
+        return RoleManager([role.model_dump() for role in self.roles])
+
+    def pre_hook_handlers(self) -> list[HookHandler]:
+        """Return the list of pre-migration hook handlers."""
+        return (
+            [
+                HookHandler(base_path=self._base_path, **hook.model_dump())
+                for hook in self.migration_hooks.pre
+            ]
+            if self.migration_hooks.pre
+            else []
+        )
+
+    def post_hook_handlers(self) -> list[HookHandler]:
+        """Return the list of post-migration hook handlers."""
+        return (
+            [
+                HookHandler(base_path=self._base_path, **hook.model_dump())
+                for hook in self.migration_hooks.post
+            ]
+            if self.migration_hooks.post
+            else []
+        )
+
     def validate(self) -> None:
         """Validate the chanbgelogs and hooks."""
 
@@ -264,13 +215,13 @@ class PumConfig(ConfigModel):
             except (PumInvalidChangelog, PumSqlError) as e:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
 
-        migration_hooks = []
+        hook_handlers = []
         if self.migration_hooks.pre:
-            migration_hooks.extend(self.migration_hooks.pre)
+            hook_handlers.extend(self.pre_hook_handlers())
         if self.migration_hooks.post:
-            migration_hooks.extend(self.migration_hooks.post)
-        for hook in migration_hooks:
+            hook_handlers.extend(self.post_hook_handlers())
+        for hook_handler in hook_handlers:
             try:
-                hook.hook_handler.validate(parameter_defaults)
+                hook_handler.validate(parameter_defaults)
             except PumHookError as e:
-                raise PumHookError(f"Hook `{hook}` is invalid.") from e
+                raise PumHookError(f"Hook `{hook_handler}` is invalid.") from e
