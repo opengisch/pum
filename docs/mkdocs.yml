@@ -51,7 +51,7 @@ plugins:
             show_signature_annotations: true
             separate_signature: true
             extensions:
-              - pydantic_griffe
+              - griffe_pydantic
 
 
 markdown_extensions:
