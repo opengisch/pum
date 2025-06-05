@@ -50,8 +50,6 @@ plugins:
             show_signature: true
             show_signature_annotations: true
             separate_signature: true
-            extensions:
-              - griffe_pydantic
 
 
 markdown_extensions:
