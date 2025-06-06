@@ -76,7 +76,7 @@ class Upgrader:
             commit:
                 If True, the changes will be committed to the database.
         """
-        parameters_literals = self._prepare_parameterts(parameters)
+        parameters_literals = self._prepare_parameters(parameters)
 
         if demo_data and demo_data not in self.config.demo_data():
             raise PumException(
@@ -148,7 +148,7 @@ class Upgrader:
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
 
-        parameters_literals = self._prepare_parameterts(parameters)
+        parameters_literals = self._prepare_parameters(parameters)
 
         demo_data_file = self.config.base_path / self.config.demo_data()[name]
         logger.info("Installing demo data from %s", demo_data_file)
@@ -156,11 +156,15 @@ class Upgrader:
         for pre_hook in self.config.pre_hook_handlers():
             pre_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
 
+        connection.commit()
+
         SqlContent(sql=demo_data_file).execute(
             connection=connection,
             commit=False,
             parameters=parameters_literals,
         )
+
+        connection.commit()
 
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
@@ -168,7 +172,7 @@ class Upgrader:
         logger.info("Demo data '%s' installed successfully.", name)
 
     @staticmethod
-    def _prepare_parameterts(parameters: dict | None):
+    def _prepare_parameters(parameters: dict | None):
         """
         Prepares a dictionary of parameters for use in SQL queries by converting each value to a psycopg.sql.Literal.
 
