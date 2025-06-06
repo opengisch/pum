@@ -14,12 +14,12 @@ class TestConfig(unittest.TestCase):
     def test_version(self) -> None:
         """Test version."""
         cfg = PumConfig(base_path=Path("test") / "data" / "single_changelog")
-        changelogs = cfg.list_changelogs()
+        changelogs = cfg.changelogs()
         self.assertEqual(len(changelogs), 1)
         self.assertEqual(changelogs[0].version, parse_version("1.2.3"))
 
         cfg = PumConfig(base_path=Path("test") / "data" / "multiple_changelogs")
-        changelogs = cfg.list_changelogs()
+        changelogs = cfg.changelogs()
         self.assertEqual(len(changelogs), 4)
         self.assertEqual(changelogs[0].version, parse_version("1.2.3"))
         self.assertEqual(changelogs[1].version, parse_version("1.2.4"))
@@ -136,4 +136,4 @@ class TestConfig(unittest.TestCase):
                 },
             ],
         )
-        self.assertIsNotNone(cfg.roles)
+        self.assertIsNotNone(cfg.config.roles)

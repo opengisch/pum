@@ -11,8 +11,6 @@ In the config file `.pum.yaml`, you can define, with the YAML syntax:
 For example:  
 ```yaml
 
-pum_migrations_schema: my_sys
-
 changelogs_directory: my_custom_directory
 
 parameters:

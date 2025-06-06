@@ -87,7 +87,7 @@ class Upgrader:
         for pre_hook in self.config.pre_hook_handlers():
             pre_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
         last_changelog = None
-        for changelog in self.config.list_changelogs(max_version=max_version):
+        for changelog in self.config.changelogs(max_version=max_version):
             last_changelog = changelog
             changelog_files = changelog.apply(
                 connection, commit=False, parameters=parameters_literals
@@ -105,8 +105,8 @@ class Upgrader:
             post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
         logger.info(
             "Installed %s.%s table and applied changelogs up to version %s",
-            self.config.pum.migration_table_schema,
-            self.config.pum.migration_table_name,
+            self.config.config.pum.migration_table_schema,
+            self.config.config.pum.migration_table_name,
             last_changelog.version,
         )
 

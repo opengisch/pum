@@ -24,7 +24,7 @@ except importlib.metadata.PackageNotFoundError:
 logger = logging.getLogger(__name__)
 
 
-class PumConfig(ConfigModel):
+class PumConfig:
     """A class to hold configuration settings."""
 
     def __init__(self, base_path: str | Path, validate: bool = True, **kwargs: dict) -> None:
@@ -48,18 +48,18 @@ class PumConfig(ConfigModel):
             base_path = Path(base_path)
         if not base_path.is_dir():
             raise PumConfigError(f"Directory `{base_path}` does not exist.")
+        self._base_path = base_path
 
         try:
-            super().__init__(**kwargs)
-            self.set_base_path(base_path=base_path)
+            self.config = ConfigModel(**kwargs)
         except ValidationError as e:
             logger.error("Config validation error: %s", e)
             raise PumConfigError(e)
 
         if validate:
-            if self.pum.minimum_version and PUM_VERSION < self.pum.minimum_version:
+            if self.config.pum.minimum_version and PUM_VERSION < self.config.pum.minimum_version:
                 raise PumConfigError(
-                    f"Minimum required version of pum is {self.pum.minimum_version}, but the current version is {PUM_VERSION}. Please upgrade pum."
+                    f"Minimum required version of pum is {self.config.pum.minimum_version}, but the current version is {PUM_VERSION}. Please upgrade pum."
                 )
             try:
                 self.validate()
@@ -106,7 +106,7 @@ class PumConfig(ConfigModel):
             PumConfigError: If the parameter name does not exist.
 
         """
-        for parameter in self.parameters:
+        for parameter in self.config.parameters:
             if parameter.name == name:
                 return ParameterDefinition(**parameter.model_dump())
         raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
@@ -125,7 +125,7 @@ class PumConfig(ConfigModel):
             str | None: The last version of the changelogs. If no changelogs are found, None is returned.
 
         """
-        changelogs = self.list_changelogs(min_version, max_version)
+        changelogs = self.changelogs(min_version, max_version)
         if not changelogs:
             return None
         if min_version:
@@ -140,9 +140,7 @@ class PumConfig(ConfigModel):
             return None
         return changelogs[-1].version
 
-    def list_changelogs(
-        self, min_version: str | None = None, max_version: str | None = None
-    ) -> list:
+    def changelogs(self, min_version: str | None = None, max_version: str | None = None) -> list:
         """Return a list of changelogs.
         The changelogs are sorted by version.
 
@@ -154,7 +152,7 @@ class PumConfig(ConfigModel):
             list: A list of changelogs. Each changelog is represented by a Changelog object.
 
         """
-        path = self._base_path / self.changelogs_directory
+        path = self._base_path / self.config.changelogs_directory
         if not path.is_dir():
             raise PumException(f"Changelogs directory `{path}` does not exist.")
         if not path.iterdir():
@@ -176,19 +174,19 @@ class PumConfig(ConfigModel):
 
     def role_manager(self) -> RoleManager:
         """Return a RoleManager instance based on the roles defined in the configuration."""
-        if not self.roles:
+        if not self.config.roles:
             logger.warning("No roles defined in the configuration. Returning an empty RoleManager.")
             return RoleManager()
-        return RoleManager([role.model_dump() for role in self.roles])
+        return RoleManager([role.model_dump() for role in self.config.roles])
 
     def pre_hook_handlers(self) -> list[HookHandler]:
         """Return the list of pre-migration hook handlers."""
         return (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
-                for hook in self.migration_hooks.pre
+                for hook in self.config.migration_hooks.pre
             ]
-            if self.migration_hooks.pre
+            if self.config.migration_hooks.pre
             else []
         )
 
@@ -197,9 +195,9 @@ class PumConfig(ConfigModel):
         return (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
-                for hook in self.migration_hooks.post
+                for hook in self.config.migration_hooks.post
             ]
-            if self.migration_hooks.post
+            if self.config.migration_hooks.post
             else []
         )
 
@@ -207,19 +205,19 @@ class PumConfig(ConfigModel):
         """Validate the chanbgelogs and hooks."""
 
         parameter_defaults = {}
-        for parameter in self.parameters:
+        for parameter in self.config.parameters:
             parameter_defaults[parameter.name] = psycopg.sql.Literal(parameter.default)
 
-        for changelog in self.list_changelogs():
+        for changelog in self.changelogs():
             try:
                 changelog.validate(parameters=parameter_defaults)
             except (PumInvalidChangelog, PumSqlError) as e:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
 
         hook_handlers = []
-        if self.migration_hooks.pre:
+        if self.config.migration_hooks.pre:
             hook_handlers.extend(self.pre_hook_handlers())
-        if self.migration_hooks.post:
+        if self.config.migration_hooks.post:
             hook_handlers.extend(self.post_hook_handlers())
         for hook_handler in hook_handlers:
             try:

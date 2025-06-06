@@ -11,6 +11,7 @@ from pum.exceptions import PumHookError
 from pum.parameter import ParameterDefinition
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
+from pum.sql_content import SqlContent
 
 
 class TestUpgrader(unittest.TestCase):
@@ -76,7 +77,7 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "parameters"
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
-        self.assertEqual(len(cfg.parameters), 3)
+        self.assertEqual(len(cfg.config.parameters), 3)
         self.assertEqual(
             cfg.parameter("SRID"),
             ParameterDefinition(
@@ -189,6 +190,10 @@ class TestUpgrader(unittest.TestCase):
             )
             upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
+            cur = SqlContent(
+                "SELECT table_schema FROM information_schema.tables WHERE table_name = 'pum_migrations';"
+            ).execute(connection=conn)
+            self.assertEqual(cur.fetchone()[0], "pum_custom_migrations_schema")
 
     def test_install_complex_files_content(self) -> None:
         """Test the installation of complex files content."""

@@ -1,2 +1,3 @@
 
-pum_migrations_schema: pum_custom_migrations_schema
+pum:
+  migration_table_schema: pum_custom_migrations_schema

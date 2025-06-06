@@ -1,6 +1,6 @@
 from pathlib import Path
 import packaging
-from pydantic import BaseModel, Field, model_validator, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, model_validator, PrivateAttr
 from typing import List, Optional, Any, Literal
 
 
@@ -8,7 +8,11 @@ from .exceptions import PumConfigError
 from .parameter import ParameterType
 
 
-class ParameterDefinitionModel(BaseModel):
+class PumCustomBaseModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ParameterDefinitionModel(PumCustomBaseModel):
     """ParameterDefinitionModel represents a parameter definition in the configuration.
 
     Attributes:
@@ -24,7 +28,7 @@ class ParameterDefinitionModel(BaseModel):
     description: Optional[str] = None
 
 
-class HookModel(BaseModel):
+class HookModel(PumCustomBaseModel):
     """
     HookModel represents a migration hook configuration.
 
@@ -44,7 +48,7 @@ class HookModel(BaseModel):
         return self
 
 
-class MigrationHooksModel(BaseModel):
+class MigrationHooksModel(PumCustomBaseModel):
     """
     MigrationHooksModel holds the configuration for migration hooks.
 
@@ -65,7 +69,7 @@ class MigrationHooksModel(BaseModel):
                 hook._base_path = base_path
 
 
-class PumModel(BaseModel):
+class PumModel(PumCustomBaseModel):
     """
     PumModel holds some PUM specifics.
 
@@ -97,7 +101,7 @@ class PumModel(BaseModel):
         return values
 
 
-class PermissionModel(BaseModel):
+class PermissionModel(PumCustomBaseModel):
     """
     PermissionModel represents a permission for a database role.
 
@@ -112,7 +116,7 @@ class PermissionModel(BaseModel):
     )
 
 
-class RoleModel(BaseModel):
+class RoleModel(PumCustomBaseModel):
     """
     RoleModel represents a database role with associated permissions.
     Attributes:
@@ -130,7 +134,7 @@ class RoleModel(BaseModel):
     description: Optional[str] = Field(None, description="Description of the role.")
 
 
-class ConfigModel(BaseModel):
+class ConfigModel(PumCustomBaseModel):
     """
     ConfigModel represents the main configuration schema for the application.
 
@@ -142,13 +146,10 @@ class ConfigModel(BaseModel):
         roles: List of role definitions. Defaults to None.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
     migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = None
-    _base_path: Path = PrivateAttr(default=None)
-
-    def set_base_path(self, base_path: Path):
-        """Set the base path for the configuration."""
-        self._base_path = base_path
