@@ -47,15 +47,36 @@ class Permission:
             raise ValueError("Schemas must be defined for the permission.")
 
         for schema in self.schemas:
-            SqlContent("GRANT {type} ON SCHEMA {schema} TO {role}").execute(
-                connection=connection,
-                commit=False,
-                parameters={
-                    "type": psycopg.sql.Identifier(self.type.value),
-                    "schema": psycopg.sql.Identifier(schema),
-                    "role": psycopg.sql.Identifier(role),
-                },
-            )
+            if self.type == PermissionType.READ:
+                SqlContent("""
+                        GRANT USAGE ON SCHEMA {schema} TO {role};
+                        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
+                        GRANT SELECT, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA {schema} TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT, REFERENCES, TRIGGER ON TABLES TO {role};
+                           """).execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
+                        "schema": psycopg.sql.Identifier(schema),
+                        "role": psycopg.sql.Identifier(role),
+                    },
+                )
+            elif self.type == PermissionType.WRITE:
+                SqlContent("""
+                        GRANT ALL ON SCHEMA {schema} TO {role};
+                        GRANT ALL ON ALL TABLES IN SCHEMA {schema} TO {role};
+                        GRANT ALL ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON TABLES TO {role};
+                           """).execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
+                        "schema": psycopg.sql.Identifier(schema),
+                        "role": psycopg.sql.Identifier(role),
+                    },
+                )
+            else:
+                raise ValueError(f"Unknown permission type: {self.type}")
 
         if commit:
             connection.commit()
@@ -171,13 +192,16 @@ class RoleManager:
                     f"Inherited role {role.inherit.name} does not exist in the defined roles."
                 )
 
-    def create_roles(self, connection: psycopg.Connection, commit: bool = False) -> None:
+    def create_roles(
+        self, connection: psycopg.Connection, grant: bool = False, commit: bool = False
+    ) -> None:
         """Create roles in the database.
         Args:
             connection: The database connection to execute the SQL statements.
+            grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
         """
         for role in self.roles.values():
-            role.create(connection=connection, commit=commit)
+            role.create(connection=connection, commit=commit, grant=grant)
         if commit:
             connection.commit()

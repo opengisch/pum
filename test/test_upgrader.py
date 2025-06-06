@@ -55,10 +55,9 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
-            upgrader.install()
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
             self.assertEqual(sm.baseline(conn), "1.2.3")
             self.assertEqual(sm.migration_details(conn), sm.migration_details(conn, "1.2.3"))
@@ -109,15 +108,15 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
             upgrader.install(
+                connection=conn,
                 parameters={
                     "SRID": 2056,
                     "default_text_value": "hello world",
                     "default_integer_value": 1806,
-                }
+                },
             )
             self.assertTrue(sm.exists(conn))
             self.assertEqual(
@@ -146,15 +145,15 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
             upgrader.install(
+                connection=conn,
                 parameters={
                     "SRID": 2056,
                     "default_text_value": "); DROP TABLE pum_test_data.some_table2; CREATE TABLE pum_test_data.some_table3( id INT PRIMARY KEY",
                     "default_integer_value": 1806,
-                }
+                },
             )
             # Assert that pum_test_data.some_table2 exists (i.e., SQL injection did not drop it)
             cur = conn.cursor()
@@ -172,10 +171,9 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
-            upgrader.install()
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
 
     def test_install_custom_migration_table(self) -> None:
@@ -187,10 +185,9 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
-            upgrader.install()
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
 
     def test_install_complex_files_content(self) -> None:
@@ -201,10 +198,9 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
-            upgrader.install()
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
 
     def test_install_multiple_changelogs(self) -> None:
@@ -217,10 +213,9 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
-            upgrader.install()
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
             self.assertEqual(sm.baseline(conn), "2.0.0")
             self.assertEqual(
@@ -240,8 +235,8 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
-            upgrader = Upgrader(connection=conn, config=cfg)
-            upgrader.install(max_version="1.2.4")
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.2.4")
             self.assertTrue(sm.exists(conn))
             self.assertEqual(sm.baseline(conn), "1.2.4")
 
@@ -252,9 +247,9 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
-            upgrader = Upgrader(connection=conn, config=cfg)
+            upgrader = Upgrader(config=cfg)
             with self.assertRaises(Exception) as context:
-                upgrader.install()
+                upgrader.install(connection=conn)
             self.assertTrue(
                 "SQL contains forbidden transaction statement: BEGIN;" in str(context.exception)
             )
@@ -266,8 +261,8 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
-            upgrader = Upgrader(connection=conn, config=cfg)
-            upgrader.install(max_version="1.2.3")
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.2.3")
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute(
@@ -284,8 +279,8 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
-            upgrader = Upgrader(connection=conn, config=cfg)
-            upgrader.install(max_version="1.2.3")
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.2.3")
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute(
@@ -302,8 +297,8 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
-            upgrader = Upgrader(connection=conn, config=cfg)
-            upgrader.install(max_version="1.2.3")
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.2.3")
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute(
@@ -321,16 +316,17 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             with self.assertRaises(PumHookError):
-                upgrader = Upgrader(connection=conn, config=cfg)
-                upgrader.install(max_version="1.2.3")
+                upgrader = Upgrader(config=cfg)
+                upgrader.install(connection=conn, max_version="1.2.3")
             conn.rollback()
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
             upgrader = Upgrader(
-                connection=conn,
                 config=cfg,
             )
-            upgrader.install(max_version="1.2.3", parameters={"my_comment": "how cool"})
+            upgrader.install(
+                connection=conn, max_version="1.2.3", parameters={"my_comment": "how cool"}
+            )
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute(
@@ -346,8 +342,8 @@ class TestUpgrader(unittest.TestCase):
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
-            upgrader = Upgrader(connection=conn, config=cfg)
-            upgrader.install()
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute(

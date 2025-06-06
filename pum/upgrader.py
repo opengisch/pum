@@ -22,7 +22,6 @@ class Upgrader:
 
     def __init__(
         self,
-        connection: psycopg.Connection,
         config: PumConfig,
         max_version: packaging.version.Version | str | None = None,
     ) -> None:
@@ -40,13 +39,13 @@ class Upgrader:
                 Maximum (including) version to run the deltas up to.
 
         """
-        self.connection = connection
         self.config = config
         self.max_version = packaging.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
 
     def install(
         self,
+        connection: psycopg.Connection | None = None,
         *,
         parameters: dict | None = None,
         max_version: str | packaging.version.Version | None = None,
@@ -57,6 +56,8 @@ class Upgrader:
         It will also set the baseline version to the current version of the module.
 
         Args:
+            connection:
+                The database connection to use for the upgrade.
             parameters:
                 The parameters to pass for the migration.
             max_version:
@@ -67,27 +68,25 @@ class Upgrader:
         for key, value in parameters_literals.items():
             parameters_literals[key] = psycopg.sql.Literal(value)
 
-        if self.schema_migrations.exists(self.connection):
+        if self.schema_migrations.exists(connection):
             msg = (
                 f"Schema migrations table {self.config.pum.migration_table_schema}.{self.config.pum.migration_table_name} already exists. "
                 "This means that the module is already installed or the database is not empty. "
                 "Use upgrade() to upgrade the db or start with a clean db."
             )
             raise PumException(msg)
-        self.schema_migrations.create(self.connection, commit=False)
+        self.schema_migrations.create(connection, commit=False)
         for pre_hook in self.config.pre_hook_handlers():
-            pre_hook.execute(
-                connection=self.connection, commit=False, parameters=parameters_literals
-            )
+            pre_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
         last_changelog = None
         for changelog in self.config.list_changelogs(max_version=max_version):
             last_changelog = changelog
             changelog_files = changelog.apply(
-                self.connection, commit=False, parameters=parameters_literals
+                connection, commit=False, parameters=parameters_literals
             )
             changelog_files = [str(f) for f in changelog_files]
             self.schema_migrations.set_baseline(
-                connection=self.connection,
+                connection=connection,
                 version=changelog.version,
                 beta_testing=False,
                 commit=False,
@@ -95,9 +94,7 @@ class Upgrader:
                 parameters=parameters,
             )
         for post_hook in self.config.post_hook_handlers():
-            post_hook.execute(
-                connection=self.connection, commit=False, parameters=parameters_literals
-            )
+            post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
         logger.info(
             "Installed %s.%s table and applied changelogs up to version %s",
             self.config.pum.migration_table_schema,

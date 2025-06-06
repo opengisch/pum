@@ -177,6 +177,7 @@ class PumConfig(ConfigModel):
     def role_manager(self) -> RoleManager:
         """Return a RoleManager instance based on the roles defined in the configuration."""
         if not self.roles:
+            logger.warning("No roles defined in the configuration. Returning an empty RoleManager.")
             return RoleManager()
         return RoleManager([role.model_dump() for role in self.roles])
 
