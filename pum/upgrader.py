@@ -118,13 +118,6 @@ class Upgrader:
                 parameters=parameters,
             )
 
-        if demo_data:
-            SqlContent(sql=self.config.base_path / self.config.demo_data()[demo_data]).execute(
-                connection=connection,
-                parameters=parameters_literals,
-                commit=False,
-            )
-
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
 
@@ -140,3 +133,24 @@ class Upgrader:
         if commit:
             connection.commit()
             logger.info("Changes committed to the database.")
+
+    def install_demo_data(self, connection: psycopg.Connection, name: str) -> None:
+        """Install demo data for the module."""
+        if name not in self.config.demo_data():
+            raise PumException(f"Demo data '{name}' not found in the configuration.")
+
+        demo_data_file = self.config.base_path / self.config.demo_data()[name]
+        logger.info("Installing demo data from %s", demo_data_file)
+
+        for pre_hook in self.config.pre_hook_handlers():
+            pre_hook.execute(connection=connection, commit=False)
+
+        SqlContent(sql=demo_data_file).execute(
+            connection=connection,
+            commit=False,
+        )
+
+        for post_hook in self.config.post_hook_handlers():
+            post_hook.execute(connection=connection, commit=False)
+
+        logger.info("Demo data '%s' installed successfully.", name)

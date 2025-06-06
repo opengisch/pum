@@ -366,9 +366,10 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
             with self.assertRaises(PumException):
-                upgrader.install(connection=conn, demo_data="nope, nothing here")
-            upgrader.install(connection=conn, demo_data="some cool demo dataset")
+                upgrader.install_demo_data(connection=conn, name="nope, nothing here fella")
+            upgrader.install_demo_data(connection=conn, name="some cool demo dataset")
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM pum_test_data.some_table;")

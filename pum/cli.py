@@ -339,7 +339,8 @@ def cli() -> int:  # noqa: PLR0912
         if args.command == "info":
             run_info(connection=conn, config=config)
         elif args.command == "install":
-            Upgrader(config=config).install(
+            upg = Upgrader(config=config)
+            upg.install(
                 connection=conn,
                 parameters=parameters,
                 max_version=args.max_version,
@@ -347,6 +348,8 @@ def cli() -> int:  # noqa: PLR0912
                 grant=args.grant,
                 demo_data=args.demo_data,
             )
+            conn.commit()
+            upg.install_demo_data(name=args.demo_data, connection=conn)
         elif args.command == "role":
             if not args.action:
                 logger.error(
