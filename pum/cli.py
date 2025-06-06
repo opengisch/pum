@@ -244,7 +244,7 @@ class Pum:
         """
         self.__out("Set baseline...")
         try:
-            upgrader = Upgrader(pg_service, table, delta_dirs)
+            upgrader = Upgrader(table, delta_dirs)
             upgrader.create_upgrades_table()
             upgrader.set_baseline(baseline)
         except ValueError as e:
@@ -481,8 +481,8 @@ def cli() -> int:  # noqa: PLR0912
         if args.command == "info":
             run_info(connection=conn, config=config)
         elif args.command == "install":
-            Upgrader(connection=conn, config=config).install(
-                parameters=parameters, max_version=args.max_version
+            Upgrader(config=config).install(
+                connection=conn, parameters=parameters, max_version=args.max_version
             )
         elif args.command == "role":
             if not args.action:
