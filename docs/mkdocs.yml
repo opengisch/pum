@@ -91,6 +91,8 @@ nav:
       - help: cli/help.md
   - API:
       - Changelog: api/changelog.md
+      - Dumper: api/dumper.md
+      - DumpFormat: api/dump_format.md
       - HookBase: api/hook_base.md
       - HookHandler: api/hook_handler.md
       - ParameterDefinition: api/parameter_definition.md

@@ -1,19 +1,15 @@
 # baseline
 
-Create upgrade information table and set baseline.
+Create the upgrades information table and set a baseline version for migrations.
 
 ```sh
-pum [GLOBAL_OPTIONS] baseline [OPTIONS]
+pum [GLOBAL_OPTIONS] baseline --baseline <version>
 ```
 
 **Options:**
 
-- `-t, --table <table>`  
-  **(Required)** Upgrades information table.
-- `-d, --dir <dir> [<dir> ...]`  
-  **(Required)** Delta directories (space-separated).
 - `-b, --baseline <version>`  
-  **(Required)** Set baseline in the format x.x.x.
+  **(Required)** Set the baseline version (format: `x.x.x`).
 
 ---
 

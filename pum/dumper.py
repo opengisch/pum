@@ -1,6 +1,6 @@
 import subprocess
 import logging
-from packaging.version import Version
+from enum import Enum
 
 from .exceptions import (
     PgDumpCommandError,
@@ -12,27 +12,54 @@ from .exceptions import (
 logger = logging.getLogger(__name__)
 
 
+class DumpFormat(Enum):
+    CUSTOM = "custom"
+    PLAIN = "plain"
+
+    def to_pg_dump_flag(self):
+        if self == DumpFormat.CUSTOM:
+            return "-Fc"
+        elif self == DumpFormat.PLAIN:
+            return "-Fp"
+        raise ValueError(f"Unknown dump format: {self}")
+
+
 class Dumper:
     """This class is used to dump and restore a Postgres database."""
 
-    def __init__(self, pg_service: str, file: str):
-        self.file = file
+    def __init__(self, pg_service: str, dump_path: str):
         self.pg_service = pg_service
+        self.dump_path = dump_path
 
-    def pg_backup(self, pg_dump_exe: str = "pg_dump", exclude_schema: list[str] = None):
-        """Call the pg_dump command to create a db backup
-
-        Parameters
-        ----------
-        pg_dump_exe: str
-            the pg_dump command path
-        exclude_schema: list[str]
-            list of schemas to be skipped
+    def pg_dump(
+        self,
+        dbname: str | None = None,
+        *,
+        pg_dump_exe: str = "pg_dump",
+        exclude_schema: list[str] | None = None,
+        format: DumpFormat = DumpFormat.CUSTOM,
+    ):
         """
-        command = [pg_dump_exe, "-Fc", "-f", self.file, f"service={self.pg_service}"]
+        Call the pg_dump command to dump a db backup
+
+        Args:
+            dbname: Name of the database to dump.
+            pg_dump_exe: Path to the pg_dump executable.
+            exclude_schema: List of schemas to exclude from the dump.
+            format: DumpFormat, either custom (default) or plain
+        """
+
+        connection = f"service={self.pg_service}"
+        if dbname:
+            connection = f"{connection} dbname={dbname}"
+
+        command = [pg_dump_exe, format.to_pg_dump_flag(), "-f", self.dump_path]
         if exclude_schema:
             for schema in exclude_schema:
-                command.insert(-1, f"--exclude-schema={schema}")
+                command.append(f"--exclude-schema={schema}")
+        command.extend(["-d", connection])
+
+        logger.debug("Running pg_dump command: %s", " ".join(command))
 
         try:
             output = subprocess.run(command, capture_output=True, text=True, check=False)
@@ -43,34 +70,26 @@ class Dumper:
             logger.error("Invalid command: %s", " ".join(command))
             raise PgDumpCommandError("invalid command: {}".format(" ".join(filter(None, command))))
 
-    def pg_restore(self, pg_restore_exe: str = "pg_restore", exclude_schema: list[str] = None):
-        """Call the pg_restore command to restore a db backup
+    def pg_restore(
+        self,
+        dbname: str | None = None,
+        pg_restore_exe: str = "pg_restore",
+        exclude_schema: list[str] | None = None,
+    ):
+        """ """
 
-        Parameters
-        ----------
-        pg_restore_exe: str
-            the pg_restore command path
-        exclude_schema: list[str]
-            list of schemas to be skipped
-        """
-        command = [pg_restore_exe, "-d", f"service={self.pg_service}", "--no-owner"]
+        connection = f"service={self.pg_service}"
+        if dbname:
+            connection = f"{connection} dbname={dbname}"
+
+        command = [pg_restore_exe, "-d", connection, "--no-owner"]
 
         if exclude_schema:
-            exclude_schema_available = False
-            try:
-                pg_version_output = subprocess.check_output(
-                    [pg_restore_exe, "--version"], text=True
-                )
-                pg_version = pg_version_output.strip().split()[-1]
-                exclude_schema_available = Version(pg_version) >= Version("10.0")
-            except subprocess.CalledProcessError as e:
-                logger.error("Could not get pg_restore version: %s", e.stderr)
-            except Exception as e:
-                logger.error("Error checking pg_restore version: %s", e)
-            if exclude_schema_available:
-                for schema in exclude_schema:
-                    command.append(f"--exclude-schema={schema}")
-        command.append(self.file)
+            for schema in exclude_schema:
+                command.append(f"--exclude-schema={schema}")
+        command.append(self.dump_path)
+
+        logger.debug("Running pg_restore command: %s", " ".join(command))
 
         try:
             output = subprocess.run(command, capture_output=True, text=True, check=False)

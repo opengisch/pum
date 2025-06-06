@@ -15,6 +15,7 @@ from .info import run_info
 from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
+from .dumper import DumpFormat
 
 
 def setup_logging(verbosity: int = 0):
@@ -240,6 +241,14 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Parser for the "dump" command
     parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
+    parser_dump.add_argument(
+        "-f",
+        "--format",
+        type=lambda s: DumpFormat[s.upper()],
+        choices=list(DumpFormat),
+        default=DumpFormat.PLAIN,
+        help=f"Dump format. Choices: {[e.name.lower() for e in DumpFormat]}. Default: plain.",
+    )
     parser_dump.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
     )
