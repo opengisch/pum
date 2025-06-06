@@ -47,6 +47,7 @@ class Permission:
             raise ValueError("Schemas must be defined for the permission.")
 
         for schema in self.schemas:
+            logger.info(f"Granting {self.type.value} permission on schema {schema} to role {role}.")
             if self.type == PermissionType.READ:
                 SqlContent("""
                         GRANT USAGE ON SCHEMA {schema} TO {role};
@@ -214,5 +215,17 @@ class RoleManager:
         """
         for role in self.roles.values():
             role.create(connection=connection, commit=False, grant=grant)
+        if commit:
+            connection.commit()
+
+    def grant_permissions(self, connection: psycopg.Connection, commit: bool = False) -> None:
+        """Grant permissions to the roles in the database.
+        Args:
+            connection: The database connection to execute the SQL statements.
+            commit: Whether to commit the transaction. Defaults to False.
+        """
+        for role in self.roles.values():
+            for permission in role.permissions():
+                permission.grant(role=role.name, connection=connection, commit=False)
         if commit:
             connection.commit()

@@ -84,8 +84,15 @@ class Upgrader:
             )
             raise PumException(msg)
         self.schema_migrations.create(connection, commit=False)
+
+        if roles or grant:
+            self.config.role_manager().create_roles(
+                connection=connection, grant=False, commit=False
+            )
+
         for pre_hook in self.config.pre_hook_handlers():
             pre_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
+
         last_changelog = None
         for changelog in self.config.changelogs(max_version=max_version):
             last_changelog = changelog
@@ -101,22 +108,18 @@ class Upgrader:
                 changelog_files=changelog_files,
                 parameters=parameters,
             )
+
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
+
         logger.info(
             "Installed %s.pum_migrations table and applied changelogs up to version %s",
             self.config.config.pum.migration_table_schema,
             last_changelog.version,
         )
 
-        if roles or grant:
-            if not self.config.roles:
-                raise PumException(
-                    "Roles are requested to be created, but no roles are defined in the configuration."
-                )
-            self.config.role_manager().create_roles(
-                connection=connection, grant=grant, commit=False
-            )
+        if grant:
+            self.config.role_manager().grant_permissions(connection=connection, commit=False)
 
         if commit:
             connection.commit()
