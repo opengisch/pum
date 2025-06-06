@@ -5,17 +5,16 @@ import importlib.metadata
 import logging
 import sys
 from pathlib import Path
-from typing import Any
 
 import psycopg
 
 from .checker import Checker
 from .pum_config import PumConfig
 
-# from .dumper import Dumper
 from .info import run_info
 from .upgrader import Upgrader
 from .parameter import ParameterType
+from .schema_migrations import SchemaMigrations
 
 
 def setup_logging(verbosity: int = 0):
@@ -150,154 +149,6 @@ class Pum:
             self.__out(e.args[0] if e.args else str(e))
             sys.exit(1)
 
-    # def run_dump(
-    #     self, pg_service: str, file: str, exclude_schema: list[str] | None
-    # ) -> None:
-    #     """
-    #     Run the dump command
-
-    #     Parameters
-    #     ----------
-    #     pg_service: string
-    #         The name of the postgres service (defined in
-    #         pg_service.conf) related to the first db to be compared
-    #     file: string
-    #         The path of the desired backup file
-    #     """
-    #     self.__out("Dump...", type="WAITING")
-    #     try:
-    #         dumper = Dumper(pg_service, file)
-    #         if self.pg_dump_exe:
-    #             dumper.pg_backup(
-    #                 pg_dump_exe=self.pg_dump_exe, exclude_schema=exclude_schema
-    #             )
-    #         else:
-    #             dumper.pg_backup(exclude_schema=exclude_schema)
-    #     except (PgDumpFailed, PgDumpCommandError) as e:
-    #         self.__out("ERROR", "FAIL")
-    #         self.__out(e.args[0] if e.args else str(e), "FAIL")
-    #         sys.exit(1)
-    #     self.__out("OK", "OKGREEN")
-
-    # def run_restore(
-    #     self,
-    #     pg_service: str,
-    #     file: str,
-    #     ignore_restore_errors: bool,
-    #     exclude_schema: list[str] | None = None,
-    # ) -> None:
-    #     """
-    #     Run the dump command
-
-    #     Parameters
-    #     ----------
-    #     pg_service: string
-    #         The name of the postgres service (defined in
-    #         pg_service.conf) related to the first db to be compared
-    #     file: string
-    #         The path of the desired backup file
-    #     ignore_restore_errors: Boolean
-    #         If true the pg_restore errors don't cause the exit of the program
-    #     """
-    #     self.__out("Restore...", type="WAITING")
-    #     try:
-    #         dumper = Dumper(pg_service, file)
-    #         if self.pg_restore_exe:
-    #             dumper.pg_restore(
-    #                 pg_restore_exe=self.pg_restore_exe, exclude_schema=exclude_schema
-    #             )
-    #         else:
-    #             dumper.pg_restore(exclude_schema=exclude_schema)
-    #     except PgRestoreFailed as e:
-    #         self.__out("ERROR", "FAIL")
-    #         self.__out(str(e), "FAIL")
-    #         if ignore_restore_errors:
-    #             return
-    #         else:
-    #             sys.exit(1)
-    #     except PgRestoreCommandError as e:
-    #         self.__out("ERROR", "FAIL")
-    #         self.__out(e.args[0] if e.args else str(e), "FAIL")
-    #         sys.exit(1)
-    #     self.__out("OK", "OKGREEN")
-
-    def run_baseline(
-        self, pg_service: str, table: str, delta_dirs: list[str], baseline: str
-    ) -> None:
-        """Run the baseline command. Set the current database version
-        (baseline) into the specified table.
-
-        Parameters
-        ----------
-        pg_service: str
-            The name of the postgres service (defined in
-            pg_service.conf)
-        table: str
-            The name of the upgrades information table in the format
-            schema.table
-        delta_dirs: list(str)
-            The paths to the delta directories
-        baseline: str
-            The version of the current database to set in the information
-            table. The baseline must be in the format x.x.x where x are numbers.
-
-        """
-        self.__out("Set baseline...")
-        try:
-            upgrader = Upgrader(table, delta_dirs)
-            upgrader.create_upgrades_table()
-            upgrader.set_baseline(baseline)
-        except ValueError as e:
-            self.__out("ERROR")
-            self.__out(e.args[0] if e.args else str(e))
-            sys.exit(1)
-        self.__out("OK")
-
-    def run_upgrade(
-        self,
-        pg_service: str,
-        table: str,
-        delta_dirs: list[str],
-        variables: dict[str, Any],
-        max_version: str,
-        verbose: bool,
-    ) -> None:
-        """Apply the delta files to upgrade the database
-
-        Parameters
-        ----------
-        pg_service: str
-            The name of the postgres service (defined in pg_service.conf)
-        table: str
-            The name of the upgrades information table in the format
-            schema.table
-        delta_dirs: list(str)
-            The paths to the delta directories
-        variables: dict
-            dictionary for variables to be used in SQL deltas ( name => value )
-        max_version: str
-            Maximum (including) version to run the deltas up to.
-        verbose: bool
-            Whether to display extra information
-
-        """
-        self.__out("Upgrade...")
-        try:
-            upgrader = Upgrader(
-                pg_service,
-                table,
-                delta_dirs,
-                variables=variables,
-                max_version=max_version,
-            )
-            upgrader.run(verbose=verbose)
-        except Exception as e:
-            print(e)
-            if verbose:
-                raise e
-            sys.exit(1)
-        self.__out("OK")
-
 
 def create_parser() -> argparse.ArgumentParser:
     """Creates the main parser with its sub-parsers"""
@@ -408,21 +259,12 @@ def create_parser() -> argparse.ArgumentParser:
     parser_baseline = subparsers.add_parser(
         "baseline", help="Create upgrade information table and set baseline"
     )
-    parser_baseline.add_argument("-t", "--table", help="Upgrades information table", required=True)
-    parser_baseline.add_argument(
-        "-d",
-        "--dir",
-        nargs="+",
-        help="Delta directories (space-separated)",
-        required=True,
-    )
     parser_baseline.add_argument(
         "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
     )
 
     # Parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
-
     parser_upgrade.add_argument("-u", "--max-version", help="upper bound limit version")
     parser_upgrade.add_argument(
         "-p",
@@ -473,7 +315,7 @@ def cli() -> int:  # noqa: PLR0912
                     parameters[p[0]] = int(p[1])
                 elif param.type == ParameterType.BOOLEAN:
                     parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
-                elif param.type == ParameterType.STRING:
+                elif param.type == ParameterType.TEXT:
                     parameters[p[0]] = p[1]
                 else:
                     raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
@@ -523,20 +365,15 @@ def cli() -> int:  # noqa: PLR0912
             if not success:
                 exit_code = 1
         elif args.command == "dump":
-            pum.run_dump(args.pg_service, args.file, args.exclude_schema)
+            pass
         elif args.command == "restore":
             pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
         elif args.command == "baseline":
-            pum.run_baseline(args.pg_service, args.table, args.dir, args.baseline)
+            SchemaMigrations(config=config).set_baseline(connection=conn, version=args.baseline)
+
         elif args.command == "upgrade":
-            pum.run_upgrade(
-                args.pg_service,
-                args.table,
-                args.dir,
-                parameters,
-                args.max_version,
-                args.verbose,
-            )
+            # TODO
+            logger.error("Upgrade is not implemented yet")
         elif args.command == "help":
             parser.print_help()
         else:
