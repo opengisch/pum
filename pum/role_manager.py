@@ -213,6 +213,6 @@ class RoleManager:
             commit: Whether to commit the transaction. Defaults to False.
         """
         for role in self.roles.values():
-            role.create(connection=connection, commit=commit, grant=grant)
+            role.create(connection=connection, commit=False, grant=grant)
         if commit:
             connection.commit()

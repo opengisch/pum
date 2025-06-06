@@ -49,6 +49,9 @@ class Upgrader:
         *,
         parameters: dict | None = None,
         max_version: str | packaging.version.Version | None = None,
+        roles: bool = False,
+        grant: bool = False,
+        commit: bool = False,
     ) -> None:
         """Installs the given module
         This will create the schema_migrations table if it does not exist.
@@ -62,7 +65,12 @@ class Upgrader:
                 The parameters to pass for the migration.
             max_version:
                 The maximum version to apply. If None, all versions are applied.
-
+            roles:
+                If True, roles will be created.
+            grant:
+                If True, permissions will be granted to the roles.
+            commit:
+                If True, the changes will be committed to the database.
         """
         parameters_literals = copy.deepcopy(parameters) if parameters else {}
         for key, value in parameters_literals.items():
@@ -101,3 +109,16 @@ class Upgrader:
             self.config.pum.migration_table_name,
             last_changelog.version,
         )
+
+        if roles or grant:
+            if not self.config.roles:
+                raise PumException(
+                    "Roles are requested to be created, but no roles are defined in the configuration."
+                )
+            self.config.role_manager().create_roles(
+                connection=connection, grant=grant, commit=False
+            )
+
+        if commit:
+            connection.commit()
+            logger.info("Changes committed to the database.")

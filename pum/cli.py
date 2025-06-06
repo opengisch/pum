@@ -342,6 +342,10 @@ def create_parser() -> argparse.ArgumentParser:
         action="append",
     )
     parser_install.add_argument("--max-version", help="maximum version to install")
+    parser_install.add_argument("-r", "--roles", help="Create roles", action="store_true")
+    parser_install.add_argument(
+        "-g", "--grant", help="Grant permissions to roles", action="store_true"
+    )
 
     # Role management parser
     parser_role = subparsers.add_parser("role", help="manage roles in the database")
@@ -482,7 +486,11 @@ def cli() -> int:  # noqa: PLR0912
             run_info(connection=conn, config=config)
         elif args.command == "install":
             Upgrader(config=config).install(
-                connection=conn, parameters=parameters, max_version=args.max_version
+                connection=conn,
+                parameters=parameters,
+                max_version=args.max_version,
+                roles=args.roles,
+                grant=args.grant,
             )
         elif args.command == "role":
             if not args.action:
