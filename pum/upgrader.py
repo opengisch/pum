@@ -154,7 +154,7 @@ class Upgrader:
         logger.info("Installing demo data from %s", demo_data_file)
 
         for pre_hook in self.config.pre_hook_handlers():
-            pre_hook.execute(connection=connection, commit=False)
+            pre_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
 
         SqlContent(sql=demo_data_file).execute(
             connection=connection,
@@ -163,7 +163,7 @@ class Upgrader:
         )
 
         for post_hook in self.config.post_hook_handlers():
-            post_hook.execute(connection=connection, commit=False)
+            post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
 
         logger.info("Demo data '%s' installed successfully.", name)
 
