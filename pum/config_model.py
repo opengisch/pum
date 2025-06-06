@@ -1,4 +1,3 @@
-from pathlib import Path
 import packaging
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import List, Optional, Any, Literal
@@ -59,14 +58,6 @@ class MigrationHooksModel(PumCustomBaseModel):
 
     pre: Optional[List[HookModel]] = []
     post: Optional[List[HookModel]] = []
-
-    def set_base_path(self, base_path: Path):
-        if self.pre:
-            for hook in self.pre:
-                hook._base_path = base_path
-        if self.post:
-            for hook in self.post:
-                hook._base_path = base_path
 
 
 class PumModel(PumCustomBaseModel):
@@ -129,6 +120,18 @@ class RoleModel(PumCustomBaseModel):
     description: Optional[str] = Field(None, description="Description of the role.")
 
 
+class DemoDataModel(PumCustomBaseModel):
+    """
+    DemoDataModel represents a configuration for demo data.
+
+    Attributes:
+        files: Optional list of named demo data files.
+    """
+
+    name: str = Field(..., description="Name of the demo data.")
+    file: str = Field(..., description="Path to the demo data file.")
+
+
 class ConfigModel(PumCustomBaseModel):
     """
     ConfigModel represents the main configuration schema for the application.
@@ -141,10 +144,9 @@ class ConfigModel(PumCustomBaseModel):
         roles: List of role definitions. Defaults to None.
     """
 
-    model_config = ConfigDict(extra="forbid")
-
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
     migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
     changelogs_directory: Optional[str] = "changelogs"
-    roles: Optional[List[RoleModel]] = None
+    roles: Optional[List[RoleModel]] = []
+    demo_data: Optional[List[DemoDataModel]] = []

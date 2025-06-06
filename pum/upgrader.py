@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import logging
 
 import packaging
@@ -10,6 +9,8 @@ import copy
 from .pum_config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
+from .sql_content import SqlContent
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +46,13 @@ class Upgrader:
 
     def install(
         self,
-        connection: psycopg.Connection | None = None,
+        connection: psycopg.Connection = None,
         *,
         parameters: dict | None = None,
         max_version: str | packaging.version.Version | None = None,
         roles: bool = False,
         grant: bool = False,
+        demo_data: str | None = None,
         commit: bool = False,
     ) -> None:
         """Installs the given module
@@ -69,12 +71,19 @@ class Upgrader:
                 If True, roles will be created.
             grant:
                 If True, permissions will be granted to the roles.
+            demo_data:
+                The name of the demo data to load. If None, no demo data is loaded.
             commit:
                 If True, the changes will be committed to the database.
         """
         parameters_literals = copy.deepcopy(parameters) if parameters else {}
         for key, value in parameters_literals.items():
             parameters_literals[key] = psycopg.sql.Literal(value)
+
+        if demo_data and demo_data not in self.config.demo_data():
+            raise PumException(
+                f"Demo data '{demo_data}' not found in the configuration. Available demo data: {self.config.demo_data()}"
+            )
 
         if self.schema_migrations.exists(connection):
             msg = (
@@ -117,6 +126,13 @@ class Upgrader:
             self.config.config.pum.migration_table_schema,
             last_changelog.version,
         )
+
+        if demo_data:
+            SqlContent(sql=self.config.base_path / self.config.demo_data()[demo_data]).execute(
+                connection=connection,
+                parameters=parameters_literals,
+                commit=False,
+            )
 
         if grant:
             self.config.role_manager().grant_permissions(connection=connection, commit=False)

@@ -7,7 +7,7 @@ from pathlib import Path
 import psycopg
 
 from pum.pum_config import PumConfig
-from pum.exceptions import PumHookError
+from pum.exceptions import PumException, PumHookError
 from pum.parameter import ParameterDefinition
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
@@ -357,6 +357,23 @@ class TestUpgrader(unittest.TestCase):
             )
             exists = cursor.fetchone()[0]
             self.assertTrue(exists)
+
+    def test_demo_data(self) -> None:
+        """Test the installation of demo data."""
+        test_dir = Path("test") / "data" / "demo_data"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            with self.assertRaises(PumException):
+                upgrader.install(connection=conn, demo_data="nope, nothing here")
+            upgrader.install(connection=conn, demo_data="some cool demo dataset")
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM pum_test_data.some_table;")
+            count = cursor.fetchone()[0]
+            self.assertEqual(count, 4)
 
 
 if __name__ == "__main__":

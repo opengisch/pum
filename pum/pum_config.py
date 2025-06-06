@@ -39,10 +39,6 @@ class PumConfig:
             PumConfigError: If the configuration is invalid.
 
         """
-        # self.pg_restore_exe: str | None = kwargs.get("pg_restore_exe") or os.getenv(
-        #     "PG_RESTORE_EXE"
-        # )
-        # self.pg_dump_exe: str | None = kwargs.get("pg_dump_exe") or os.getenv("PG_DUMP_EXE")
 
         if not isinstance(base_path, Path):
             base_path = Path(base_path)
@@ -92,6 +88,11 @@ class PumConfig:
 
         base_path = Path(file_path).parent
         return cls(base_path=base_path, validate=validate, **data)
+
+    @property
+    def base_path(self) -> Path:
+        """Return the base path used for configuration and changelogs."""
+        return self._base_path
 
     def parameter(self, name: str) -> ParameterDefinition:
         """Get a specific migration parameter by name.
@@ -200,6 +201,10 @@ class PumConfig:
             if self.config.migration_hooks.post
             else []
         )
+
+    def demo_data(self) -> dict[str, str]:
+        """Return a dictionary of demo data files defined in the configuration."""
+        return {dm.name: dm.file for dm in self.config.demo_data}
 
     def validate(self) -> None:
         """Validate the chanbgelogs and hooks."""

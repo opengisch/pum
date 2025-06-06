@@ -1,0 +1,5 @@
+
+
+demo_data:
+  - name: some cool demo dataset
+    file: demo_data/demo_data.sql

@@ -198,6 +198,9 @@ def create_parser() -> argparse.ArgumentParser:
     parser_install.add_argument(
         "-g", "--grant", help="Grant permissions to roles", action="store_true"
     )
+    parser_install.add_argument(
+        "-d", "--demo-data", help="Load demo data with the given name", type=str, default=None
+    )
 
     # Role management parser
     parser_role = subparsers.add_parser("role", help="manage roles in the database")
@@ -342,6 +345,7 @@ def cli() -> int:  # noqa: PLR0912
                 max_version=args.max_version,
                 roles=args.roles,
                 grant=args.grant,
+                demo_data=args.demo_data,
             )
         elif args.command == "role":
             if not args.action:
