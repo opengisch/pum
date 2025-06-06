@@ -140,7 +140,9 @@ class Role:
             logger.info(f"Role {self.name} already exists, skipping creation.")
         else:
             logger.info(f"Creating role {self.name}.")
-            SqlContent("CREATE ROLE {name}").execute(
+            SqlContent(
+                "CREATE ROLE {name} NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION"
+            ).execute(
                 connection=connection,
                 commit=False,
                 parameters={"name": psycopg.sql.Identifier(self.name)},
@@ -152,6 +154,15 @@ class Role:
                     parameters={
                         "name": psycopg.sql.Identifier(self.name),
                         "description": psycopg.sql.Literal(self.description),
+                    },
+                )
+            if self.inherit:
+                SqlContent("GRANT {inherit} TO {role}").execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
+                        "inherit": psycopg.sql.Identifier(self.inherit.name),
+                        "role": psycopg.sql.Identifier(self.name),
                     },
                 )
         if grant:

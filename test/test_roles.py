@@ -73,16 +73,30 @@ class TestRoles(unittest.TestCase):
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
             cur = conn.cursor()
+
+            # viewer
             cur.execute(
                 "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
             )
-            viewer_permission = cur.fetchone()[0]
+            self.assertTrue(cur.fetchone()[0])
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_2.some_table_2', 'SELECT');"
+            )
+            self.assertFalse(cur.fetchone()[0])
+
+            # user
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0])
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_1.some_table_1', 'INSERT');"
+            )
+            self.assertFalse(cur.fetchone()[0])
             cur.execute(
                 "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'INSERT');"
             )
-            user_permission = cur.fetchone()[0]
-            self.assertTrue(viewer_permission)
-            self.assertTrue(user_permission)
+            self.assertTrue(cur.fetchone()[0])
 
 
 if __name__ == "__main__":
