@@ -1,6 +1,6 @@
 import subprocess
-import sys
-from distutils.version import LooseVersion
+import logging
+from packaging.version import Version
 
 from .exceptions import (
     PgDumpCommandError,
@@ -9,71 +9,76 @@ from .exceptions import (
     PgRestoreFailed,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class Dumper:
     """This class is used to dump and restore a Postgres database."""
 
-    def __init__(self, pg_service, file):
+    def __init__(self, pg_service: str, file: str):
         self.file = file
-
         self.pg_service = pg_service
 
-    def pg_backup(self, pg_dump_exe="pg_dump", exclude_schema=None):
+    def pg_backup(self, pg_dump_exe: str = "pg_dump", exclude_schema: list[str] = None):
         """Call the pg_dump command to create a db backup
 
         Parameters
         ----------
         pg_dump_exe: str
             the pg_dump command path
-        exclude_schema: str[]
+        exclude_schema: list[str]
             list of schemas to be skipped
-
         """
         command = [pg_dump_exe, "-Fc", "-f", self.file, f"service={self.pg_service}"]
         if exclude_schema:
-            command.insert(-1, " ".join(f"--exclude-schema={schema}" for schema in exclude_schema))
+            for schema in exclude_schema:
+                command.insert(-1, f"--exclude-schema={schema}")
 
         try:
-            if sys.version_info[1] < 7:
-                output = subprocess.run(command, capture_output=True, check=False)
-            else:
-                output = subprocess.run(command, capture_output=True, text=True, check=False)
+            output = subprocess.run(command, capture_output=True, text=True, check=False)
             if output.returncode != 0:
+                logger.error("pg_dump failed: %s", output.stderr)
                 raise PgDumpFailed(output.stderr)
         except TypeError:
+            logger.error("Invalid command: %s", " ".join(command))
             raise PgDumpCommandError("invalid command: {}".format(" ".join(filter(None, command))))
 
-    def pg_restore(self, pg_restore_exe="pg_restore", exclude_schema=None):
+    def pg_restore(self, pg_restore_exe: str = "pg_restore", exclude_schema: list[str] = None):
         """Call the pg_restore command to restore a db backup
 
         Parameters
         ----------
         pg_restore_exe: str
             the pg_restore command path
-
+        exclude_schema: list[str]
+            list of schemas to be skipped
         """
         command = [pg_restore_exe, "-d", f"service={self.pg_service}", "--no-owner"]
 
         if exclude_schema:
             exclude_schema_available = False
             try:
-                pg_version = subprocess.check_output(["pg_restore", "--version"])
-                pg_version = str(pg_version).replace("\\n", "").replace("'", "").split(" ")[-1]
-                exclude_schema_available = LooseVersion(pg_version) >= LooseVersion("10.0")
+                pg_version_output = subprocess.check_output(
+                    [pg_restore_exe, "--version"], text=True
+                )
+                pg_version = pg_version_output.strip().split()[-1]
+                exclude_schema_available = Version(pg_version) >= Version("10.0")
             except subprocess.CalledProcessError as e:
-                print("*** Could not get pg_restore version:\n", e.stderr)
+                logger.error("Could not get pg_restore version: %s", e.stderr)
+            except Exception as e:
+                logger.error("Error checking pg_restore version: %s", e)
             if exclude_schema_available:
-                command.append(" ".join(f"--exclude-schema={schema}" for schema in exclude_schema))
+                for schema in exclude_schema:
+                    command.append(f"--exclude-schema={schema}")
         command.append(self.file)
 
         try:
-            if sys.version_info[1] < 7:
-                output = subprocess.run(command, capture_output=True, check=False)
-            else:
-                output = subprocess.run(command, capture_output=True, text=True, check=False)
+            output = subprocess.run(command, capture_output=True, text=True, check=False)
             if output.returncode != 0:
+                logger.error("pg_restore failed: %s", output.stderr)
                 raise PgRestoreFailed(output.stderr)
         except TypeError:
+            logger.error("Invalid command: %s", " ".join(command))
             raise PgRestoreCommandError(
                 "invalid command: {}".format(" ".join(filter(None, command)))
             )

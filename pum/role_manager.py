@@ -22,6 +22,13 @@ class PermissionType(enum.Enum):
 
 
 class Permission:
+    """Class to represent a permission for a database role.
+
+    Attributes:
+        type: Type of permission (read or write).
+        schemas: List of schemas this permission applies to.
+    """
+
     def __init__(self, type: PermissionType | str, schemas: list[str] = None) -> None:
         if not isinstance(type, PermissionType):
             type = PermissionType(type)
@@ -84,6 +91,12 @@ class Permission:
 
 
 class Role:
+    """ "
+    Represents a database role with associated permissions and optional inheritance.
+    The Role class encapsulates the concept of a database role, including its name,
+    permissions, optional inheritance from another role, and an optional description.
+    """
+
     def __init__(
         self,
         name: str,
@@ -113,6 +126,9 @@ class Role:
         self.description = description
 
     def permissions(self):
+        """
+        Returns the list of permissions associated with the role.
+        """
         return self._permissions
 
     def exists(self, connection: psycopg.Connection) -> bool:
@@ -175,6 +191,12 @@ class Role:
 
 
 class RoleManager:
+    """
+    RoleManager manages a collection of Role objects,
+    allowing creation and permission management
+    for multiple roles in the PostgreSQL database.
+    """
+
     def __init__(self, roles=list[Role] | list[dict]) -> None:
         """Initialize the RoleManager class.:
         Args:
