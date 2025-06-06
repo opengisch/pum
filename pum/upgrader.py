@@ -118,6 +118,13 @@ class Upgrader:
                 parameters=parameters,
             )
 
+        if demo_data:
+            SqlContent(sql=self.config.base_path / self.config.demo_data()[demo_data]).execute(
+                connection=connection,
+                parameters=parameters_literals,
+                commit=False,
+            )
+
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
 
@@ -126,13 +133,6 @@ class Upgrader:
             self.config.config.pum.migration_table_schema,
             last_changelog.version,
         )
-
-        if demo_data:
-            SqlContent(sql=self.config.base_path / self.config.demo_data()[demo_data]).execute(
-                connection=connection,
-                parameters=parameters_literals,
-                commit=False,
-            )
 
         if grant:
             self.config.role_manager().grant_permissions(connection=connection, commit=False)
