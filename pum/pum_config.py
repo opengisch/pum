@@ -54,7 +54,7 @@ class PumConfig:
             self.config = ConfigModel(**kwargs)
         except ValidationError as e:
             logger.error("Config validation error: %s", e)
-            raise PumConfigError(e)
+            raise PumConfigError(e) from e
 
         if validate:
             if self.config.pum.minimum_version and PUM_VERSION < self.config.pum.minimum_version:

@@ -78,7 +78,7 @@ class Upgrader:
 
         if self.schema_migrations.exists(connection):
             msg = (
-                f"Schema migrations table {self.config.pum.migration_table_schema}.{self.config.pum.migration_table_name} already exists. "
+                f"Schema migrations table {self.config.config.pum.migration_table_schema}.pum_migrations already exists. "
                 "This means that the module is already installed or the database is not empty. "
                 "Use upgrade() to upgrade the db or start with a clean db."
             )
@@ -104,9 +104,8 @@ class Upgrader:
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters_literals)
         logger.info(
-            "Installed %s.%s table and applied changelogs up to version %s",
+            "Installed %s.pum_migrations table and applied changelogs up to version %s",
             self.config.config.pum.migration_table_schema,
-            self.config.config.pum.migration_table_name,
             last_changelog.version,
         )
 

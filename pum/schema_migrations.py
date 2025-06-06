@@ -12,7 +12,8 @@ from .sql_content import SqlContent
 
 logger = logging.getLogger(__name__)
 
-migration_table_version = "2025.0"
+MIGRATION_TABLE_VERSION = "2025.0"
+MIGRATION_TABLE_NAME = "pum_migrations"
 
 
 class SchemaMigrations:
@@ -29,6 +30,12 @@ class SchemaMigrations:
 
         """
         self.config = config
+        self.migration_table_identifier = psycopg.sql.SQL(".").join(
+            [
+                psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
+                psycopg.sql.Identifier(MIGRATION_TABLE_NAME),
+            ]
+        )
 
     def exists(self, connection: psycopg.Connection) -> bool:
         """Check if the schema_migrations information table exists.
@@ -52,7 +59,6 @@ class SchemaMigrations:
 
         parameters = {
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
-            "table": psycopg.sql.Literal(self.config.config.pum.migration_table_name),
         }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
@@ -72,13 +78,12 @@ class SchemaMigrations:
             """
             SELECT table_schema
             FROM information_schema.tables
-            WHERE table_name = {table} AND table_schema != {schema}
+            WHERE table_name = 'pum_migrations' AND table_schema != {schema}
         """
         )
 
         parameters = {
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
-            "table": psycopg.sql.Literal(self.config.config.pum.migration_table_name),
         }
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         return [row[0] for row in cursor.fetchall()]
@@ -99,7 +104,7 @@ class SchemaMigrations:
         """
         if self.exists(connection):
             logger.info(
-                f"{self.config.config.pum.migration_table_schema}.{self.config.config.pum.migration_table_name} table already exists."
+                f"{self.config.config.pum.migration_table_schema}.pum_migrations table already exists."
             )
             return
 
@@ -111,9 +116,9 @@ class SchemaMigrations:
 
         # Create the schema if it doesn't exist
         parameters = {
-            "version": psycopg.sql.Literal(migration_table_version),
+            "version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-            "table": psycopg.sql.Identifier(self.config.config.pum.migration_table_name),
+            "table": self.migration_table_identifier,
         }
 
         create_schema_query = None
@@ -121,7 +126,7 @@ class SchemaMigrations:
             create_schema_query = psycopg.sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema};")
 
         create_table_query = psycopg.sql.SQL(
-            """CREATE TABLE IF NOT EXISTS {schema}.{table}
+            """CREATE TABLE IF NOT EXISTS {table}
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             date_installed timestamp without time zone NOT NULL DEFAULT now(),
@@ -136,7 +141,7 @@ class SchemaMigrations:
         )
 
         comment_query = psycopg.sql.SQL(
-            "COMMENT ON TABLE {schema}.{table} IS 'version: 1 --  schema_migration table version';"
+            "COMMENT ON TABLE {table} IS 'version: 1 --  schema_migration table version';"
         )
 
         if create_schema_query:
@@ -177,7 +182,7 @@ class SchemaMigrations:
             raise ValueError(f"Wrong version format: {version}. Must be x.x.x")
 
         code = psycopg.sql.SQL("""
-INSERT INTO {schema}.{table} (
+INSERT INTO {table} (
     version,
     beta_testing,
     migration_table_version,
@@ -192,17 +197,16 @@ INSERT INTO {schema}.{table} (
 );""")
 
         query_parameters = {
-            "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-            "table": psycopg.sql.Identifier(self.config.config.pum.migration_table_name),
+            "table": self.migration_table_identifier,
             "version": psycopg.sql.Literal(version),
             "beta_testing": psycopg.sql.Literal(beta_testing),
-            "migration_table_version": psycopg.sql.Literal(migration_table_version),
+            "migration_table_version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "changelog_files": psycopg.sql.Literal(changelog_files or []),
             "parameters": psycopg.sql.Literal(json.dumps(parameters or {})),
         }
 
         logger.info(
-            f"Setting baseline version {version} in {query_parameters['schema']}.{query_parameters['table']} table"
+            f"Setting baseline version {version} in {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table"
         )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
@@ -220,10 +224,10 @@ INSERT INTO {schema}.{table} (
         query = psycopg.sql.SQL(
             """
             SELECT version
-            FROM {schema}.{table}
+            FROM {table}
             WHERE id = (
                 SELECT id
-                FROM {schema}.{table}
+                FROM {table}
                 ORDER BY version DESC, date_installed DESC
                 LIMIT 1
             )
@@ -231,8 +235,7 @@ INSERT INTO {schema}.{table} (
         )
 
         parameters = {
-            "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-            "table": psycopg.sql.Identifier(self.config.config.pum.migration_table_name),
+            "table": self.migration_table_identifier,
         }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
@@ -257,10 +260,10 @@ INSERT INTO {schema}.{table} (
             query = psycopg.sql.SQL(
                 """
                 SELECT *
-                FROM {schema}.{table}
+                FROM {table}
                 WHERE id = (
                         SELECT id
-                        FROM {schema}.{table}
+                        FROM {table}
                         ORDER BY version DESC, date_installed DESC
                         LIMIT 1
                     )
@@ -269,21 +272,19 @@ INSERT INTO {schema}.{table} (
             )
 
             parameters = {
-                "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-                "table": psycopg.sql.Identifier(self.config.config.pum.migration_table_name),
+                "table": self.migration_table_identifier,
             }
         else:
             query = psycopg.sql.SQL(
                 """
                 SELECT *
-                FROM {schema}.{table}
+                FROM {table}
                 WHERE version = {version}
             """
             )
 
             parameters = {
-                "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-                "table": psycopg.sql.Identifier(self.config.config.pum.migration_table_name),
+                "table": self.migration_table_identifier,
                 "version": psycopg.sql.Literal(version),
             }
 

@@ -230,8 +230,10 @@ class SqlContent:
             statement: psycopg.sql.SQL, parameters: dict | None = None
         ) -> psycopg.sql.SQL:
             for key, value in (parameters or {}).items():
-                if not isinstance(value, psycopg.sql.Literal) and not isinstance(
-                    value, psycopg.sql.Identifier
+                if (
+                    not isinstance(value, psycopg.sql.Literal)
+                    and not isinstance(value, psycopg.sql.Identifier)
+                    and not isinstance(value, psycopg.sql.Composed)
                 ):
                     raise PumSqlError(
                         f"Invalid parameter type for key '{key}': {type(value)}. "

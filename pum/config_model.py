@@ -1,6 +1,6 @@
 from pathlib import Path
 import packaging
-from pydantic import BaseModel, ConfigDict, Field, model_validator, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import List, Optional, Any, Literal
 
 
@@ -82,11 +82,6 @@ class PumModel(PumCustomBaseModel):
     migration_table_schema: Optional[str] = Field(
         default="public", description="Name of schema for the migration table"
     )
-    _migration_table_name: str = PrivateAttr(default="pum_migrations")
-
-    @property
-    def migration_table_name(self) -> str:
-        return self._migration_table_name
 
     minimum_version: Optional[packaging.version.Version] = Field(
         default=None,

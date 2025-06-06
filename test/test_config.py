@@ -142,5 +142,6 @@ class TestConfig(unittest.TestCase):
         """Test invalid configuration."""
         base_path = Path("test") / "data" / "single_changelog"
         PumConfig(base_path=base_path)
+
         with self.assertRaises(PumConfigError):
             PumConfig(base_path=base_path, invalid_key="You shall not pass!")
