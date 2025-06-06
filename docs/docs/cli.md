@@ -8,6 +8,10 @@
 pum [OPTIONS] <command> [ARGS]
 ```
 
+::: pum.cli.create_parser
+
+
+
 ## Global Options
 
 - `-c, --config_file <file>`  
