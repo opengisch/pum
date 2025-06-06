@@ -181,6 +181,10 @@ class SchemaMigrations:
         if not re.match(pattern, version):
             raise ValueError(f"Wrong version format: {version}. Must be x.x.x")
 
+        current = self.baseline(connection=connection)
+        if current and current >= version:
+            raise PumException(f"Cannot set baseline {version} as it is already set at {current}.")
+
         code = psycopg.sql.SQL("""
 INSERT INTO {table} (
     version,
@@ -210,7 +214,7 @@ INSERT INTO {table} (
         )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
-    def baseline(self, connection: psycopg.Connection) -> str:
+    def baseline(self, connection: psycopg.Connection) -> str | None:
         """Return the baseline version from the migration table.
 
         Args:
@@ -221,6 +225,10 @@ INSERT INTO {table} (
             str: The baseline version.
 
         """
+
+        if not self.exists(connection=connection):
+            return None
+
         query = psycopg.sql.SQL(
             """
             SELECT version
@@ -239,7 +247,10 @@ INSERT INTO {table} (
         }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
-        return cursor.fetchone()[0]
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return row[0]
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
         """Return the migration details from the migration table.
