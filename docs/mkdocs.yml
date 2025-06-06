@@ -78,6 +78,7 @@ nav:
       - RoleModel: configuration/role_model.md
 
   - Hooks: hooks.md
+  - Roles: roles.md
   - CLI:
       - Overview: cli.md
       - info: cli/info.md
