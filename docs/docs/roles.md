@@ -7,10 +7,12 @@ PUM supports an opiniated but flexible role and permission system for managing d
 A **Permission** defines an allowed action (such as `read` or `write`) on one or more database schemas.
 
 **Pydantic Model:**
-- `type`: Must be either `"read"` or `"write"` (see `PermissionType` enum in code).
-- `schemas`: List of schema names (strings) this permission applies to.
+
+- `type`: The type of permission. Must be either `"read"` or `"write"` (see `PermissionType` enum in code).
+- `schemas`: A list of schema names (strings) this permission applies to.
 
 **Example:**
+
 ```yaml
 permissions:
   - type: read
@@ -24,6 +26,7 @@ permissions:
 A **Role** groups permissions and can optionally inherit from another role.
 
 **Pydantic Model:**
+
 - `name`: Name of the role (string).
 - `permissions`: List of `PermissionModel` objects.
 - `inherit`: (Optional) Name of another role to inherit permissions from.
@@ -53,10 +56,12 @@ roles:
 - Permissions are enforced by granting the specified actions on the listed schemas to the role.
 
 **PermissionType Enum:**
+
 - `read`: Grants `USAGE` and `SELECT` privileges.
 - `write`: Grants `INSERT`, `UPDATE`, and `DELETE` privileges.
 
 ## Summary
+
 - Define roles and permissions in your config YAML under the `roles` key.
 - Use inheritance to avoid duplication and build role hierarchies.
 - Each permission specifies a type and a list of schemas.

@@ -45,7 +45,6 @@ Changelog should not try to commit.
 * Store the changelogs directory in version control (e.g., Git).
 
 
-
 ## Installing the datamodel
 
 Once the code is organized, the datamodel can be installed from the command line:
