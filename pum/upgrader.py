@@ -76,9 +76,7 @@ class Upgrader:
             commit:
                 If True, the changes will be committed to the database.
         """
-        parameters_literals = copy.deepcopy(parameters) if parameters else {}
-        for key, value in parameters_literals.items():
-            parameters_literals[key] = psycopg.sql.Literal(value)
+        parameters_literals = self._prepare_parameterts(parameters)
 
         if demo_data and demo_data not in self.config.demo_data():
             raise PumException(
@@ -134,10 +132,23 @@ class Upgrader:
             connection.commit()
             logger.info("Changes committed to the database.")
 
-    def install_demo_data(self, connection: psycopg.Connection, name: str) -> None:
-        """Install demo data for the module."""
+    def install_demo_data(
+        self,
+        connection: psycopg.Connection,
+        name: str,
+        *,
+        parameters: dict | None = None,
+    ) -> None:
+        """Install demo data for the module.
+        Args:
+            connection: The database connection to use.
+            name: The name of the demo data to install.
+            parameters: The parameters to pass to the demo data SQL.
+        """
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
+
+        parameters_literals = self._prepare_parameterts(parameters)
 
         demo_data_file = self.config.base_path / self.config.demo_data()[name]
         logger.info("Installing demo data from %s", demo_data_file)
@@ -148,9 +159,26 @@ class Upgrader:
         SqlContent(sql=demo_data_file).execute(
             connection=connection,
             commit=False,
+            parameters=parameters_literals,
         )
 
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False)
 
         logger.info("Demo data '%s' installed successfully.", name)
+
+    @staticmethod
+    def _prepare_parameterts(parameters: dict | None):
+        """
+        Prepares a dictionary of parameters for use in SQL queries by converting each value to a psycopg.sql.Literal.
+
+        Args:
+            parameters: A dictionary of parameters to be converted, or None.
+
+        Returns:
+            dict: A new dictionary with the same keys as `parameters`, where each value is wrapped in psycopg.sql.Literal.
+        """
+        parameters_literals = copy.deepcopy(parameters) if parameters else {}
+        for key, value in parameters_literals.items():
+            parameters_literals[key] = psycopg.sql.Literal(value)
+        return parameters_literals

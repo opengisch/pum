@@ -349,7 +349,7 @@ def cli() -> int:  # noqa: PLR0912
                 demo_data=args.demo_data,
             )
             conn.commit()
-            upg.install_demo_data(name=args.demo_data, connection=conn)
+            upg.install_demo_data(name=args.demo_data, connection=conn, parameters=parameters)
         elif args.command == "role":
             if not args.action:
                 logger.error(
