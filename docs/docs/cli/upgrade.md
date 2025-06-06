@@ -1,19 +1,8 @@
-# upgrade
+usage: create_cli_help.py upgrade [-h] [-u MAX_VERSION] [-p PARAMETER PARAMETER]
 
-Upgrade the database.
-
-```sh
-pum [GLOBAL_OPTIONS] upgrade [OPTIONS]
-```
-
-**Options:**
-
-- `-u, --max-version <version>`  
-  Upper bound limit version.
-- `-p, --parameter <name> <value>`  
-  Assign variable for running SQL deltas. Can be used multiple times.
-
----
-
-> **Note:**
-> All commands accept the global options. See the [CLI Overview](../cli.md) for details on global options.
+### options:
+- `-h, --help`: show this help message and exit
+- `-u MAX_VERSION, --max-version MAX_VERSION`
+- `upper bound limit version`
+- `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`
+- `Assign variable for running SQL deltas. Format is: name value.`

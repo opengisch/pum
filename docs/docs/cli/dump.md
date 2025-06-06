@@ -1,19 +1,11 @@
-# dump
+usage: create_cli_help.py dump [-h] [-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}] [-N EXCLUDE_SCHEMA] file
 
-Dump a Postgres database.
+### positional arguments:
+- `file`: The backup file
 
-```sh
-pum [GLOBAL_OPTIONS] dump [OPTIONS] <file>
-```
-
-**Options:**
-
-- `-N, --exclude-schema <schema>`  
-  Schema to be ignored. Can be used multiple times.
-- `<file>`  
-  The backup file.
-
----
-
-> **Note:**
-> All commands accept the global options. See the [CLI Overview](../cli.md) for details on global options.
+### options:
+- `-h, --help`: show this help message and exit
+- `-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}, --format {DumpFormat.CUSTOM,DumpFormat.PLAIN}`
+- `Dump format. Choices: ['custom', 'plain']. Default: plain.`
+- `-N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA`
+- `Schema to be ignored.`

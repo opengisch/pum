@@ -294,15 +294,15 @@ def cli() -> int:  # noqa: PLR0912
     setup_logging(args.verbose)
     logger = logging.getLogger(__name__)
 
-    if args.config_file:
-        config = PumConfig.from_yaml(args.config_file)
-    else:
-        config = PumConfig.from_yaml(Path(args.dir) / ".pum.yaml")
-
     # if no command is passed, print the help and exit
     if not args.command:
         parser.print_help()
         parser.exit()
+
+    if args.config_file:
+        config = PumConfig.from_yaml(args.config_file)
+    else:
+        config = PumConfig.from_yaml(Path(args.dir) / ".pum.yaml")
 
     with psycopg.connect(f"service={args.pg_service}") as conn:
         # Check if the connection is successful
@@ -383,8 +383,6 @@ def cli() -> int:  # noqa: PLR0912
         elif args.command == "upgrade":
             # TODO
             logger.error("Upgrade is not implemented yet")
-        elif args.command == "help":
-            parser.print_help()
         else:
             logger.error(f"Unknown command: {args.command}")
             logger.error("Use -h or --help for help.")

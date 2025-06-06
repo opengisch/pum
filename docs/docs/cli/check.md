@@ -1,23 +1,14 @@
-# check
+usage: create_cli_help.py check [-h]
+- `[-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]`
+- `[-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE]`
 
-Check the differences between two databases.
-
-```sh
-pum [GLOBAL_OPTIONS] check [OPTIONS]
-```
-
-**Options:**
-
-- `-i, --ignore <elements>`  
-  Elements to be ignored. Choices: `tables`, `columns`, `constraints`, `views`, `sequences`, `indexes`, `triggers`, `functions`, `rules`.
-- `-N, --exclude-schema <schema>`  
-  Schema to be ignored. Can be used multiple times.
-- `-P, --exclude-field-pattern <pattern>`  
-  Fields to be ignored based on a pattern compatible with SQL LIKE. Can be used multiple times.
-- `-o, --output_file <file>`  
-  Output file for differences.
-
----
-
-> **Note:**
-> All commands accept the global options. See the [CLI Overview](../cli.md) for details on global options.
+### options:
+- `-h, --help`: show this help message and exit
+- `-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...], --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]`
+- `Elements to be ignored`
+- `-N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA`
+- `Schema to be ignored.`
+- `-P EXCLUDE_FIELD_PATTERN, --exclude-field-pattern EXCLUDE_FIELD_PATTERN`
+- `Fields to be ignored based on a pattern compatible with SQL LIKE.`
+- `-o OUTPUT_FILE, --output_file OUTPUT_FILE`
+- `Output file`

@@ -1,19 +1,10 @@
-# install
+usage: create_cli_help.py install [-h] [-p PARAMETER PARAMETER] [--max-version MAX_VERSION] [-r] [-g]
 
-Installs the module and applies changelogs up to the specified version.
-
-```sh
-pum [GLOBAL_OPTIONS] install [OPTIONS]
-```
-
-**Options:**
-
-- `-p, --parameter <name> <value>`  
-  Assign variable for running SQL deltas. Can be used multiple times.
-- `--max-version <version>`  
-  Upper bound limit version for applying changelogs.
-
----
-
-> **Note:**
-> All commands accept the global options. See the [CLI Overview](../cli.md) for details on global options.
+### options:
+- `-h, --help`: show this help message and exit
+- `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`
+- `Assign variable for running SQL deltas. Format is name value.`
+- `--max-version MAX_VERSION`
+- `maximum version to install`
+- `-r, --roles`: Create roles
+- `-g, --grant`: Grant permissions to roles

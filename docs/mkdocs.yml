@@ -88,7 +88,7 @@ nav:
       - restore: cli/restore.md
       - baseline: cli/baseline.md
       - upgrade: cli/upgrade.md
-      - help: cli/help.md
+      - role: cli/role.md
   - API:
       - Changelog: api/changelog.md
       - Dumper: api/dumper.md

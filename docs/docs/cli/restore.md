@@ -1,21 +1,10 @@
-# restore
+usage: create_cli_help.py restore [-h] [-x] [-N EXCLUDE_SCHEMA] file
 
-Restore a Postgres database from a dump file.
+### positional arguments:
+- `file`: The backup file
 
-```sh
-pum [GLOBAL_OPTIONS] restore [OPTIONS] <file>
-```
-
-**Options:**
-
-- `-x`  
-  Ignore pg_restore errors.
-- `-N, --exclude-schema <schema>`  
-  Schema to be ignored. Can be used multiple times.
-- `<file>`  
-  The backup file.
-
----
-
-> **Note:**
-> All commands accept the global options. See the [CLI Overview](../cli.md) for details on global options.
+### options:
+- `-h, --help`: show this help message and exit
+- `-x`: ignore pg_restore errors
+- `-N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA`
+- `Schema to be ignored.`
