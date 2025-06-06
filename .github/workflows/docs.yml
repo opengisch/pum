@@ -46,6 +46,9 @@ jobs:
     - name: Install pum
       run: python -m pip install .
 
+    - name: Update CLI docs
+      run: ./docs/update_cli_docs.py
+
     - name: Build documentation
       run: mkdocs build -f docs/mkdocs.yml
 
