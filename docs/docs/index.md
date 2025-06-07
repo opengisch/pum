@@ -17,4 +17,4 @@ PUM (PostgreSQL Upgrades Manager) is a robust database migration management tool
 
 Managing database migrations in a Version Control System (VCS) can be challenging, especially for production databases. PUM simplifies this process by embedding version metadata directly into the database, enabling efficient tracking and application of migrations.
 
-PUM was developed to address challenges in the [TEKSI](https://github.com/TESKI) project, an open-source GIS for network management based on [QGIS](http://qgis.org/fr/site/).
+PUM was developed to address challenges in the [TEKSI](https://github.com/TEKSI) project, an open-source GIS for network management based on [QGIS](http://qgis.org/).
