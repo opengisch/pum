@@ -5,6 +5,8 @@ import packaging
 from pydantic import ValidationError
 import logging
 import importlib.metadata
+import glob
+import os
 
 
 from .changelog import Changelog
@@ -18,7 +20,23 @@ from .hook import HookHandler
 try:
     PUM_VERSION = packaging.version.Version(importlib.metadata.version("pum"))
 except importlib.metadata.PackageNotFoundError:
-    PUM_VERSION = packaging.version.Version("0.0.0")
+    # Fallback: try to read from pum-*.dist-info/METADATA
+    dist_info_dirs = glob.glob(os.path.join(os.path.dirname(__file__), "..", "pum-*.dist-info"))
+    version = None
+    for dist_info in dist_info_dirs:
+        metadata_path = os.path.join(dist_info, "METADATA")
+        if os.path.isfile(metadata_path):
+            with open(metadata_path) as f:
+                for line in f:
+                    if line.startswith("Version:"):
+                        version = line.split(":", 1)[1].strip()
+                        break
+        if version:
+            break
+    if version:
+        PUM_VERSION = packaging.version.Version(version)
+    else:
+        PUM_VERSION = packaging.version.Version("0.0.0")
 
 
 logger = logging.getLogger(__name__)
