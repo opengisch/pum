@@ -26,6 +26,12 @@ class ParameterDefinitionModel(PumCustomBaseModel):
     default: Optional[Any] = None
     description: Optional[str] = None
 
+    @model_validator(mode="after")
+    def validate_description(cls, values):
+        if values.get("type") == ParameterType.BOOLEAN:
+            values["default"] = values.get("default", False) in (1, "1", "true", "TRUE", True)
+        return values
+
 
 class HookModel(PumCustomBaseModel):
     """
