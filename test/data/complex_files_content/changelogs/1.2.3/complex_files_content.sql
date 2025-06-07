@@ -55,3 +55,7 @@ BEGIN
   RETURN floor(random() * (max_val - min_val + 1) + min_val)::INT;
 END;
 $DO$ LANGUAGE plpgsql;
+
+
+-- this is commented so it's ok
+-- SELECT pg_catalog.set_config('search_path', '', false);
