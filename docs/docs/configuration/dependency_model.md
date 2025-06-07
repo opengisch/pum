@@ -1,3 +1,3 @@
 # DependencyModel
 
-::: pum.dependency_model.DependencyModel
+::: pum.config_model.DependencyModel
