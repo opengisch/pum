@@ -70,6 +70,7 @@ nav:
   - Configuration:
       - Overview: configuration/configuration.md
       - ConfigModel: configuration/config_model.md
+      - DependencyModel: configuration/dependency_model.md
       - HookModel: configuration/hook_model.md
       - MigrationHooksModel: configuration/migration_hooks_model.md
       - ParameterDefinitionModel: configuration/parameter_definition_model.md

@@ -3,6 +3,10 @@ class PumException(Exception):
     """Base class for all exceptions raised by PUM."""
 
 
+class PumDependencyError(PumException):
+    """Exception when dependency are not resolved"""
+
+
 # --- Configuration and Validation Errors ---
 
 

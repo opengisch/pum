@@ -7,7 +7,7 @@ from pathlib import Path
 import psycopg
 
 from pum.pum_config import PumConfig
-from pum.exceptions import PumException, PumHookError
+from pum.exceptions import PumDependencyError, PumException, PumHookError
 from pum.parameter import ParameterDefinition
 from pum.schema_migrations import SchemaMigrations
 from pum.upgrader import Upgrader
@@ -317,7 +317,7 @@ class TestUpgrader(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(config=cfg)
-            upgrader.install(connection=conn, max_version="1.2.3")
+            upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
             cursor = conn.cursor()
             cursor.execute(
@@ -389,6 +389,19 @@ class TestUpgrader(unittest.TestCase):
             cursor.execute("SELECT COUNT(*) FROM pum_test_data.some_table;")
             count = cursor.fetchone()[0]
             self.assertEqual(count, 4)
+
+    def test_dependencies(self) -> None:
+        """Test the installation of dependencies."""
+        test_dir = Path("test") / "data" / "dependencies"
+        with self.assertRaises(PumDependencyError):
+            PumConfig.from_yaml(test_dir / ".pum.yaml")
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml", install_dependencies=True)
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
+            self.assertTrue(sm.exists(conn))
 
 
 if __name__ == "__main__":

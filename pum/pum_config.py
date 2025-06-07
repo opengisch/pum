@@ -8,11 +8,15 @@ import importlib.metadata
 
 
 from .changelog import Changelog
+from .dependency_handler import DependencyHandler
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
 from .parameter import ParameterDefinition
 from .role_manager import RoleManager
 from .config_model import ConfigModel
 from .hook import HookHandler
+import tempfile
+import sys
+import atexit
 
 
 try:
@@ -27,12 +31,20 @@ logger = logging.getLogger(__name__)
 class PumConfig:
     """A class to hold configuration settings."""
 
-    def __init__(self, base_path: str | Path, validate: bool = True, **kwargs: dict) -> None:
+    def __init__(
+        self,
+        base_path: str | Path,
+        *,
+        validate: bool = True,
+        install_dependencies: bool = False,
+        **kwargs: dict,
+    ) -> None:
         """Initialize the configuration with key-value pairs.
 
         Args:
             base_path: The directory where the changelogs are located.
-            validate: Whether to validate the changelogs and hooks.
+            validate: Whether to validate the changelogs and hooks and resolve dependencies. Defaults to True.
+            install_dependencies: Whether to temporarily install dependencies.
             **kwargs: Key-value pairs representing configuration settings.
 
         Raises:
@@ -46,6 +58,8 @@ class PumConfig:
             raise PumConfigError(f"Directory `{base_path}` does not exist.")
         self._base_path = base_path
 
+        self.dependency_path = None
+
         try:
             self.config = ConfigModel(**kwargs)
         except ValidationError as e:
@@ -58,19 +72,26 @@ class PumConfig:
                     f"Minimum required version of pum is {self.config.pum.minimum_version}, but the current version is {PUM_VERSION}. Please upgrade pum."
                 )
             try:
-                self.validate()
+                self.validate(install_dependencies=install_dependencies)
             except (PumInvalidChangelog, PumHookError) as e:
                 raise PumConfigError(
                     f"Configuration is invalid: {e}. You can disable the validation when constructing the config."
                 ) from e
 
     @classmethod
-    def from_yaml(cls, file_path: str | Path, *, validate: bool = True) -> "PumConfig":
+    def from_yaml(
+        cls,
+        file_path: str | Path,
+        *,
+        validate: bool = True,
+        install_dependencies: bool = False,
+    ) -> "PumConfig":
         """Create a PumConfig instance from a YAML file.
 
         Args:
             file_path: The path to the YAML file.
             validate: Whether to validate the changelogs and hooks.
+            install_dependencies: Wheter to temporarily install dependencies.
 
         Returns:
             PumConfig: An instance of the PumConfig class.
@@ -87,7 +108,12 @@ class PumConfig:
             raise PumConfigError("base_path not allowed in configuration instead.")
 
         base_path = Path(file_path).parent
-        return cls(base_path=base_path, validate=validate, **data)
+        return cls(
+            base_path=base_path,
+            validate=validate,
+            install_dependencies=install_dependencies,
+            **data,
+        )
 
     @property
     def base_path(self) -> Path:
@@ -206,12 +232,32 @@ class PumConfig:
         """Return a dictionary of demo data files defined in the configuration."""
         return {dm.name: dm.file for dm in self.config.demo_data}
 
-    def validate(self) -> None:
-        """Validate the chanbgelogs and hooks."""
+    def validate(self, install_dependencies: bool = False) -> None:
+        """Validate the changelogs and hooks.
+
+        Args:
+            install_dependencies (bool): Whether to temporarily install dependencies.
+        """
+
+        if install_dependencies and self.config.dependencies:
+            temp_dir = tempfile.TemporaryDirectory()
+            self.dependency_path = Path(temp_dir.name)
+            sys.path.insert(0, str(self.dependency_path))
+
+            def cleanup():
+                sys.path = [p for p in sys.path if p != str(self.dependency_path)]
+                temp_dir.cleanup()
+
+            atexit.register(cleanup)
 
         parameter_defaults = {}
         for parameter in self.config.parameters:
             parameter_defaults[parameter.name] = psycopg.sql.Literal(parameter.default)
+
+        for dependency in self.config.dependencies:
+            DependencyHandler(**dependency.model_dump()).resolve(
+                install_dependencies=install_dependencies, install_path=self.dependency_path
+            )
 
         for changelog in self.changelogs():
             try:

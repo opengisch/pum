@@ -132,6 +132,36 @@ class DemoDataModel(PumCustomBaseModel):
     file: str = Field(..., description="Path to the demo data file.")
 
 
+class DependencyModel(PumCustomBaseModel):
+    """
+    DependencyModel represents a Python dependency for PUM.
+
+    Attributes:
+        name: Name of the Python dependency.
+        version: Version of the dependency.
+    """
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    name: str = Field(..., description="Name of the Python dependency.")
+    minimum_version: Optional[packaging.version.Version] = Field(
+        default=None,
+        description="Specific minimum required version of the package.",
+    )
+    maximum_version: Optional[packaging.version.Version] = Field(
+        default=None,
+        description="Specific maximum required version of the package.",
+    )
+
+    @model_validator(mode="before")
+    def parse_version(cls, values):
+        for value in ("minimum_version", "maximum_version"):
+            ver = values.get(value)
+            if isinstance(ver, str):
+                values[value] = packaging.version.Version(ver)
+            return values
+
+
 class ConfigModel(PumCustomBaseModel):
     """
     ConfigModel represents the main configuration schema for the application.
@@ -150,3 +180,4 @@ class ConfigModel(PumCustomBaseModel):
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = []
     demo_data: Optional[List[DemoDataModel]] = []
+    dependencies: Optional[List[DependencyModel]] = []

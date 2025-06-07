@@ -1,4 +1,5 @@
 from .changelog import Changelog
+from .dependency_handler import DependencyHandler
 from .dumper import Dumper, DumpFormat
 from .pum_config import PumConfig
 from .hook import HookHandler, HookBase
@@ -10,6 +11,7 @@ from .upgrader import Upgrader
 
 __all__ = [
     "Changelog",
+    "DependencyHandler",
     "Dumper",
     "DumpFormat",
     "HookBase",

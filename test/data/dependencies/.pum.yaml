@@ -4,6 +4,10 @@ parameters:
     type: text
     default: "This is a comment"
 
+dependencies:
+  - name: pirogue
+    minimum_version: 3.0.0
+
 migration_hooks:
   pre:
     - file: pre/drop_view.sql
