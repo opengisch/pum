@@ -1,4 +1,3 @@
-from pirogue.utils import select_columns
 import psycopg
 
 from pum import HookBase
@@ -13,17 +12,13 @@ class Hook(HookBase):
             my_comment (str): The comment to be added to the view.
 
         """
-        columns = select_columns(
-            pg_cur=connection.cursor(),
-            table_schema="pum_test_data",
-            table_name="some_table",
-        )
-        sql_code = psycopg.sql.SQL(f"""
+
+        sql_code = """
         CREATE OR REPLACE VIEW pum_test_app.some_view AS
-        SELECT {columns}
+        SELECT id, name, created
         FROM pum_test_data.some_table
         WHERE is_active = TRUE;
 
-        COMMENT ON VIEW pum_test_app.some_view IS {{my_comment}};
-        """)
-        self.execute(sql_code=sql_code)
+        COMMENT ON VIEW pum_test_app.some_view IS {my_comment};
+        """
+        self.execute(sql=sql_code)
