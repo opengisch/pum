@@ -18,7 +18,6 @@ from .config_model import ConfigModel
 from .hook import HookHandler
 import tempfile
 import sys
-import atexit
 
 
 try:
@@ -250,6 +249,15 @@ class PumConfig:
         """Return a dictionary of demo data files defined in the configuration."""
         return {dm.name: dm.file for dm in self.config.demo_data}
 
+    def __del__(self):
+        # Cleanup temporary directories and sys.path modifications
+        if self.dependency_path:
+            # Remove from sys.path if present
+            sys.path = [p for p in sys.path if p != str(self.dependency_path)]
+            # Remove the directory if it exists and is a TemporaryDirectory
+            if hasattr(self, "_temp_dir") and self._temp_dir:
+                self.dependency_tmp.cleanup()
+
     def validate(self, install_dependencies: bool = False) -> None:
         """Validate the changelogs and hooks.
 
@@ -258,15 +266,9 @@ class PumConfig:
         """
 
         if install_dependencies and self.config.dependencies:
-            temp_dir = tempfile.TemporaryDirectory()
-            self.dependency_path = Path(temp_dir.name)
+            self.dependency_tmp = tempfile.TemporaryDirectory()
+            self.dependency_path = Path(self.dependency_tmp.name)
             sys.path.insert(0, str(self.dependency_path))
-
-            def cleanup():
-                sys.path = [p for p in sys.path if p != str(self.dependency_path)]
-                temp_dir.cleanup()
-
-            atexit.register(cleanup)
 
         parameter_defaults = {}
         for parameter in self.config.parameters:
