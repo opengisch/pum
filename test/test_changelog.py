@@ -10,7 +10,7 @@ class TestChangelog(unittest.TestCase):
 
     def test_invalid_changelog(self) -> None:
         """Test invalid changelog."""
-        cfg = PumConfig(Path("test") / "data" / "invalid_changelog", validate=False)
+        cfg = PumConfig(Path("test") / "data" / "invalid_changelog_commit", validate=False)
         with self.assertRaises(PumInvalidChangelog):
             for changelog in cfg.changelogs():
                 changelog.validate()

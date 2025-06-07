@@ -47,9 +47,13 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
         sql_content = remove_sql_comments(sql_content)
 
         # Check for forbidden transaction statements
-        forbidden_statements = ["BEGIN;", "COMMIT;"]
+        forbidden_statements = (
+            r"\bBEGIN\b\s*;",
+            r"\bCOMMIT\b\s*;",
+            r"SELECT +pg_catalog.set_config.*search_path.*;",
+        )
         for forbidden in forbidden_statements:
-            if re.search(rf"\b{forbidden[:-1]}\b\s*;", sql_content, re.IGNORECASE):
+            if re.search(forbidden, sql_content, re.IGNORECASE):
                 raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
 
         def split_sql_statements(sql: str) -> list[str]:

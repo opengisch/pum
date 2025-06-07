@@ -53,7 +53,14 @@ class Dumper:
         if dbname:
             connection = f"{connection} dbname={dbname}"
 
-        command = [pg_dump_exe, format.to_pg_dump_flag(), "-f", self.dump_path]
+        command = [
+            pg_dump_exe,
+            format.to_pg_dump_flag(),
+            "--no-owner",
+            "--no-privileges",
+            "-f",
+            self.dump_path,
+        ]
         if exclude_schema:
             for schema in exclude_schema:
                 command.append(f"--exclude-schema={schema}")

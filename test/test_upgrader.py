@@ -245,9 +245,9 @@ class TestUpgrader(unittest.TestCase):
             self.assertTrue(sm.exists(conn))
             self.assertEqual(sm.baseline(conn), "1.2.4")
 
-    def test_invalid_changelog(self) -> None:
+    def test_invalid_changelog_commit(self) -> None:
         """Test the invalid changelog."""
-        test_dir = Path("test") / "data" / "invalid_changelog"
+        test_dir = Path("test") / "data" / "invalid_changelog_commit"
         cfg = PumConfig(base_path=test_dir, validate=False)
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
@@ -256,7 +256,21 @@ class TestUpgrader(unittest.TestCase):
             with self.assertRaises(Exception) as context:
                 upgrader.install(connection=conn)
             self.assertTrue(
-                "SQL contains forbidden transaction statement: BEGIN;" in str(context.exception)
+                "SQL contains forbidden transaction statement:" in str(context.exception)
+            )
+
+    def test_invalid_changelog_search_path(self) -> None:
+        """Test the invalid changelog."""
+        test_dir = Path("test") / "data" / "invalid_changelog_search_path"
+        cfg = PumConfig(base_path=test_dir, validate=False)
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            with self.assertRaises(Exception) as context:
+                upgrader.install(connection=conn)
+            self.assertTrue(
+                "SQL contains forbidden transaction statement:" in str(context.exception)
             )
 
     def test_pre_post_sql_files(self) -> None:

@@ -88,8 +88,8 @@ class TestConfig(unittest.TestCase):
     def test_invalid_changelog(self) -> None:
         """Test invalid changelog."""
         with self.assertRaises(PumConfigError):
-            PumConfig(base_path=Path("test") / "data" / "invalid_changelog", validate=True)
-        PumConfig(base_path=Path("test") / "data" / "invalid_changelog", validate=False)
+            PumConfig(base_path=Path("test") / "data" / "invalid_changelog_commit", validate=True)
+        PumConfig(base_path=Path("test") / "data" / "invalid_changelog_commit", validate=False)
 
     def test_invalid_changelog_parameters(self) -> None:
         """Test invalid changelog parameters."""
