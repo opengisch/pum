@@ -48,13 +48,22 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
 
         # Check for forbidden transaction statements
         forbidden_statements = (
-            r"\bBEGIN\b\s*;",
-            r"\bCOMMIT\b\s*;",
-            r"SELECT +pg_catalog.set_config.*search_path.*;",
+            (
+                r"\bBEGIN\b\s*;",
+                "BEGIN; COMMIT; is not authroized in executed SQL since connections are handled by PUM.",
+            ),
+            (
+                r"\bCOMMIT\b\s*;",
+                "BEGIN; COMMIT; is not authroized in executed SQL since connections are handled by PUM.",
+            ),
+            (
+                r"SELECT +pg_catalog.set_config.*search_path.*;",
+                "Setting of search path is not authorized in executed SQL as it breaks PostGIS installation",
+            ),
         )
-        for forbidden in forbidden_statements:
+        for forbidden, message in forbidden_statements:
             if re.search(forbidden, sql_content, re.IGNORECASE):
-                raise PumSqlError(f"SQL contains forbidden transaction statement: {forbidden}")
+                raise PumSqlError(f"SQL contains forbidden transaction statement: {message}")
 
         def split_sql_statements(sql: str) -> list[str]:
             """
