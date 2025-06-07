@@ -137,6 +137,17 @@ class PumConfig:
         """Return the base path used for configuration and changelogs."""
         return self._base_path
 
+    def parameters(self) -> list[ParameterDefinition]:
+        """Return a list of migration parameters.
+
+        Returns:
+            list[ParameterDefinition]: A list of migration parameter definitions.
+
+        """
+        return [
+            ParameterDefinition(**parameter.model_dump()) for parameter in self.config.parameters
+        ]
+
     def parameter(self, name: str) -> ParameterDefinition:
         """Get a specific migration parameter by name.
 
