@@ -229,7 +229,7 @@ class HookHandler:
                     f"Unsupported file type for migration hook: {self.file.suffix}. Only .sql and .py files are supported."
                 )
         elif self.code:
-            SqlContent(self.code).execute(connection, parameters=parameters, commit=False)
+            SqlContent(self.code).execute(connection, parameters=parameters_literals, commit=False)
 
         if commit:
             connection.commit()
