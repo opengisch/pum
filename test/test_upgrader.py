@@ -77,7 +77,7 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "parameters"
         config_path = test_dir / ".pum.yaml"
         cfg = PumConfig.from_yaml(config_path)
-        self.assertEqual(len(cfg.config.parameters), 3)
+        self.assertEqual(len(cfg.parameters()), 3)
         self.assertEqual(
             cfg.parameter("SRID"),
             ParameterDefinition(
