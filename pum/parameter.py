@@ -1,5 +1,4 @@
 from enum import Enum
-import psycopg
 
 
 class ParameterType(Enum):
@@ -55,7 +54,7 @@ class ParameterDefinition:
                 raise ValueError(f"Parameter '{name}' has an invalid type: {type}. ") from None
         else:
             raise TypeError("type must be a str or ParameterType")
-        self.default = psycopg.sql.Literal(default)
+        self.default = default
         self.description = description
 
     def __repr__(self) -> str:
