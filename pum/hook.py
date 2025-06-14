@@ -59,8 +59,9 @@ class HookBase(abc.ABC):
             connection: The database connection.
             sql: The SQL statement to execute or a path to a SQL file..
         """
+        parameters_literals = SqlContent.prepare_parameters(self._parameters)
         SqlContent(sql).execute(
-            connection=self._connection, parameters=self._parameters, commit=False
+            connection=self._connection, parameters=parameters_literals, commit=False
         )
 
     execute.__isfinal__ = True
@@ -191,13 +192,15 @@ class HookHandler:
             f"Executing hook from file: {self.file} or SQL code with parameters: {parameters}",
         )
 
+        parameters_literals = SqlContent.prepare_parameters(parameters)
+
         if self.file is None and self.code is None:
             raise ValueError("No file or SQL code specified for the migration hook.")
 
         if self.file:
             if self.file.suffix == ".sql":
                 SqlContent(self.file).execute(
-                    connection=connection, commit=False, parameters=parameters
+                    connection=connection, commit=False, parameters=parameters_literals
                 )
             elif self.file.suffix == ".py":
                 for parameter_arg in self.parameter_args:
@@ -208,9 +211,10 @@ class HookHandler:
                         )
 
                 _hook_parameters = {}
-                for key, value in parameters.items():
-                    if key in self.parameter_args:
-                        _hook_parameters[key] = value
+                if parameters:
+                    for key, value in parameters.items():
+                        if key in self.parameter_args:
+                            _hook_parameters[key] = value
                 self.hook_instance._prepare(connection=connection, parameters=parameters)
                 try:
                     if _hook_parameters:

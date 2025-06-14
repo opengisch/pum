@@ -11,6 +11,7 @@ class ParameterType(Enum):
         INTEGER (str): Represents an integer parameter type.
         TEXT (str): Represents a text parameter type.
         DECIMAL (str): Represents a decimal parameter type.
+        PATH (str): Represents a path parameter type.
 
     """
 
@@ -18,6 +19,7 @@ class ParameterType(Enum):
     INTEGER = "integer"
     TEXT = "text"
     DECIMAL = "decimal"
+    PATH = "path"
 
 
 class ParameterDefinition:

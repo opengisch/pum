@@ -263,3 +263,20 @@ class SqlContent:
                 ) from e
 
         return [format_sql(statement, parameters) for statement in sql_code]
+
+    @staticmethod
+    def prepare_parameters(parameters: dict | None):
+        """
+        Prepares a dictionary of parameters for use in SQL queries by converting each value to a psycopg.sql.Literal.
+
+        Args:
+            parameters: A dictionary of parameters to be converted, or None.
+
+        Returns:
+            dict: A new dictionary with the same keys as `parameters`, where each value is wrapped in psycopg.sql.Literal.
+        """
+        parameters_literals = {}
+        if parameters:
+            for key, value in parameters.items():
+                parameters_literals[key] = psycopg.sql.Literal(value)
+        return parameters_literals
