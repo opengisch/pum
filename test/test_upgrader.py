@@ -63,10 +63,27 @@ class TestUpgrader(unittest.TestCase):
             self.assertEqual(sm.baseline(conn), "1.2.3")
             self.assertEqual(sm.migration_details(conn), sm.migration_details(conn, "1.2.3"))
             self.assertEqual(sm.migration_details(conn)["version"], "1.2.3")
+            self.assertEqual(sm.migration_details(conn)["beta_testing"], False)
             self.assertEqual(
                 sm.migration_details(conn)["changelog_files"],
                 [str(changelog_file)],
             )
+
+    def test_install_beta_testing(self) -> None:
+        """Test the installation as beta testing."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir)
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                config=cfg,
+            )
+            upgrader.install(connection=conn, beta_testing=True)
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(sm.baseline(conn), "1.2.3")
+            self.assertEqual(sm.migration_details(conn), sm.migration_details(conn, "1.2.3"))
+            self.assertEqual(sm.migration_details(conn)["beta_testing"], True)
 
     @unittest.skipIf(
         os.name == "nt" and os.getenv("CI") == "true",

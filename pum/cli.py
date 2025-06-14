@@ -201,6 +201,11 @@ def create_parser() -> argparse.ArgumentParser:
     parser_install.add_argument(
         "-d", "--demo-data", help="Load demo data with the given name", type=str, default=None
     )
+    parser_install.add_argument(
+        "--beta-testing",
+        help="This will install the module in beta testing, meaning that it will not be possible to receive any future updates.",
+        action="store_true",
+    )
 
     # Role management parser
     parser_role = subparsers.add_parser("role", help="manage roles in the database")
@@ -347,6 +352,7 @@ def cli() -> int:  # noqa: PLR0912
                 roles=args.roles,
                 grant=args.grant,
                 demo_data=args.demo_data,
+                beta_testing=args.beta_testing,
             )
             conn.commit()
             if args.demo_data:

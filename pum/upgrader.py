@@ -52,6 +52,7 @@ class Upgrader:
         roles: bool = False,
         grant: bool = False,
         demo_data: str | None = None,
+        beta_testing: bool = False,
         commit: bool = False,
     ) -> None:
         """Installs the given module
@@ -72,6 +73,10 @@ class Upgrader:
                 If True, permissions will be granted to the roles.
             demo_data:
                 The name of the demo data to load. If None, no demo data is loaded.
+            beta_testing:
+                If True, the module is installed in beta testing mode.
+                This means that the module will not be able to receive any future updates.
+                We strongly discourage using this for production.
             commit:
                 If True, the changes will be committed to the database.
         """
@@ -108,7 +113,7 @@ class Upgrader:
             self.schema_migrations.set_baseline(
                 connection=connection,
                 version=changelog.version,
-                beta_testing=False,
+                beta_testing=beta_testing,
                 commit=False,
                 changelog_files=changelog_files,
                 parameters=parameters,
