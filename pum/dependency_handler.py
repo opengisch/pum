@@ -59,10 +59,9 @@ class DependencyHandler:
                     f"Dependency `{self.name}` is not installed. You can activate the installation."
                 ) from e
             else:
-                logger.warning(f"Dependency {self.name} is not installed: {e}")
+                logger.warning(f"Dependency {self.name} is not installed, trying to install {e}")
                 self.pip_install(install_path=install_path)
-
-                logger.info(f"Dependency {self.name} is now installed in {install_path}")
+                logger.warning(f"Dependency {self.name} is now installed in {install_path}")
 
     def pip_install(self, install_path: str):
         """
