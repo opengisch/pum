@@ -110,7 +110,7 @@ class SchemaMigrations:
 
         if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
             raise PumException(
-                f"Another {self.config.config.pum.migration_table_schema}.{self.config.config.pum.migration_table_name} table exists in another schema (). "
+                f"Another {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table exists in another schema (). "
                 "Please use the allow_multiple_schemas option to create a new one."
             )
 
