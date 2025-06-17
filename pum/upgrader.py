@@ -70,8 +70,6 @@ class Upgrader:
                 If True, roles will be created.
             grant:
                 If True, permissions will be granted to the roles.
-            demo_data:
-                The name of the demo data to load. If None, no demo data is loaded.
             beta_testing:
                 If True, the module is installed in beta testing mode.
                 This means that the module will not be able to receive any future updates.
