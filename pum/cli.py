@@ -351,7 +351,6 @@ def cli() -> int:  # noqa: PLR0912
                 max_version=args.max_version,
                 roles=args.roles,
                 grant=args.grant,
-                demo_data=args.demo_data,
                 beta_testing=args.beta_testing,
             )
             conn.commit()
