@@ -119,15 +119,6 @@ class Upgrader:
                 parameters=parameters,
             )
 
-        if demo_data:
-            demo_data_file = self.config.base_path / self.config.demo_data()[demo_data]
-            logger.info("Installing demo data from %s", demo_data_file)
-            SqlContent(sql=demo_data_file).execute(
-                connection=connection,
-                commit=False,
-                parameters=parameters_literals,
-            )
-
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters)
 
