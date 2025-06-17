@@ -51,7 +51,6 @@ class Upgrader:
         max_version: str | packaging.version.Version | None = None,
         roles: bool = False,
         grant: bool = False,
-        demo_data: str | None = None,
         beta_testing: bool = False,
         commit: bool = False,
     ) -> None:
@@ -80,11 +79,6 @@ class Upgrader:
             commit:
                 If True, the changes will be committed to the database.
         """
-        if demo_data and demo_data not in self.config.demo_data():
-            raise PumException(
-                f"Demo data '{demo_data}' not found in the configuration. Available demo data: {self.config.demo_data()}"
-            )
-
         if self.schema_migrations.exists(connection):
             msg = (
                 f"Schema migrations table {self.config.config.pum.migration_table_schema}.pum_migrations already exists. "
