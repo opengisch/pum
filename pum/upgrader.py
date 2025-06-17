@@ -137,6 +137,7 @@ class Upgrader:
         parameters: dict | None = None,
     ) -> None:
         """Install demo data for the module.
+
         Args:
             connection: The database connection to use.
             name: The name of the demo data to install.
