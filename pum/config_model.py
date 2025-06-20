@@ -36,10 +36,11 @@ class ParameterDefinitionModel(PumCustomBaseModel):
 class HookModel(PumCustomBaseModel):
     """
     HookModel represents a migration hook configuration.
+    It can either execute a file (SQL or Python script) or run inline SQL code.
 
     Attributes:
-        file: Optional path to a SQL file to execute as a hook.
-        code: Optional Python code to execute as a hook.
+        file: Optional path to a SQL file or a Python script to execute as a hook.
+        code: Optional SQL code to execute as a hook.
     """
 
     file: Optional[str] = None
