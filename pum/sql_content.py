@@ -161,6 +161,10 @@ class SqlContent:
             sql: The SQL statement to execute or a path to a SQL file.
 
         """
+        if not isinstance(sql, (str, psycopg.sql.SQL, Path)):
+            raise PumSqlError(
+                f"SQL must be a string, psycopg.sql.SQL object or a Path object, not {type(sql)}."
+            )
         self.sql = sql
 
     def validate(self, parameters: dict | None) -> bool:
