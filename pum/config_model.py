@@ -73,6 +73,7 @@ class PumModel(PumCustomBaseModel):
 
     Attributes:
         migration_table_schema: Name of schema for the migration table.
+        migration_table_name: Name of the migration table.
         minimum_version: Minimum required version of PUM.
     """
 
@@ -80,7 +81,9 @@ class PumModel(PumCustomBaseModel):
     migration_table_schema: Optional[str] = Field(
         default="public", description="Name of schema for the migration table"
     )
-
+    migration_table_name: Optional[str] = Field(
+        default="pum_migrations", description="Name of the migration table"
+    )
     minimum_version: Optional[packaging.version.Version] = Field(
         default=None,
         description="Minimum required version of pum.",

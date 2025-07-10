@@ -13,7 +13,6 @@ from .sql_content import SqlContent
 logger = logging.getLogger(__name__)
 
 MIGRATION_TABLE_VERSION = "2025.0"
-MIGRATION_TABLE_NAME = "pum_migrations"
 
 
 class SchemaMigrations:
@@ -33,7 +32,7 @@ class SchemaMigrations:
         self.migration_table_identifier = psycopg.sql.SQL(".").join(
             [
                 psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-                psycopg.sql.Identifier(MIGRATION_TABLE_NAME),
+                psycopg.sql.Identifier({config.config.pum.migration_table_name}),
             ]
         )
 
@@ -78,12 +77,13 @@ class SchemaMigrations:
             """
             SELECT table_schema
             FROM information_schema.tables
-            WHERE table_name = 'pum_migrations' AND table_schema != {schema}
+            WHERE table_name = '{migration_table_name}' AND table_schema != {schema}
         """
         )
 
         parameters = {
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
+            "migration_table_name": psycopg.sql.Literal(self.config.config.pum.migration_table_name),
         }
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         return [row[0] for row in cursor.fetchall()]
@@ -104,13 +104,13 @@ class SchemaMigrations:
         """
         if self.exists(connection):
             logger.info(
-                f"{self.config.config.pum.migration_table_schema}.pum_migrations table already exists."
+                f"{self.config.config.pum.migration_table_schema}.{self.config.config.pum.migration_table_name} table already exists."
             )
             return
 
         if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
             raise PumException(
-                f"Another {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table exists in another schema (). "
+                f"Another {self.config.config.pum.migration_table_schema}.{self.config.config.pum.migration_table_name} table exists in another schema (). "
                 "Please use the allow_multiple_schemas option to create a new one."
             )
 
@@ -210,7 +210,7 @@ INSERT INTO {table} (
         }
 
         logger.info(
-            f"Setting baseline version {version} in {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table"
+            f"Setting baseline version {version} in {self.config.config.pum.migration_table_schema}.{self.config.config.pum.migration_table_name} table"
         )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
