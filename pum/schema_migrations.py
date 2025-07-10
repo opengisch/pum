@@ -32,7 +32,7 @@ class SchemaMigrations:
         self.migration_table_identifier = psycopg.sql.SQL(".").join(
             [
                 psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
-                psycopg.sql.Identifier({config.config.pum.migration_table_name}),
+                psycopg.sql.Identifier(self.config.config.pum.migration_table_name),
             ]
         )
 
