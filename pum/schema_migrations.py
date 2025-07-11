@@ -51,13 +51,14 @@ class SchemaMigrations:
         SELECT EXISTS (
             SELECT 1
             FROM information_schema.tables
-            WHERE table_name = 'pum_migrations' AND table_schema = {schema}
+            WHERE table_name = {migration_table} AND table_schema = {schema}
         );
         """
         )
 
         parameters = {
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
+            "migration_table": psycopg.sql.Literal(self.config.config.pum.migration_table_name),
         }
 
         cursor = SqlContent(query).execute(connection, parameters=parameters)
