@@ -78,7 +78,7 @@ class SchemaMigrations:
             """
             SELECT table_schema
             FROM information_schema.tables
-            WHERE table_name = '{migration_table_name}' AND table_schema != {schema}
+            WHERE table_name = {migration_table_name} AND table_schema != {schema}
         """
         )
 
