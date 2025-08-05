@@ -262,7 +262,7 @@ class PumConfig:
 
     def __del__(self):
         # Cleanup temporary directories and sys.path modifications
-        if self.dependency_path:
+        if self.dependency_path and sys.path:
             # Remove from sys.path if present
             sys.path = [p for p in sys.path if p != str(self.dependency_path)]
             # Remove the directory if it exists and is a TemporaryDirectory
