@@ -164,4 +164,6 @@ class Upgrader:
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters)
 
+        connection.commit()
+
         logger.info("Demo data '%s' installed successfully.", name)
