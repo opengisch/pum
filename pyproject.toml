@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "setuptools-scm", "wheel", "setuptools-git-versioning"]
+requires = ["setuptools>=61.0", "wheel", "setuptools-git-versioning"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -38,7 +38,7 @@ packages = ["pum"]
 
 [tool.setuptools-git-versioning]
 enabled = true
-starting_version = "1.2.3"
+starting_version = "0.0.0"
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
