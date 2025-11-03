@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pum"
-dynamic = ["readme", "dependencies", "optional-dependencies"]
+dynamic = ["version", "readme", "dependencies", "optional-dependencies"]
 authors = [
     {name = "Denis Rouzaud", email = "denis@opengis.ch"},
 ]
