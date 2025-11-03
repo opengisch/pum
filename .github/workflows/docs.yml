@@ -52,7 +52,7 @@ jobs:
     - name: Build documentation
       run: mkdocs build -f docs/mkdocs.yml
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       if: ${{ github.event_name == 'pull_request' }}
       with:
         name: docs
