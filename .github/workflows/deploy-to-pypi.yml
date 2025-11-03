@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Retrieve artifact from Python build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: python_wheel
           path: dist/
