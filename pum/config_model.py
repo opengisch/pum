@@ -132,11 +132,22 @@ class DemoDataModel(PumCustomBaseModel):
     DemoDataModel represents a configuration for demo data.
 
     Attributes:
-        files: Optional list of named demo data files.
+        name: Name of the demo data.
+        file: Optional path to a single demo data file.
+        files: Optional list of paths to multiple demo data files.
     """
 
     name: str = Field(..., description="Name of the demo data.")
-    file: str = Field(..., description="Path to the demo data file.")
+
+    file: Optional[str] = None
+    files: Optional[List[str]] = None
+
+    @model_validator(mode="after")
+    def validate_args(self):
+        file, files = self.file, self.files
+        if (file and files) or (not file and not files):
+            raise PumConfigError("Exactly one of 'file' or 'files' must be set in a demo data set.")
+        return self
 
 
 class DependencyModel(PumCustomBaseModel):

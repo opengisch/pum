@@ -256,9 +256,12 @@ class PumConfig:
             else []
         )
 
-    def demo_data(self) -> dict[str, str]:
+    def demo_data(self) -> dict[str, list[str]]:
         """Return a dictionary of demo data files defined in the configuration."""
-        return {dm.name: dm.file for dm in self.config.demo_data}
+        demo_data_files = {}
+        for dm in self.config.demo_data:
+            demo_data_files[dm.name] = dm.files or [dm.file]
+        return demo_data_files
 
     def __del__(self):
         # Cleanup temporary directories and sys.path modifications
