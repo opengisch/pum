@@ -125,7 +125,7 @@ class Role:
         self.inherit = inherit
         self.description = description
 
-    def permissions(self):
+    def permissions(self) -> list[Permission]:
         """
         Returns the list of permissions associated with the role.
         """
