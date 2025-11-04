@@ -177,9 +177,9 @@ class SchemaMigrations:
         """
         if isinstance(version, packaging.version.Version):
             version = str(version)
-        pattern = re.compile(r"^\d+\.\d+\.\d+$")
+        pattern = re.compile(r"^\d+\.\d+(\.\d+)?$")
         if not re.match(pattern, version):
-            raise ValueError(f"Wrong version format: {version}. Must be x.x.x")
+            raise ValueError(f"Wrong version format: {version}. Must be x.y or x.y.z")
 
         current = self.baseline(connection=connection)
         if current and current >= version:
