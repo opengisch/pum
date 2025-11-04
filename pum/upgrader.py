@@ -144,8 +144,7 @@ class Upgrader:
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
 
-        demo_data_file = self.config.base_path / self.config.demo_data()[name]
-        logger.info("Installing demo data from %s", demo_data_file)
+        logger.info(f"Installing demo data {name}")
 
         for pre_hook in self.config.pre_hook_handlers():
             pre_hook.execute(connection=connection, commit=False, parameters=parameters)
@@ -153,11 +152,13 @@ class Upgrader:
         connection.commit()
 
         parameters_literals = SqlContent.prepare_parameters(parameters)
-        SqlContent(sql=demo_data_file).execute(
-            connection=connection,
-            commit=False,
-            parameters=parameters_literals,
-        )
+        for demo_data_file in self.config.demo_data()[name]:
+            demo_data_file = self.config.base_path / demo_data_file
+            SqlContent(sql=demo_data_file).execute(
+                connection=connection,
+                commit=False,
+                parameters=parameters_literals,
+            )
 
         connection.commit()
 
