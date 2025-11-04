@@ -407,6 +407,24 @@ class TestUpgrader(unittest.TestCase):
             count = cursor.fetchone()[0]
             self.assertEqual(count, 4)
 
+    def test_demo_data_multi(self) -> None:
+        """Test the installation of demo data."""
+        test_dir = Path("test") / "data" / "demo_data_multi"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
+            with self.assertRaises(PumException):
+                upgrader.install_demo_data(connection=conn, name="nope, nothing here fella")
+            upgrader.install_demo_data(connection=conn, name="some cool demo dataset")
+            self.assertTrue(sm.exists(conn))
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM pum_test_data.some_table;")
+            count = cursor.fetchone()[0]
+            self.assertEqual(count, 4)
+
     def test_dependencies(self) -> None:
         """Test the installation of dependencies."""
         test_dir = Path("test") / "data" / "dependencies"
