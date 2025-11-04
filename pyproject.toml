@@ -38,7 +38,7 @@ packages = ["pum"]
 
 [tool.setuptools-git-versioning]
 enabled = true
-starting_version = "0.0.0"
+starting_version = "0.1.2"
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
