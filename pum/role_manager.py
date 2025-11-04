@@ -138,11 +138,16 @@ class Role:
         Returns:
             bool: True if the role exists, False otherwise.
         """
-        SqlContent("SELECT 1 FROM pg_roles WHERE rolname = {name}").execute(
-            connection=connection,
-            commit=False,
-            parameters={"name": psycopg.sql.Literal(self.name)},
-        ).fetchone() is not None
+        return (
+            SqlContent("SELECT 1 FROM pg_roles WHERE rolname = {name}")
+            .execute(
+                connection=connection,
+                commit=False,
+                parameters={"name": psycopg.sql.Literal(self.name)},
+            )
+            .fetchone()
+            is not None
+        )
 
     def create(
         self, connection: psycopg.Connection, grant: bool = False, commit: bool = False

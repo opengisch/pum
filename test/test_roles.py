@@ -98,6 +98,20 @@ class TestRoles(unittest.TestCase):
             )
             self.assertTrue(cur.fetchone()[0])
 
+    def test_multiple_installs_roles(self) -> None:
+        """Test granting permissions to roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True, commit=True)
+            cur = conn.cursor()
+            cur.execute(
+                "DROP TABLE public.pum_migrations CASCADE; "
+                "DROP SCHEMA pum_test_data_schema_1 CASCADE; "
+                "DROP SCHEMA pum_test_data_schema_2 CASCADE;"
+            )
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True, commit=True)
+
 
 if __name__ == "__main__":
     unittest.main()
