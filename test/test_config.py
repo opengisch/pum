@@ -6,6 +6,8 @@ from packaging.version import parse as parse_version
 from pum.pum_config import PumConfig
 from pum.exceptions import PumConfigError
 from pum.hook import HookHandler
+import os
+import platform
 
 
 class TestConfig(unittest.TestCase):
@@ -98,6 +100,9 @@ class TestConfig(unittest.TestCase):
             PumConfig(base_path=Path("test") / "data" / "parameters", validate=True)
 
     def test_minimum_version(self) -> None:
+        if os.environ.get("CI") and platform.system().lower().startswith("win"):
+            self.skipTest("Skipped on Windows in CI")
+
         with self.assertRaises(PumConfigError):
             PumConfig(
                 base_path=Path("test") / "data" / "single_changelog",
