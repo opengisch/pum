@@ -254,5 +254,6 @@ class RoleManager:
         for role in self.roles.values():
             for permission in role.permissions():
                 permission.grant(role=role.name, connection=connection, commit=False)
+        logger.info("All permissions granted to roles.")
         if commit:
             connection.commit()
