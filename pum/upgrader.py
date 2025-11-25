@@ -133,6 +133,7 @@ class Upgrader:
         name: str,
         *,
         parameters: dict | None = None,
+        grant: bool = True,
     ) -> None:
         """Install demo data for the module.
 
@@ -140,6 +141,7 @@ class Upgrader:
             connection: The database connection to use.
             name: The name of the demo data to install.
             parameters: The parameters to pass to the demo data SQL.
+            grant: If True, grant permissions to the roles after installing the demo data. Default is True.
         """
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
@@ -164,6 +166,11 @@ class Upgrader:
 
         for post_hook in self.config.post_hook_handlers():
             post_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        connection.commit()
+
+        if grant:
+            self.config.role_manager().grant_permissions(connection=connection, commit=False)
 
         connection.commit()
 
