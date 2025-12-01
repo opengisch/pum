@@ -59,11 +59,9 @@ jobs:
     - name: Build documentation
       run: zensical build -f docs/mkdocs.yml
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-pages-artifact@v4
       with:
-        name: docs
         path: docs/site
-        if-no-files-found: error
 
     - uses: actions/deploy-pages@v4
       id: deployment
