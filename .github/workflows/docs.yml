@@ -1,5 +1,10 @@
 name: "📚 Documentation Builder"
 
+# Allow one concurrent deployment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -26,11 +31,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-
-# Allow one concurrent deployment
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build-docs:
