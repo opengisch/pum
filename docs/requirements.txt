@@ -1,5 +1,5 @@
 mkdocstrings[python]>=0.29.1,<1.0
-mkdocs-material>=9.6.11,<9.7.0
+mkdocs-material>=9.6.11,<9.8.0
 fancyboxmd~=1.1
 pygments>=2.14.0,<3.0
 pymdown-extensions>=9.5.0,<11.0
