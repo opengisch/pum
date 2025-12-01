@@ -1,1 +1,1 @@
-zensical
+git+https://github.com/zensical/zensical.git
