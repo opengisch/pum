@@ -63,6 +63,13 @@ jobs:
       with:
         path: docs/site
 
-    - uses: actions/deploy-pages@v4
-      id: deployment
-      if: ${{ github.event_name != 'pull_request' }}
+  deploy:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
+    environment:
+      name: github-pages
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
