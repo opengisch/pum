@@ -72,7 +72,7 @@ class PumModel(PumCustomBaseModel):
     PumModel holds some PUM specifics.
 
     Attributes:
-        migration_table_schema: Name of schema for the migration table.
+        migration_table_schema: Name of schema for the migration table. The table will always be named `pum_migrations`.
         minimum_version: Minimum required version of PUM.
     """
 
