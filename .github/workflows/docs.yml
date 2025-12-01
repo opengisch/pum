@@ -22,6 +22,11 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 # Allow one concurrent deployment
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -55,7 +60,6 @@ jobs:
       run: zensical build -f docs/mkdocs.yml
 
     - uses: actions/upload-artifact@v5
-      if: ${{ github.event_name == 'pull_request' }}
       with:
         name: docs
         path: docs/site
@@ -63,3 +67,4 @@ jobs:
 
     - uses: actions/deploy-pages@v4
       id: deployment
+      if: ${{ github.event_name != 'pull_request' }}
