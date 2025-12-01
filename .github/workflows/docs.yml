@@ -4,7 +4,7 @@ on:
   push:
     branches:
         - main
-        - docs
+        - zensical
     paths:
       - .github/workflows/docs.yml
       - pum/**/*.py
@@ -12,13 +12,15 @@ on:
     tags:
       - "*"
 
-  pull_request:
-    branches:
-        - main
-    paths:
-      - .github/workflows/docs.yml
-      - pum/**/*.py
-      - docs/**/*
+  # pull_request:
+  #   branches:
+  #       - main
+  #   paths:
+  #     - .github/workflows/docs.yml
+  #     - pum/**/*.py
+  #     - docs/**/*
+
+  workflow_dispatch:
 
 # Allow one concurrent deployment
 concurrency:
@@ -50,7 +52,7 @@ jobs:
       run: ./docs/update_cli_docs.py
 
     - name: Build documentation
-      run: mkdocs build -f docs/mkdocs.yml
+      run: zensical build -f docs/mkdocs.yml
 
     - uses: actions/upload-artifact@v5
       if: ${{ github.event_name == 'pull_request' }}
@@ -59,7 +61,5 @@ jobs:
         path: docs/site
         if-no-files-found: error
 
-    - name: Deploy to GitHub Pages
-      if: contains(fromJSON('["push", "workflow_dispatch"]'), github.event_name)
-      working-directory: docs
-      run: mkdocs gh-deploy --force
+    - uses: actions/deploy-pages@v4
+      id: deployment
