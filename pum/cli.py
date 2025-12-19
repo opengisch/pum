@@ -312,10 +312,13 @@ def cli() -> int:  # noqa: PLR0912
         parser.print_help()
         parser.exit()
 
+    validate = args.command not in ("info", "baseline")
     if args.config_file:
-        config = PumConfig.from_yaml(args.config_file, install_dependencies=True)
+        config = PumConfig.from_yaml(args.config_file, validate=validate, install_dependencies=True)
     else:
-        config = PumConfig.from_yaml(Path(args.dir) / ".pum.yaml", install_dependencies=True)
+        config = PumConfig.from_yaml(
+            Path(args.dir) / ".pum.yaml", validate=validate, install_dependencies=True
+        )
 
     with psycopg.connect(f"service={args.pg_service}") as conn:
         # Check if the connection is successful
