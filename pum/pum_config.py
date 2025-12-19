@@ -63,7 +63,7 @@ class PumConfig:
             base_path: The directory where the changelogs are located.
             validate: Whether to validate the changelogs and hooks. Defaults to True.
             resolve_dependencies: Wheter if dependencies should be resolved. Defaults to True.
-            install_dependencies: Whether to temporarily install dependencies. Defaults to False.
+            install_dependencies: Whether to temporarily install dependencies (only if resolve_dependencies is True). Defaults to False.
             **kwargs: Key-value pairs representing configuration settings.
 
         Raises:
@@ -115,7 +115,7 @@ class PumConfig:
             file_path: The path to the YAML file.
             validate: Whether to validate the changelogs and hooks.
             resolve_dependencies: Whether dependencies should be resolved.
-            install_dependencies: Whether to temporarily install dependencies.
+            install_dependencies: Whether to temporarily install dependencies (only if resolve_dependencies is True).
 
         Returns:
             PumConfig: An instance of the PumConfig class.
@@ -135,6 +135,7 @@ class PumConfig:
         return cls(
             base_path=base_path,
             validate=validate,
+            resolve_dependencies=resolve_dependencies,
             install_dependencies=install_dependencies,
             **data,
         )
