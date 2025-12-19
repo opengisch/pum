@@ -6,11 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /pum
 
 # Install pum (and its dependencies) from the repository.
-COPY pyproject.toml README.md LICENSE ./
-COPY requirements ./requirements
-COPY pum ./pum
+COPY requirements/base.txt ./requirements.txt
+COPY dist/pum-*.whl /tmp/
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
-	&& python -m pip install --no-cache-dir .
+	&& python -m pip install --no-cache-dir -r requirements.txt \
+	&& python -m pip install --no-cache-dir /tmp/pum-*.whl \
+	&& rm -rf /tmp/pum-*.whl
 
 ENTRYPOINT ["pum"]
