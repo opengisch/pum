@@ -26,6 +26,8 @@ jobs:
     needs: [build-python-wheel]
 
     steps:
+      - uses: actions/checkout@v6
+
       - name: Retrieve artifact from Python build
         uses: actions/download-artifact@v6
         with:
