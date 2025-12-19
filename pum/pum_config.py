@@ -53,7 +53,6 @@ class PumConfig:
         base_path: str | Path,
         *,
         validate: bool = True,
-        resolve_dependencies: bool = True,
         install_dependencies: bool = False,
         **kwargs: dict,
     ) -> None:
@@ -61,9 +60,8 @@ class PumConfig:
 
         Args:
             base_path: The directory where the changelogs are located.
-            validate: Whether to validate the changelogs and hooks. Defaults to True.
-            resolve_dependencies: Wheter if dependencies should be resolved. Defaults to True.
-            install_dependencies: Whether to temporarily install dependencies. Defaults to False.
+            validate: Whether to validate the changelogs and hooks and resolve dependencies. Defaults to True.
+            install_dependencies: Whether to temporarily install dependencies.
             **kwargs: Key-value pairs representing configuration settings.
 
         Raises:
@@ -91,10 +89,7 @@ class PumConfig:
                     f"Minimum required version of pum is {self.config.pum.minimum_version}, but the current version is {PUM_VERSION}. Please upgrade pum."
                 )
             try:
-                self.validate(
-                    install_dependencies=install_dependencies,
-                    resolve_dependencies=resolve_dependencies,
-                )
+                self.validate(install_dependencies=install_dependencies)
             except (PumInvalidChangelog, PumHookError) as e:
                 raise PumConfigError(
                     f"Configuration is invalid: {e}. You can disable the validation when constructing the config."
@@ -106,7 +101,6 @@ class PumConfig:
         file_path: str | Path,
         *,
         validate: bool = True,
-        resolve_dependencies: bool = True,
         install_dependencies: bool = False,
     ) -> "PumConfig":
         """Create a PumConfig instance from a YAML file.
@@ -114,8 +108,7 @@ class PumConfig:
         Args:
             file_path: The path to the YAML file.
             validate: Whether to validate the changelogs and hooks.
-            resolve_dependencies: Whether dependencies should be resolved.
-            install_dependencies: Whether to temporarily install dependencies.
+            install_dependencies: Wheter to temporarily install dependencies.
 
         Returns:
             PumConfig: An instance of the PumConfig class.
@@ -279,14 +272,11 @@ class PumConfig:
             if hasattr(self, "_temp_dir") and self._temp_dir:
                 self.dependency_tmp.cleanup()
 
-    def validate(
-        self, install_dependencies: bool = False, resolve_dependencies: bool = True
-    ) -> None:
+    def validate(self, install_dependencies: bool = False) -> None:
         """Validate the changelogs and hooks.
 
         Args:
             install_dependencies (bool): Whether to temporarily install dependencies.
-            resolve_dependencies (bool): Whether to resolve dependencies.
         """
 
         if install_dependencies and self.config.dependencies:
@@ -298,11 +288,10 @@ class PumConfig:
         for parameter in self.config.parameters:
             parameter_defaults[parameter.name] = psycopg.sql.Literal(parameter.default)
 
-        if resolve_dependencies:
-            for dependency in self.config.dependencies:
-                DependencyHandler(**dependency.model_dump()).resolve(
-                    install_dependencies=install_dependencies, install_path=self.dependency_path
-                )
+        for dependency in self.config.dependencies:
+            DependencyHandler(**dependency.model_dump()).resolve(
+                install_dependencies=install_dependencies, install_path=self.dependency_path
+            )
 
         for changelog in self.changelogs():
             try:
