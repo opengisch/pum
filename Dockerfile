@@ -14,4 +14,6 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
 	&& python -m pip install --no-cache-dir /tmp/pum-*.whl \
 	&& rm -rf /tmp/pum-*.whl
 
+ENV PGSERVICEFILE=/.pg_service.conf
+
 ENTRYPOINT ["pum"]
