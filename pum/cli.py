@@ -279,6 +279,11 @@ def create_parser() -> argparse.ArgumentParser:
     parser_baseline.add_argument(
         "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
     )
+    parser_baseline.add_argument(
+        "--create-table",
+        help="Create the pum_migrations table if it does not exist",
+        action="store_true",
+    )
 
     # Parser for the "upgrade" command
     parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
@@ -391,6 +396,17 @@ def cli() -> int:  # noqa: PLR0912
         elif args.command == "restore":
             pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
         elif args.command == "baseline":
+            sm = SchemaMigrations(config=config)
+            if not sm.exists(connection=conn):
+                if args.create_table:
+                    sm.create(connection=conn)
+                    logger.info("Created pum_migrations table.")
+                else:
+                    logger.error(
+                        "pum_migrations table does not exist. Use --create-table to create it."
+                    )
+                    exit_code = 1
+                    return exit_code
             SchemaMigrations(config=config).set_baseline(connection=conn, version=args.baseline)
 
         elif args.command == "upgrade":
