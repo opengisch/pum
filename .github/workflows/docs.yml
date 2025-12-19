@@ -1,10 +1,15 @@
 name: "📚 Documentation Builder"
 
+# Allow one concurrent deployment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
         - main
-        - docs
+        - zensical
     paths:
       - .github/workflows/docs.yml
       - pum/**/*.py
@@ -12,18 +17,20 @@ on:
     tags:
       - "*"
 
-  pull_request:
-    branches:
-        - main
-    paths:
-      - .github/workflows/docs.yml
-      - pum/**/*.py
-      - docs/**/*
+  # pull_request:
+  #   branches:
+  #       - main
+  #   paths:
+  #     - .github/workflows/docs.yml
+  #     - pum/**/*.py
+  #     - docs/**/*
 
-# Allow one concurrent deployment
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-docs:
@@ -50,16 +57,19 @@ jobs:
       run: ./docs/update_cli_docs.py
 
     - name: Build documentation
-      run: mkdocs build -f docs/mkdocs.yml
+      run: zensical build -f docs/mkdocs.yml
 
-    - uses: actions/upload-artifact@v5
-      if: ${{ github.event_name == 'pull_request' }}
+    - uses: actions/upload-pages-artifact@v4
       with:
-        name: docs
         path: docs/site
-        if-no-files-found: error
 
-    - name: Deploy to GitHub Pages
-      if: contains(fromJSON('["push", "workflow_dispatch"]'), github.event_name)
-      working-directory: docs
-      run: mkdocs gh-deploy --force
+  deploy:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
+    environment:
+      name: github-pages
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

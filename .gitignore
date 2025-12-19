@@ -11,3 +11,4 @@ venv
 .python-version
 dist/
 .DS_Store
+lib/
