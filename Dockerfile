@@ -10,6 +10,7 @@ COPY requirements/base.txt ./requirements.txt
 COPY dist/pum-*.whl /tmp/
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
+	&& python -m pip install --no-cache-dir pytest \
 	&& python -m pip install --no-cache-dir -r requirements.txt \
 	&& python -m pip install --no-cache-dir /tmp/pum-*.whl \
 	&& rm -rf /tmp/pum-*.whl
