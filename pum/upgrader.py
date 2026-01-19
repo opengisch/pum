@@ -72,7 +72,7 @@ class Upgrader:
                 If True, permissions will be granted to the roles.
             beta_testing:
                 If True, the module is installed in beta testing mode.
-                This means that the module will not be able to receive any future updates.
+                This means that the module will not be allowed to receive any future updates.
                 We strongly discourage using this for production.
             commit:
                 If True, the changes will be committed to the database.
@@ -98,17 +98,12 @@ class Upgrader:
         last_changelog = None
         for changelog in self.config.changelogs(max_version=max_version):
             last_changelog = changelog
-            changelog_files = changelog.apply(
-                connection, commit=False, parameters=parameters_literals
-            )
-            changelog_files = [str(f) for f in changelog_files]
-            self.schema_migrations.set_baseline(
-                connection=connection,
-                version=changelog.version,
-                beta_testing=beta_testing,
+            changelog.apply(
+                connection,
                 commit=False,
-                changelog_files=changelog_files,
-                parameters=parameters,
+                parameters=parameters_literals,
+                schema_migrations=self.schema_migrations,
+                beta_testing=beta_testing,
             )
 
         for post_hook in self.config.post_hook_handlers():
@@ -175,3 +170,64 @@ class Upgrader:
         connection.commit()
 
         logger.info("Demo data '%s' installed successfully.", name)
+
+    def upgrade(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        max_version: str | packaging.version.Version | None = None,
+        beta_testing: bool = False,
+    ) -> None:
+        """Upgrades the given module
+        The changelogs are applied in the order they are found in the directory.
+
+        Args:
+            connection:
+                The database connection to use for the upgrade.
+            parameters:
+                The parameters to pass for the migration.
+            max_version:
+                The maximum version to apply. If None, all versions are applied.
+            beta_testing:
+                If True, the module is upgraded in beta testing mode.
+                This means that the module will not be allowed to receive any future updates.
+                We strongly discourage using this for production.
+        """
+        if not self.schema_migrations.exists(connection):
+            msg = (
+                f"Schema migrations table {self.config.config.pum.migration_table_schema}.pum_migrations does not exist. "
+                "This means that the module is not installed yet. Use install() to install the module."
+            )
+            raise PumException(msg)
+
+        for pre_hook in self.config.pre_hook_handlers():
+            pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        parameters_literals = SqlContent.prepare_parameters(parameters)
+        for changelog in self.config.changelogs(max_version=max_version):
+            if changelog.version <= self.schema_migrations.baseline(connection):
+                if not changelog.is_applied(connection=connection):
+                    msg = (
+                        f"Changelog version {changelog.version} is lower than or equal to the current version "
+                        f"{self.schema_migrations.current_version(connection)} but not applied. "
+                        "This indicates a problem with the database state."
+                    )
+                    logger.error(msg)
+                    raise PumException(msg)
+                logger.info("Changelog version %s already applied, skipping.", changelog.version)
+                continue
+
+            changelog.apply(
+                connection,
+                commit=False,
+                parameters=parameters_literals,
+                schema_migrations=self.schema_migrations,
+                beta_testing=beta_testing,
+            )
+
+        for post_hook in self.config.post_hook_handlers():
+            post_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        connection.commit()
+        logger.info("Upgrade completed and changes committed to the database.")

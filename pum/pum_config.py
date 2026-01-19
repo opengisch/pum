@@ -2,20 +2,20 @@ from pathlib import Path
 import psycopg
 import yaml
 import packaging
+import packaging.version
 from pydantic import ValidationError
 import logging
 import importlib.metadata
 import glob
 import os
 
-
-from .changelog import Changelog
 from .dependency_handler import DependencyHandler
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
 from .parameter import ParameterDefinition
 from .role_manager import RoleManager
 from .config_model import ConfigModel
 from .hook import HookHandler
+from .changelog import Changelog
 import tempfile
 import sys
 
@@ -195,7 +195,11 @@ class PumConfig:
             return None
         return changelogs[-1].version
 
-    def changelogs(self, min_version: str | None = None, max_version: str | None = None) -> list:
+    def changelogs(
+        self,
+        min_version: str | packaging.version.Version | None = None,
+        max_version: str | packaging.version.Version | None = None,
+    ) -> list[Changelog]:
         """Return a list of changelogs.
         The changelogs are sorted by version.
 

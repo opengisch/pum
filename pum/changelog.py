@@ -5,6 +5,7 @@ from pathlib import Path
 from packaging.version import parse as parse_version
 import psycopg
 
+from .schema_migrations import SchemaMigrations
 from .exceptions import PumInvalidChangelog, PumSqlError
 from .sql_content import SqlContent
 
@@ -82,6 +83,8 @@ class Changelog:
         connection: psycopg.Connection,
         parameters: dict | None = None,
         commit: bool = True,
+        schema_migrations: SchemaMigrations | None = None,
+        beta_testing: bool = False,
     ) -> list[Path]:
         """Apply a changelog
         This will execute all the files in the changelog directory.
@@ -94,6 +97,11 @@ class Changelog:
                 The parameters to pass to the SQL files
             commit: bool
                 If true, the transaction is committed. The default is true.
+            schema_migrations: SchemaMigrations | None
+                The SchemaMigrations instance to use to record the applied changelog.
+                If None, the changelog will not be recorded.
+            beta_testing: bool
+                If true, the changelog will be recorded as a beta testing version.
 
         Returns:
             list[Path]
@@ -108,4 +116,38 @@ class Changelog:
                 )
             except PumSqlError as e:
                 raise PumSqlError(f"Error applying changelog {file}: {e}") from e
+        if schema_migrations:
+            schema_migrations.set_baseline(
+                connection=connection,
+                version=self.version,
+                beta_testing=beta_testing,
+                commit=False,
+                changelog_files=[str(f) for f in files],
+                parameters=parameters,
+            )
         return files
+
+    def is_applied(
+        self,
+        connection: psycopg.Connection,
+    ) -> bool:
+        """Check if the changelog has been applied.
+
+        Args:
+            connection: The database connection to use.
+        Returns:
+            bool: True if the changelog has been applied, False otherwise.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pum_migrations
+                    WHERE version = %s
+                )
+                """,
+                (str(self.version),),
+            )
+            result = cursor.fetchone()
+            return result[0] if result else False

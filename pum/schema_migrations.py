@@ -3,12 +3,13 @@ import logging
 import re
 
 import packaging
+import packaging.version
 import psycopg
 import psycopg.sql
 
-from .pum_config import PumConfig
-from .exceptions import PumException
+from .exceptions import PumException, PumSchemaMigrationError
 from .sql_content import SqlContent
+from .pum_config import PumConfig
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +215,7 @@ INSERT INTO {table} (
         )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
-    def baseline(self, connection: psycopg.Connection) -> str | None:
+    def baseline(self, connection: psycopg.Connection) -> packaging.version.Version:
         """Return the baseline version from the migration table.
 
         Args:
@@ -222,12 +223,17 @@ INSERT INTO {table} (
                 The database connection to get the baseline version.
 
         Returns:
-            str: The baseline version.
+            packaging.version.Version | None: The baseline version.
+
+        Raises:
+            PumSchemaMigrationError: If the migration table does not exist or if no baseline version is found
 
         """
 
         if not self.exists(connection=connection):
-            return None
+            raise PumSchemaMigrationError(
+                f"{self.config.config.pum.migration_table_schema}.pum_migrations table does not exist."
+            )
 
         query = psycopg.sql.SQL(
             """
@@ -249,8 +255,8 @@ INSERT INTO {table} (
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
-            return None
-        return row[0]
+            raise PumException("Baseline version not found in the migration table.")
+        return packaging.version.parse(row[0])
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
         """Return the migration details from the migration table.
@@ -265,6 +271,8 @@ INSERT INTO {table} (
         Returns:
             dict: The migration details.
 
+        Raises:
+            PumSchemaMigrationError: If the migration table does not exist or if no migration details are found.
         """
         query = None
         if version is None:
@@ -302,5 +310,5 @@ INSERT INTO {table} (
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
-            return None
+            raise PumSchemaMigrationError(f"Migration details not found for version {version}.")
         return dict(zip([desc[0] for desc in cursor.description], row, strict=False))
