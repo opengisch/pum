@@ -108,11 +108,12 @@ class Changelog:
                 The list of changelogs that were executed
 
         """
+        parameters_literals = SqlContent.prepare_parameters(parameters)
         files = self.files()
         for file in files:
             try:
                 SqlContent(file).execute(
-                    connection=connection, commit=commit, parameters=parameters
+                    connection=connection, commit=commit, parameters=parameters_literals
                 )
             except PumSqlError as e:
                 raise PumSqlError(f"Error applying changelog {file}: {e}") from e
@@ -121,7 +122,7 @@ class Changelog:
                 connection=connection,
                 version=self.version,
                 beta_testing=beta_testing,
-                commit=False,
+                commit=commit,
                 changelog_files=[str(f) for f in files],
                 parameters=parameters,
             )

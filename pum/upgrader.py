@@ -94,14 +94,13 @@ class Upgrader:
         for pre_hook in self.config.pre_hook_handlers():
             pre_hook.execute(connection=connection, commit=False, parameters=parameters)
 
-        parameters_literals = SqlContent.prepare_parameters(parameters)
         last_changelog = None
         for changelog in self.config.changelogs(max_version=max_version):
             last_changelog = changelog
             changelog.apply(
                 connection,
                 commit=False,
-                parameters=parameters_literals,
+                parameters=parameters,
                 schema_migrations=self.schema_migrations,
                 beta_testing=beta_testing,
             )
