@@ -439,6 +439,32 @@ class TestUpgrader(unittest.TestCase):
             upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
 
+    def test_upgrade(self) -> None:
+        """Test the upgrade method."""
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig(test_dir)
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(
+                config=cfg,
+            )
+            upgrader.install(connection=conn, max_version="1.2.3")
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(sm.baseline(conn), Version("1.2.3"))
+
+            # Now upgrade to the same version (should do nothing)
+            upgrader.upgrade(connection=conn, max_version="1.2.3")
+            self.assertEqual(sm.baseline(conn), Version("1.2.3"))
+
+            # Now upgrade to a higher version
+            upgrader.upgrade(connection=conn, max_version="1.2.4")
+            self.assertEqual(sm.baseline(conn), Version("1.2.4"))
+
+            # Now upgrade to the latest version
+            upgrader.upgrade(connection=conn)
+            self.assertEqual(sm.baseline(conn), Version("2.0.0"))
+
 
 if __name__ == "__main__":
     unittest.main()
