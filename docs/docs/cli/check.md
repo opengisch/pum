@@ -1,8 +1,6 @@
 usage: update_cli_docs.py check [-h]
 [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
-[-N EXCLUDE_SCHEMA]
-[-P EXCLUDE_FIELD_PATTERN]
-[-o OUTPUT_FILE]
+[-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE]
 ### options:
 - `-h, --help`: show this help message and exit
 - `-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...], --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]`: Elements to be ignored

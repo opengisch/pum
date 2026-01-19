@@ -1,7 +1,4 @@
-usage: update_cli_docs.py dump [-h]
-[-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}]
-[-N EXCLUDE_SCHEMA]
-file
+usage: update_cli_docs.py dump [-h] [-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}] [-N EXCLUDE_SCHEMA] file
 ### positional arguments:
 - `file`: The backup file
 ### options:

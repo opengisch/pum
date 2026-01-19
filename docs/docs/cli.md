@@ -1,7 +1,5 @@
-usage: update_cli_docs.py [-h] [-c CONFIG_FILE] -s PG_SERVICE
-[-d DIR] [-v] [--version]
-{info,install,role,check,dump,restore,baseline,upgrade}
-...
+usage: update_cli_docs.py [-h] [-c CONFIG_FILE] -s PG_SERVICE [-d DIR] [-v] [--version]
+{info,install,role,check,dump,restore,baseline,upgrade} ...
 ### options:
 - `-h, --help`: show this help message and exit
 - `-c CONFIG_FILE, --config_file CONFIG_FILE`: set the config file. Default: .pum.yaml

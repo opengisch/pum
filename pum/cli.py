@@ -216,6 +216,16 @@ def create_parser() -> argparse.ArgumentParser:
         help="This will install the module in beta testing, meaning that it will not be possible to receive any future updates.",
         action="store_true",
     )
+    parser_install.add_argument(
+        "--skip-pre-hooks",
+        help="Skip pre-hook handlers during installation.",
+        action="store_true",
+    )
+    parser_install.add_argument(
+        "--skip-post-hooks",
+        help="Skip post-hook handlers during installation.",
+        action="store_true",
+    )
 
     # Upgrade parser
     parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade the database.")
@@ -229,6 +239,16 @@ def create_parser() -> argparse.ArgumentParser:
     parser_upgrade.add_argument("-u", "--max-version", help="maximum version to upgrade")
     parser_upgrade.add_argument(
         "--beta-testing", help="Install in beta testing mode.", action="store_true"
+    )
+    parser_upgrade.add_argument(
+        "--skip-pre-hooks",
+        help="Skip pre-hook handlers during upgrade.",
+        action="store_true",
+    )
+    parser_upgrade.add_argument(
+        "--skip-post-hooks",
+        help="Skip post-hook handlers during upgrade.",
+        action="store_true",
     )
 
     # Role management parser
@@ -377,6 +397,8 @@ def cli() -> int:  # noqa: PLR0912
                 roles=args.roles,
                 grant=args.grant,
                 beta_testing=args.beta_testing,
+                skip_pre_hooks=args.skip_pre_hooks,
+                skip_post_hooks=args.skip_post_hooks,
             )
             conn.commit()
             if args.demo_data:
@@ -388,6 +410,8 @@ def cli() -> int:  # noqa: PLR0912
                 parameters=parameters,
                 max_version=args.max_version,
                 beta_testing=args.beta_testing,
+                skip_pre_hooks=args.skip_pre_hooks,
+                skip_post_hooks=args.skip_post_hooks,
             )
         elif args.command == "role":
             if not args.action:

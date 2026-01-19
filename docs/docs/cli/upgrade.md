@@ -1,5 +1,4 @@
-usage: update_cli_docs.py upgrade [-h] [-u MAX_VERSION]
-[-p PARAMETER PARAMETER]
+usage: update_cli_docs.py upgrade [-h] [-u MAX_VERSION] [-p PARAMETER PARAMETER]
 ### options:
 - `-h, --help`: show this help message and exit
 - `-u MAX_VERSION, --max-version MAX_VERSION`: upper bound limit version

@@ -1,5 +1,4 @@
-usage: update_cli_docs.py restore [-h] [-x] [-N EXCLUDE_SCHEMA]
-file
+usage: update_cli_docs.py restore [-h] [-x] [-N EXCLUDE_SCHEMA] file
 ### positional arguments:
 - `file`: The backup file
 ### options:
