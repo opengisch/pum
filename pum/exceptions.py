@@ -23,6 +23,10 @@ class PumSchemaMigrationError(PumException):
     """Exception raised for errors related to schema migrations."""
 
 
+class PumSchemaMigrationNoBaselineError(PumSchemaMigrationError):
+    """Exception raised when no baseline version is found in the migration table."""
+
+
 # --- Hook Errors ---
 
 
