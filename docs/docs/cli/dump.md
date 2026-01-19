@@ -1,8 +1,9 @@
-usage: create_cli_help.py dump [-h] [-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}] [-N EXCLUDE_SCHEMA] file
-
+usage: update_cli_docs.py dump [-h]
+[-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}]
+[-N EXCLUDE_SCHEMA]
+file
 ### positional arguments:
 - `file`: The backup file
-
 ### options:
 - `-h, --help`: show this help message and exit
 - `-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}, --format {DumpFormat.CUSTOM,DumpFormat.PLAIN}`: Dump format. Choices: ['custom', 'plain']. Default: plain.

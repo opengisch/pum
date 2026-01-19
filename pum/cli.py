@@ -19,7 +19,12 @@ from .dumper import DumpFormat
 
 
 def setup_logging(verbosity: int = 0):
-    """Setup logging based on verbosity level (0=WARNING, 1=INFO, 2+=DEBUG) with colored output."""
+    """Configure logging for the CLI.
+
+    Args:
+        verbosity: Verbosity level (0=WARNING, 1=INFO, 2+=DEBUG).
+
+    """
     level = logging.WARNING  # default
 
     if verbosity == 1:
@@ -87,7 +92,7 @@ class Pum:
                 related to the first db to be compared
             pg_service2:
                 The name of the postgres service (defined in pg_service.conf)
-                related to the first db to be compared
+                related to the second db to be compared
             ignore_list:
                 List of elements to be ignored in check (ex. tables, columns,
                 views, ...)
@@ -152,7 +157,12 @@ class Pum:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Creates the main parser with its sub-parsers"""
+    """Create the main argument parser and all subparsers.
+
+    Returns:
+        The fully configured argument parser.
+
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
@@ -302,7 +312,12 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def cli() -> int:  # noqa: PLR0912
-    """Main function to run the command line interface."""
+    """Run the command line interface.
+
+    Returns:
+        Process exit code.
+
+    """
     parser = create_parser()
     args = parser.parse_args()
 
