@@ -207,6 +207,20 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
+    # Upgrade parser
+    parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade the database.")
+    parser_upgrade.add_argument(
+        "-p",
+        "--parameter",
+        nargs=2,
+        help="Assign variable for running SQL deltas. Format is name value.",
+        action="append",
+    )
+    parser_upgrade.add_argument("-u", "--max-version", help="maximum version to upgrade")
+    parser_upgrade.add_argument(
+        "--beta-testing", help="Install in beta testing mode.", action="store_true"
+    )
+
     # Role management parser
     parser_role = subparsers.add_parser("role", help="manage roles in the database")
     parser_role.add_argument(
@@ -284,18 +298,6 @@ def create_parser() -> argparse.ArgumentParser:
         help="Create the pum_migrations table if it does not exist",
         action="store_true",
     )
-
-    # Parser for the "upgrade" command
-    parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
-    parser_upgrade.add_argument("-u", "--max-version", help="upper bound limit version")
-    parser_upgrade.add_argument(
-        "-p",
-        "--parameter",
-        nargs=2,
-        help="Assign variable for running SQL deltas. Format is: name value.",
-        action="append",
-    )
-
     return parser
 
 
@@ -364,6 +366,14 @@ def cli() -> int:  # noqa: PLR0912
             conn.commit()
             if args.demo_data:
                 upg.install_demo_data(name=args.demo_data, connection=conn, parameters=parameters)
+        elif args.command == "upgrade":
+            upg = Upgrader(config=config)
+            upg.upgrade(
+                connection=conn,
+                parameters=parameters,
+                max_version=args.max_version,
+                beta_testing=args.beta_testing,
+            )
         elif args.command == "role":
             if not args.action:
                 logger.error(
