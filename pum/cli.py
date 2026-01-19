@@ -402,7 +402,14 @@ def cli() -> int:  # noqa: PLR0912
             )
             conn.commit()
             if args.demo_data:
-                upg.install_demo_data(name=args.demo_data, connection=conn, parameters=parameters)
+                upg.install_demo_data(
+                    name=args.demo_data,
+                    connection=conn,
+                    parameters=parameters,
+                    grant=args.grant,
+                    skip_post_hooks=args.skip_post_hooks,
+                    skip_pre_hooks=args.skip_pre_hooks,
+                )
         elif args.command == "upgrade":
             upg = Upgrader(config=config)
             upg.upgrade(

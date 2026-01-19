@@ -136,6 +136,8 @@ class Upgrader:
         *,
         parameters: dict | None = None,
         grant: bool = True,
+        skip_pre_hooks: bool = False,
+        skip_post_hooks: bool = False,
     ) -> None:
         """Install demo data for the module.
 
@@ -144,14 +146,17 @@ class Upgrader:
             name: The name of the demo data to install.
             parameters: The parameters to pass to the demo data SQL.
             grant: If True, grant permissions to the roles after installing the demo data. Default is True.
+            skip_pre_hooks: If True, skip pre-hook handlers during demo data installation. Default is False.
+            skip_post_hooks: If True, skip post-hook handlers during demo data installation. Default is False.
         """
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
 
         logger.info(f"Installing demo data {name}")
 
-        for pre_hook in self.config.pre_hook_handlers():
-            pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_pre_hooks:
+            for pre_hook in self.config.pre_hook_handlers():
+                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
 
@@ -166,8 +171,9 @@ class Upgrader:
 
         connection.commit()
 
-        for post_hook in self.config.post_hook_handlers():
-            post_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_post_hooks:
+            for post_hook in self.config.post_hook_handlers():
+                post_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
 
