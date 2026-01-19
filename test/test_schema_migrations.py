@@ -2,6 +2,7 @@ import logging
 import tempfile
 import unittest
 from pathlib import Path
+from packaging.version import Version
 
 import psycopg
 
@@ -57,7 +58,7 @@ class TestSchemaMigrations(unittest.TestCase):
             )
             upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
-            self.assertEqual(sm.baseline(conn), "1.2.3")
+            self.assertEqual(sm.baseline(conn), Version("1.2.3"))
             self.assertEqual(sm.migration_details(conn), sm.migration_details(conn, "1.2.3"))
             self.assertEqual(sm.migration_details(conn)["version"], "1.2.3")
             self.assertEqual(
@@ -71,11 +72,13 @@ class TestSchemaMigrations(unittest.TestCase):
         cfg = PumConfig(test_dir)
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
-            self.assertIsNone(sm.baseline(connection=conn))
+            self.assertFalse(sm.has_baseline(connection=conn))
             sm.create(connection=conn)
-            self.assertIsNone(sm.baseline(connection=conn))
+            self.assertFalse(sm.has_baseline(connection=conn))
             sm.set_baseline(connection=conn, version="1.2.3")
-            self.assertEqual(sm.baseline(connection=conn), "1.2.3")
+            self.assertTrue(sm.has_baseline(connection=conn))
+            self.assertEqual(sm.baseline(connection=conn), Version("1.2.3"))
             with self.assertRaises(PumException):
                 sm.set_baseline(connection=conn, version="1.2.3")
             sm.set_baseline(connection=conn, version="1.2.4")
+            self.assertEqual(sm.baseline(connection=conn), Version("1.2.4"))

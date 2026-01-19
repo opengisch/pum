@@ -176,19 +176,23 @@ class SchemaMigrations:
             commit: If true, the transaction is committed. The default is False.
 
         """
-        if isinstance(version, packaging.version.Version):
-            version = str(version)
+        version_str = version
+        version_packaging = version
+        if isinstance(version_str, packaging.version.Version):
+            version_str = str(version_str)
+        if isinstance(version_packaging, str):
+            version_packaging = packaging.version.parse(version_packaging)
         pattern = re.compile(r"^\d+\.\d+(\.\d+)?$")
-        if not re.match(pattern, version):
+        if not re.match(pattern, version_str):
             raise ValueError(f"Wrong version format: {version}. Must be x.y or x.y.z")
 
         try:
             current = self.baseline(connection=connection)
         except PumSchemaMigrationNoBaselineError:
             current = None
-        if current and current >= version:
+        if current and current >= version_packaging:
             raise PumSchemaMigrationError(
-                f"Cannot set baseline {version} as it is already set at {current}."
+                f"Cannot set baseline {version_str} as it is already set at {current}."
             )
 
         code = psycopg.sql.SQL("""
@@ -208,7 +212,7 @@ INSERT INTO {table} (
 
         query_parameters = {
             "table": self.migration_table_identifier,
-            "version": psycopg.sql.Literal(version),
+            "version": psycopg.sql.Literal(version_str),
             "beta_testing": psycopg.sql.Literal(beta_testing),
             "migration_table_version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "changelog_files": psycopg.sql.Literal(changelog_files or []),
