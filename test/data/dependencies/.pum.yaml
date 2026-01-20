@@ -8,7 +8,7 @@ dependencies:
   - name: pirogue
     minimum_version: 3.0.0
 
-application_hooks:
+application:
   drop:
     - file: drop_app/drop_view.sql
 

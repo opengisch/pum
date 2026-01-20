@@ -1,6 +1,6 @@
 changelogs_directory: changelogs
 
-application_hooks:
+application:
   drop:
     - code: DROP SCHEMA IF EXISTS app CASCADE;
   create:

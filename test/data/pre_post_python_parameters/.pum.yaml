@@ -4,7 +4,7 @@ parameters:
     type: text
     default: "This is a comment"
 
-application_hooks:
+application:
   drop:
     - file: drop_app/drop_view.sql
 
