@@ -150,3 +150,55 @@ class TestConfig(unittest.TestCase):
 
         with self.assertRaises(PumConfigError):
             PumConfig(base_path=base_path, invalid_key="You shall not pass!")
+
+    def test_legacy_config_format(self) -> None:
+        """Test backward compatibility with legacy migration_hooks/pre/post format."""
+        import yaml
+        from pum.config_model import ConfigModel
+
+        # Test 1: Legacy config with migration_hooks and pre/post field names
+        legacy_yaml_str = """
+changelogs_directory: changelogs
+
+migration_hooks:
+  pre:
+    - code: DROP SCHEMA IF EXISTS app CASCADE;
+    - code: DROP SCHEMA IF EXISTS app_temp CASCADE;
+  post:
+    - code: CREATE SCHEMA app;
+"""
+        config_dict = yaml.safe_load(legacy_yaml_str)
+        config_model = ConfigModel(**config_dict)
+
+        # Should have converted pre→drop and post→create
+        self.assertEqual(len(config_model.application_hooks.drop), 2)
+        self.assertEqual(len(config_model.application_hooks.create), 1)
+        self.assertEqual(
+            config_model.application_hooks.drop[0].code,
+            "DROP SCHEMA IF EXISTS app CASCADE;",
+        )
+        self.assertEqual(
+            config_model.application_hooks.create[0].code,
+            "CREATE SCHEMA app;",
+        )
+
+        # Test 2: New config format still works
+        new_yaml_str = """
+changelogs_directory: changelogs
+
+application_hooks:
+  drop:
+    - code: DROP SCHEMA IF EXISTS app CASCADE;
+  create:
+    - file: app/create_app.py
+"""
+        config_dict = yaml.safe_load(new_yaml_str)
+        config_model = ConfigModel(**config_dict)
+
+        self.assertEqual(len(config_model.application_hooks.drop), 1)
+        self.assertEqual(len(config_model.application_hooks.create), 1)
+        self.assertEqual(
+            config_model.application_hooks.drop[0].code,
+            "DROP SCHEMA IF EXISTS app CASCADE;",
+        )
+        self.assertEqual(config_model.application_hooks.create[0].file, "app/create_app.py")

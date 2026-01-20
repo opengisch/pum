@@ -8,7 +8,7 @@ from .parameter import ParameterType
 
 
 class PumCustomBaseModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class ParameterDefinitionModel(PumCustomBaseModel):
@@ -63,8 +63,18 @@ class ApplicationHookModel(PumCustomBaseModel):
         create: Hooks to create the application schema after applying migrations.
     """
 
-    drop: Optional[List[HookModel]] = []
-    create: Optional[List[HookModel]] = []
+    drop: Optional[List[HookModel]] = Field(default=[], alias="pre")
+    create: Optional[List[HookModel]] = Field(default=[], alias="post")
+
+    @model_validator(mode="before")
+    def handle_legacy_names(cls, values):
+        """Support legacy field names for backward compatibility."""
+        # If new names don't exist but old names do, use old names
+        if "drop" not in values and "pre" in values:
+            values["drop"] = values.pop("pre")
+        if "create" not in values and "post" in values:
+            values["create"] = values.pop("post")
+        return values
 
 
 class PumModel(PumCustomBaseModel):
@@ -194,8 +204,18 @@ class ConfigModel(PumCustomBaseModel):
 
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
-    application_hooks: Optional[ApplicationHookModel] = Field(default_factory=ApplicationHookModel)
+    application_hooks: Optional[ApplicationHookModel] = Field(
+        default_factory=ApplicationHookModel, alias="migration_hooks"
+    )
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = []
     demo_data: Optional[List[DemoDataModel]] = []
     dependencies: Optional[List[DependencyModel]] = []
+
+    @model_validator(mode="before")
+    def handle_legacy_field_names(cls, values):
+        """Support legacy field names for backward compatibility."""
+        # If new name doesn't exist but old name does, use old name
+        if "application_hooks" not in values and "migration_hooks" in values:
+            values["application_hooks"] = values.pop("migration_hooks")
+        return values
