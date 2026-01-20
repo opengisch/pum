@@ -163,7 +163,7 @@ def create_parser() -> argparse.ArgumentParser:
         The fully configured argument parser.
 
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="pum")
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
 

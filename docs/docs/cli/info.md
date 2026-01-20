@@ -1,3 +1,3 @@
-usage: update_cli_docs.py info [-h]
+usage: pum info [-h]
 ### options:
 - `-h, --help`: show this help message and exit

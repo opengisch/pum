@@ -1,4 +1,4 @@
-usage: update_cli_docs.py check [-h]
+usage: pum check [-h]
 [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
 [-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE]
 ### options:

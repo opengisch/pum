@@ -1,4 +1,4 @@
-usage: update_cli_docs.py role [-h] {create,grant,revoke,drop}
+usage: pum role [-h] {create,grant,revoke,drop}
 ### positional arguments:
 {create,grant,revoke,drop}
 Action to perform

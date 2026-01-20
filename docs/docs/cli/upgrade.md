@@ -1,4 +1,4 @@
-usage: update_cli_docs.py upgrade [-h] [-p PARAMETER PARAMETER] [-u MAX_VERSION] [--beta-testing] [--skip-drop-app]
+usage: pum upgrade [-h] [-p PARAMETER PARAMETER] [-u MAX_VERSION] [--beta-testing] [--skip-drop-app]
 [--skip-create-app]
 ### options:
 - `-h, --help`: show this help message and exit
