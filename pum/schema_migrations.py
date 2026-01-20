@@ -337,3 +337,32 @@ INSERT INTO {table} (
         if row is None:
             raise PumSchemaMigrationError(f"Migration details not found for version {version}.")
         return dict(zip([desc[0] for desc in cursor.description], row, strict=False))
+
+    def compare(self, connection: psycopg.Connection) -> int:
+        """Compare the migrations details in the database to the changelogs in the source.
+
+        Args:
+            connection: The database connection to get the baseline version.
+        Returns:
+            int: -1 if database is behind, 0 if up to date.
+
+        Raises:
+            PumSchemaMigrationError: If there is a mismatch between the database and the source.
+        """
+
+        current_version = self.baseline(connection=connection)
+        migration_details = self.migration_details(connection=connection)
+        changelogs = [str(changelog.version) for changelog in self.config.changelogs()]
+
+        # Check if the current migration version is in the changelogs
+        if migration_details["version"] not in changelogs:
+            raise PumSchemaMigrationError(
+                f"Changelog for version {migration_details['version']} not found in the source."
+            )
+
+        # Check if there are newer changelogs than current version
+        for changelog_version in changelogs:
+            if packaging.version.parse(changelog_version) > current_version:
+                return -1  # database is behind
+
+        return 0  # database is up to date
