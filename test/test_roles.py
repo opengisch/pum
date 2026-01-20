@@ -179,6 +179,45 @@ class TestRoles(unittest.TestCase):
             )
             self.assertTrue(cur.fetchone()[0], "User should have SELECT on schema_1 table")
 
+    def test_grant_permissions_on_types(self) -> None:
+        """Test that permissions are granted on custom types (enums and composite types)."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            cur = conn.cursor()
+
+            # Test enum type in schema 1
+            cur.execute(
+                "SELECT has_type_privilege('pum_test_viewer', 'pum_test_data_schema_1.status_enum', 'USAGE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have USAGE on status_enum")
+
+            # Test composite type in schema 1
+            cur.execute(
+                "SELECT has_type_privilege('pum_test_viewer', 'pum_test_data_schema_1.address_type', 'USAGE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have USAGE on address_type")
+
+            # Test enum type in schema 2
+            cur.execute(
+                "SELECT has_type_privilege('pum_test_viewer', 'pum_test_data_schema_2.priority_enum', 'USAGE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have USAGE on priority_enum")
+
+            # Test composite type in schema 2
+            cur.execute(
+                "SELECT has_type_privilege('pum_test_viewer', 'pum_test_data_schema_2.contact_type', 'USAGE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have USAGE on contact_type")
+
+            # Test that user (write role) has ALL privileges
+            cur.execute(
+                "SELECT has_type_privilege('pum_test_user', 'pum_test_data_schema_1.status_enum', 'USAGE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have USAGE on status_enum")
+
     def test_default_privileges(self) -> None:
         """Test that default privileges work for newly created objects."""
         test_dir = Path("test") / "data" / "roles"
@@ -208,6 +247,11 @@ class TestRoles(unittest.TestCase):
                 $$ LANGUAGE plpgsql;
             """)
 
+            # Create a new type (enum)
+            cur.execute("""
+                CREATE TYPE pum_test_data_schema_1.new_status_enum AS ENUM ('draft', 'published');
+            """)
+
             conn.commit()
 
             # Verify viewer has SELECT on the new table (due to default privileges)
@@ -217,6 +261,15 @@ class TestRoles(unittest.TestCase):
             self.assertTrue(
                 cur.fetchone()[0],
                 "Viewer should have SELECT on newly created table via default privileges",
+            )
+
+            # Verify viewer has USAGE on the new type (due to default privileges)
+            cur.execute(
+                "SELECT has_type_privilege('pum_test_viewer', 'pum_test_data_schema_1.new_status_enum', 'USAGE');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Viewer should have USAGE on newly created type via default privileges",
             )
 
             # Verify viewer has SELECT on the new sequence

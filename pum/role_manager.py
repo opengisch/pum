@@ -66,6 +66,7 @@ class Permission:
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON SEQUENCES TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON FUNCTIONS TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON ROUTINES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT USAGE ON TYPES TO {role};
                            """).execute(
                     connection=connection,
                     commit=False,
@@ -74,6 +75,8 @@ class Permission:
                         "role": psycopg.sql.Identifier(role),
                     },
                 )
+                # Grant permissions on existing types
+                self._grant_existing_types(connection, schema, role, "USAGE")
             elif self.type == PermissionType.WRITE:
                 SqlContent("""
                         GRANT ALL ON SCHEMA {schema} TO {role};
@@ -85,6 +88,7 @@ class Permission:
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON SEQUENCES TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON FUNCTIONS TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON ROUTINES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON TYPES TO {role};
                            """).execute(
                     connection=connection,
                     commit=False,
@@ -93,15 +97,60 @@ class Permission:
                         "role": psycopg.sql.Identifier(role),
                     },
                 )
+                # Grant permissions on existing types
+                self._grant_existing_types(connection, schema, role, "ALL")
             else:
                 raise ValueError(f"Unknown permission type: {self.type}")
 
         if commit:
             connection.commit()
 
+    def _grant_existing_types(
+        self, connection: psycopg.Connection, schema: str, role: str, privilege: str
+    ) -> None:
+        """Grant permissions on all existing types in a schema.
+
+        Args:
+            connection: The database connection.
+            schema: The schema name.
+            role: The role name.
+            privilege: The privilege to grant (USAGE or ALL).
+
+        """
+        # Query for all types in the schema (excluding array types and internal types)
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT t.typname
+            FROM pg_type t
+            JOIN pg_namespace n ON t.typnamespace = n.oid
+            WHERE n.nspname = %s
+              AND t.typtype IN ('e', 'c', 'd', 'b', 'r')  -- enum, composite, domain, base, range
+              AND t.typname NOT LIKE '_%%'  -- exclude array types
+            """,
+            (schema,),
+        )
+        types = cursor.fetchall()
+
+        # Grant permissions on each type
+        for (type_name,) in types:
+            grant_sql = psycopg.sql.SQL(
+                "GRANT {privilege} ON TYPE {schema}.{type_name} TO {role}"
+            ).format(
+                privilege=psycopg.sql.SQL(privilege),
+                schema=psycopg.sql.Identifier(schema),
+                type_name=psycopg.sql.Identifier(type_name),
+                role=psycopg.sql.Identifier(role),
+            )
+            cursor.execute(grant_sql)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the Permission object."""
+        return f"<Permission: {self.type.value} on {self.schemas}>"
+
 
 class Role:
-    """ "
+    """
     Represents a database role with associated permissions and optional inheritance.
     The Role class encapsulates the concept of a database role, including its name,
     permissions, optional inheritance from another role, and an optional description.
