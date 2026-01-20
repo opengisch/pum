@@ -1,0 +1,8 @@
+changelogs_directory: changelogs
+
+migration_hooks:
+  pre:
+    - code: DROP SCHEMA IF EXISTS app CASCADE;
+    - code: DROP SCHEMA IF EXISTS app_temp CASCADE;
+  post:
+    - file: create_app/create_schema.sql
