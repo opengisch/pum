@@ -5,6 +5,7 @@ from pathlib import Path
 from packaging.version import parse as parse_version
 import psycopg
 
+from .schema_migrations import SchemaMigrations
 from .exceptions import PumInvalidChangelog, PumSqlError
 from .sql_content import SqlContent
 
@@ -82,6 +83,8 @@ class Changelog:
         connection: psycopg.Connection,
         parameters: dict | None = None,
         commit: bool = True,
+        schema_migrations: SchemaMigrations | None = None,
+        beta_testing: bool = False,
     ) -> list[Path]:
         """Apply a changelog
         This will execute all the files in the changelog directory.
@@ -94,18 +97,60 @@ class Changelog:
                 The parameters to pass to the SQL files
             commit: bool
                 If true, the transaction is committed. The default is true.
+            schema_migrations: SchemaMigrations | None
+                The SchemaMigrations instance to use to record the applied changelog.
+                If None, the changelog will not be recorded.
+            beta_testing: bool
+                If true, the changelog will be recorded as a beta testing version.
 
         Returns:
             list[Path]
                 The list of changelogs that were executed
 
         """
+        parameters_literals = SqlContent.prepare_parameters(parameters)
         files = self.files()
         for file in files:
             try:
                 SqlContent(file).execute(
-                    connection=connection, commit=commit, parameters=parameters
+                    connection=connection, commit=commit, parameters=parameters_literals
                 )
             except PumSqlError as e:
                 raise PumSqlError(f"Error applying changelog {file}: {e}") from e
+        if schema_migrations:
+            schema_migrations.set_baseline(
+                connection=connection,
+                version=self.version,
+                beta_testing=beta_testing,
+                commit=commit,
+                changelog_files=[str(f) for f in files],
+                parameters=parameters,
+            )
         return files
+
+    def is_applied(
+        self,
+        connection: psycopg.Connection,
+        schema_migrations: SchemaMigrations,
+    ) -> bool:
+        """Check if the changelog has been applied.
+
+        Args:
+            connection: The database connection to use.
+        Returns:
+            bool: True if the changelog has been applied, False otherwise.
+        """
+        query = psycopg.sql.SQL("""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM {table}
+                    WHERE version = {version}
+                )
+                """)
+        parameters = {
+            "version": psycopg.sql.Literal(str(self.version)),
+            "table": schema_migrations.migration_table_identifier,
+        }
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        result = cursor.fetchone()
+        return result[0] if result else False

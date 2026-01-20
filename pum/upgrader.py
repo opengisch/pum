@@ -52,6 +52,8 @@ class Upgrader:
         roles: bool = False,
         grant: bool = False,
         beta_testing: bool = False,
+        skip_pre_hooks: bool = False,
+        skip_post_hooks: bool = False,
         commit: bool = False,
     ) -> None:
         """Installs the given module
@@ -72,8 +74,12 @@ class Upgrader:
                 If True, permissions will be granted to the roles.
             beta_testing:
                 If True, the module is installed in beta testing mode.
-                This means that the module will not be able to receive any future updates.
+                This means that the module will not be allowed to receive any future updates.
                 We strongly discourage using this for production.
+            skip_pre_hooks:
+                If True, pre-hook handlers will be skipped.
+            skip_post_hooks:
+                If True, post-hook handlers will be skipped.
             commit:
                 If True, the changes will be committed to the database.
         """
@@ -91,28 +97,24 @@ class Upgrader:
                 connection=connection, grant=False, commit=False
             )
 
-        for pre_hook in self.config.pre_hook_handlers():
-            pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_pre_hooks:
+            for pre_hook in self.config.pre_hook_handlers():
+                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
 
-        parameters_literals = SqlContent.prepare_parameters(parameters)
         last_changelog = None
         for changelog in self.config.changelogs(max_version=max_version):
             last_changelog = changelog
-            changelog_files = changelog.apply(
-                connection, commit=False, parameters=parameters_literals
-            )
-            changelog_files = [str(f) for f in changelog_files]
-            self.schema_migrations.set_baseline(
-                connection=connection,
-                version=changelog.version,
-                beta_testing=beta_testing,
+            changelog.apply(
+                connection,
                 commit=False,
-                changelog_files=changelog_files,
                 parameters=parameters,
+                schema_migrations=self.schema_migrations,
+                beta_testing=beta_testing,
             )
 
-        for post_hook in self.config.post_hook_handlers():
-            post_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_post_hooks:
+            for post_hook in self.config.post_hook_handlers():
+                post_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         logger.info(
             "Installed %s.pum_migrations table and applied changelogs up to version %s",
@@ -134,6 +136,8 @@ class Upgrader:
         *,
         parameters: dict | None = None,
         grant: bool = True,
+        skip_pre_hooks: bool = False,
+        skip_post_hooks: bool = False,
     ) -> None:
         """Install demo data for the module.
 
@@ -142,14 +146,17 @@ class Upgrader:
             name: The name of the demo data to install.
             parameters: The parameters to pass to the demo data SQL.
             grant: If True, grant permissions to the roles after installing the demo data. Default is True.
+            skip_pre_hooks: If True, skip pre-hook handlers during demo data installation. Default is False.
+            skip_post_hooks: If True, skip post-hook handlers during demo data installation. Default is False.
         """
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
 
         logger.info(f"Installing demo data {name}")
 
-        for pre_hook in self.config.pre_hook_handlers():
-            pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_pre_hooks:
+            for pre_hook in self.config.pre_hook_handlers():
+                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
 
@@ -164,8 +171,9 @@ class Upgrader:
 
         connection.commit()
 
-        for post_hook in self.config.post_hook_handlers():
-            post_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_post_hooks:
+            for post_hook in self.config.post_hook_handlers():
+                post_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
 
@@ -175,3 +183,74 @@ class Upgrader:
         connection.commit()
 
         logger.info("Demo data '%s' installed successfully.", name)
+
+    def upgrade(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        max_version: str | packaging.version.Version | None = None,
+        beta_testing: bool = False,
+        skip_pre_hooks: bool = False,
+        skip_post_hooks: bool = False,
+    ) -> None:
+        """Upgrades the given module
+        The changelogs are applied in the order they are found in the directory.
+
+        Args:
+            connection:
+                The database connection to use for the upgrade.
+            parameters:
+                The parameters to pass for the migration.
+            max_version:
+                The maximum version to apply. If None, all versions are applied.
+            beta_testing:
+                If True, the module is upgraded in beta testing mode.
+                This means that the module will not be allowed to receive any future updates.
+                We strongly discourage using this for production.
+            skip_pre_hooks:
+                If True, pre-hook handlers will be skipped.
+            skip_post_hooks:
+                If True, post-hook handlers will be skipped.
+        """
+        if not self.schema_migrations.exists(connection):
+            msg = (
+                f"Schema migrations table {self.config.config.pum.migration_table_schema}.pum_migrations does not exist. "
+                "This means that the module is not installed yet. Use install() to install the module."
+            )
+            raise PumException(msg)
+
+        if not skip_pre_hooks:
+            for pre_hook in self.config.pre_hook_handlers():
+                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        parameters_literals = SqlContent.prepare_parameters(parameters)
+        for changelog in self.config.changelogs(max_version=max_version):
+            if changelog.version <= self.schema_migrations.baseline(connection):
+                if not changelog.is_applied(
+                    connection=connection, schema_migrations=self.schema_migrations
+                ):
+                    msg = (
+                        f"Changelog version {changelog.version} is lower than or equal to the current version "
+                        f"{self.schema_migrations.current_version(connection)} but not applied. "
+                        "This indicates a problem with the database state."
+                    )
+                    logger.error(msg)
+                    raise PumException(msg)
+                logger.info("Changelog version %s already applied, skipping.", changelog.version)
+                continue
+
+            changelog.apply(
+                connection,
+                commit=False,
+                parameters=parameters_literals,
+                schema_migrations=self.schema_migrations,
+                beta_testing=beta_testing,
+            )
+
+        if not skip_post_hooks:
+            for post_hook in self.config.post_hook_handlers():
+                post_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        connection.commit()
+        logger.info("Upgrade completed and changes committed to the database.")

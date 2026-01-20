@@ -3,12 +3,13 @@ import logging
 import re
 
 import packaging
+import packaging.version
 import psycopg
 import psycopg.sql
 
-from .pum_config import PumConfig
-from .exceptions import PumException
+from .exceptions import PumSchemaMigrationError, PumSchemaMigrationNoBaselineError
 from .sql_content import SqlContent
+from .pum_config import PumConfig
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ class SchemaMigrations:
             return
 
         if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
-            raise PumException(
+            raise PumSchemaMigrationError(
                 f"Another {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table exists in another schema (). "
                 "Please use the allow_multiple_schemas option to create a new one."
             )
@@ -175,15 +176,24 @@ class SchemaMigrations:
             commit: If true, the transaction is committed. The default is False.
 
         """
-        if isinstance(version, packaging.version.Version):
-            version = str(version)
+        version_str = version
+        version_packaging = version
+        if isinstance(version_str, packaging.version.Version):
+            version_str = str(version_str)
+        if isinstance(version_packaging, str):
+            version_packaging = packaging.version.parse(version_packaging)
         pattern = re.compile(r"^\d+\.\d+(\.\d+)?$")
-        if not re.match(pattern, version):
+        if not re.match(pattern, version_str):
             raise ValueError(f"Wrong version format: {version}. Must be x.y or x.y.z")
 
-        current = self.baseline(connection=connection)
-        if current and current >= version:
-            raise PumException(f"Cannot set baseline {version} as it is already set at {current}.")
+        try:
+            current = self.baseline(connection=connection)
+        except PumSchemaMigrationNoBaselineError:
+            current = None
+        if current and current >= version_packaging:
+            raise PumSchemaMigrationError(
+                f"Cannot set baseline {version_str} as it is already set at {current}."
+            )
 
         code = psycopg.sql.SQL("""
 INSERT INTO {table} (
@@ -202,7 +212,7 @@ INSERT INTO {table} (
 
         query_parameters = {
             "table": self.migration_table_identifier,
-            "version": psycopg.sql.Literal(version),
+            "version": psycopg.sql.Literal(version_str),
             "beta_testing": psycopg.sql.Literal(beta_testing),
             "migration_table_version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "changelog_files": psycopg.sql.Literal(changelog_files or []),
@@ -214,7 +224,21 @@ INSERT INTO {table} (
         )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
-    def baseline(self, connection: psycopg.Connection) -> str | None:
+    def has_baseline(self, connection: psycopg.Connection) -> bool:
+        """Check if the migration table has a baseline version.
+
+        Args:
+            connection: The database connection to check for the baseline version.
+        Returns:
+            bool: True if the baseline version exists, False otherwise.
+        """
+        try:
+            self.baseline(connection=connection)
+            return True
+        except PumSchemaMigrationError:
+            return False
+
+    def baseline(self, connection: psycopg.Connection) -> packaging.version.Version:
         """Return the baseline version from the migration table.
 
         Args:
@@ -222,12 +246,17 @@ INSERT INTO {table} (
                 The database connection to get the baseline version.
 
         Returns:
-            str: The baseline version.
+            packaging.version.Version | None: The baseline version.
 
+        Raises:
+            PumSchemaMigrationError: If the migration table does not exist or if no baseline version is found
+            PumSchemaMigrationNoBaselineError: If the migration table does not exist
         """
 
         if not self.exists(connection=connection):
-            return None
+            raise PumSchemaMigrationError(
+                f"{self.config.config.pum.migration_table_schema}.pum_migrations table does not exist."
+            )
 
         query = psycopg.sql.SQL(
             """
@@ -249,8 +278,10 @@ INSERT INTO {table} (
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
-            return None
-        return row[0]
+            raise PumSchemaMigrationNoBaselineError(
+                "Baseline version not found in the migration table."
+            )
+        return packaging.version.parse(row[0])
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
         """Return the migration details from the migration table.
@@ -265,6 +296,8 @@ INSERT INTO {table} (
         Returns:
             dict: The migration details.
 
+        Raises:
+            PumSchemaMigrationError: If the migration table does not exist or if no migration details are found.
         """
         query = None
         if version is None:
@@ -302,5 +335,5 @@ INSERT INTO {table} (
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
-            return None
+            raise PumSchemaMigrationError(f"Migration details not found for version {version}.")
         return dict(zip([desc[0] for desc in cursor.description], row, strict=False))

@@ -2,14 +2,14 @@ from pathlib import Path
 import psycopg
 import yaml
 import packaging
+import packaging.version
 from pydantic import ValidationError
 import logging
 import importlib.metadata
 import glob
 import os
+from typing import TYPE_CHECKING
 
-
-from .changelog import Changelog
 from .dependency_handler import DependencyHandler
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
 from .parameter import ParameterDefinition
@@ -18,6 +18,10 @@ from .config_model import ConfigModel
 from .hook import HookHandler
 import tempfile
 import sys
+
+
+if TYPE_CHECKING:
+    from .changelog import Changelog
 
 
 try:
@@ -195,7 +199,11 @@ class PumConfig:
             return None
         return changelogs[-1].version
 
-    def changelogs(self, min_version: str | None = None, max_version: str | None = None) -> list:
+    def changelogs(
+        self,
+        min_version: str | packaging.version.Version | None = None,
+        max_version: str | packaging.version.Version | None = None,
+    ) -> "list[Changelog]":
         """Return a list of changelogs.
         The changelogs are sorted by version.
 
@@ -212,6 +220,9 @@ class PumConfig:
             raise PumException(f"Changelogs directory `{path}` does not exist.")
         if not path.iterdir():
             raise PumException(f"Changelogs directory `{path}` is empty.")
+
+        # Local import avoids circular imports at module import time.
+        from .changelog import Changelog
 
         changelogs = [Changelog(d) for d in path.iterdir() if d.is_dir()]
 

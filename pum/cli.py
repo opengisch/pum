@@ -19,7 +19,12 @@ from .dumper import DumpFormat
 
 
 def setup_logging(verbosity: int = 0):
-    """Setup logging based on verbosity level (0=WARNING, 1=INFO, 2+=DEBUG) with colored output."""
+    """Configure logging for the CLI.
+
+    Args:
+        verbosity: Verbosity level (0=WARNING, 1=INFO, 2+=DEBUG).
+
+    """
     level = logging.WARNING  # default
 
     if verbosity == 1:
@@ -87,7 +92,7 @@ class Pum:
                 related to the first db to be compared
             pg_service2:
                 The name of the postgres service (defined in pg_service.conf)
-                related to the first db to be compared
+                related to the second db to be compared
             ignore_list:
                 List of elements to be ignored in check (ex. tables, columns,
                 views, ...)
@@ -152,7 +157,12 @@ class Pum:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Creates the main parser with its sub-parsers"""
+    """Create the main argument parser and all subparsers.
+
+    Returns:
+        The fully configured argument parser.
+
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
@@ -204,6 +214,40 @@ def create_parser() -> argparse.ArgumentParser:
     parser_install.add_argument(
         "--beta-testing",
         help="This will install the module in beta testing, meaning that it will not be possible to receive any future updates.",
+        action="store_true",
+    )
+    parser_install.add_argument(
+        "--skip-pre-hooks",
+        help="Skip pre-hook handlers during installation.",
+        action="store_true",
+    )
+    parser_install.add_argument(
+        "--skip-post-hooks",
+        help="Skip post-hook handlers during installation.",
+        action="store_true",
+    )
+
+    # Upgrade parser
+    parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade the database.")
+    parser_upgrade.add_argument(
+        "-p",
+        "--parameter",
+        nargs=2,
+        help="Assign variable for running SQL deltas. Format is name value.",
+        action="append",
+    )
+    parser_upgrade.add_argument("-u", "--max-version", help="maximum version to upgrade")
+    parser_upgrade.add_argument(
+        "--beta-testing", help="Install in beta testing mode.", action="store_true"
+    )
+    parser_upgrade.add_argument(
+        "--skip-pre-hooks",
+        help="Skip pre-hook handlers during upgrade.",
+        action="store_true",
+    )
+    parser_upgrade.add_argument(
+        "--skip-post-hooks",
+        help="Skip post-hook handlers during upgrade.",
         action="store_true",
     )
 
@@ -284,23 +328,16 @@ def create_parser() -> argparse.ArgumentParser:
         help="Create the pum_migrations table if it does not exist",
         action="store_true",
     )
-
-    # Parser for the "upgrade" command
-    parser_upgrade = subparsers.add_parser("upgrade", help="upgrade db")
-    parser_upgrade.add_argument("-u", "--max-version", help="upper bound limit version")
-    parser_upgrade.add_argument(
-        "-p",
-        "--parameter",
-        nargs=2,
-        help="Assign variable for running SQL deltas. Format is: name value.",
-        action="append",
-    )
-
     return parser
 
 
 def cli() -> int:  # noqa: PLR0912
-    """Main function to run the command line interface."""
+    """Run the command line interface.
+
+    Returns:
+        Process exit code.
+
+    """
     parser = create_parser()
     args = parser.parse_args()
 
@@ -360,10 +397,29 @@ def cli() -> int:  # noqa: PLR0912
                 roles=args.roles,
                 grant=args.grant,
                 beta_testing=args.beta_testing,
+                skip_pre_hooks=args.skip_pre_hooks,
+                skip_post_hooks=args.skip_post_hooks,
             )
             conn.commit()
             if args.demo_data:
-                upg.install_demo_data(name=args.demo_data, connection=conn, parameters=parameters)
+                upg.install_demo_data(
+                    name=args.demo_data,
+                    connection=conn,
+                    parameters=parameters,
+                    grant=args.grant,
+                    skip_post_hooks=args.skip_post_hooks,
+                    skip_pre_hooks=args.skip_pre_hooks,
+                )
+        elif args.command == "upgrade":
+            upg = Upgrader(config=config)
+            upg.upgrade(
+                connection=conn,
+                parameters=parameters,
+                max_version=args.max_version,
+                beta_testing=args.beta_testing,
+                skip_pre_hooks=args.skip_pre_hooks,
+                skip_post_hooks=args.skip_post_hooks,
+            )
         elif args.command == "role":
             if not args.action:
                 logger.error(
