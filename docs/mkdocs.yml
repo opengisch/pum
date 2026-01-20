@@ -72,7 +72,7 @@ nav:
       - ConfigModel: configuration/config_model.md
       - DependencyModel: configuration/dependency_model.md
       - HookModel: configuration/hook_model.md
-      - MigrationHooksModel: configuration/migration_hooks_model.md
+      - ApplicationHookModel: configuration/migration_hooks_model.md
       - ParameterDefinitionModel: configuration/parameter_definition_model.md
       - PermissionModel: configuration/permission_model.md
       - PumModel: configuration/pum_model.md

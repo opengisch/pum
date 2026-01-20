@@ -54,17 +54,17 @@ class HookModel(PumCustomBaseModel):
         return self
 
 
-class MigrationHooksModel(PumCustomBaseModel):
+class ApplicationHookModel(PumCustomBaseModel):
     """
-    MigrationHooksModel holds the configuration for migration hooks.
+    ApplicationHookModel holds the configuration for application schema hooks.
 
     Attributes:
-        drop_app: Hooks to drop the application schema before applying migrations.
-        create_app: Hooks to create the application schema after applying migrations.
+        drop: Hooks to drop the application schema before applying migrations.
+        create: Hooks to create the application schema after applying migrations.
     """
 
-    drop_app: Optional[List[HookModel]] = []
-    create_app: Optional[List[HookModel]] = []
+    drop: Optional[List[HookModel]] = []
+    create: Optional[List[HookModel]] = []
 
 
 class PumModel(PumCustomBaseModel):
@@ -187,14 +187,14 @@ class ConfigModel(PumCustomBaseModel):
     Attributes:
         pum: The PUM (Project Update Manager) configuration. Defaults to a new PumModel instance.
         parameters: List of parameter definitions. Defaults to an empty list.
-        migration_hooks: Configuration for migration hooks. Defaults to a new MigrationHooksModel instance.
+        application_hooks: Configuration for application schema hooks. Defaults to a new ApplicationHookModel instance.
         changelogs_directory: Directory path for changelogs. Defaults to "changelogs".
         roles: List of role definitions. Defaults to None.
     """
 
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
-    migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
+    application_hooks: Optional[ApplicationHookModel] = Field(default_factory=ApplicationHookModel)
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = []
     demo_data: Optional[List[DemoDataModel]] = []

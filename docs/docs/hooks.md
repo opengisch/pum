@@ -1,22 +1,22 @@
 # Migration hooks
 
-Migration hooks allow you to define actions to be executed during the migration process. These hooks are defined in the `.pum.yaml` configuration file under the `migration_hooks` section.
+Migration hooks allow you to define actions to be executed during the migration process. These hooks are defined in the `.pum.yaml` configuration file under the `application_hooks` section.
 
 There are two types of migration hooks:
 
-- `drop_app`: Hooks to drop the application schema before applying migrations.
-- `create_app`: Hooks to create the application schema after applying migrations.
+- `drop`: Hooks to drop the application schema before applying migrations.
+- `create`: Hooks to create the application schema after applying migrations.
 
 ## SQL hooks
 
 Hooks are defined as a list of files or plain SQL code to be executed. For example:
 
 ```yaml
-migration_hooks:
-  drop_app:
+application_hooks:
+  drop:
     - code: DROP VIEW IF EXISTS pum_test_app.some_view;
 
-  create_app:
+  create:
     - file: create_app/create_view.sql
 ```
 
@@ -32,11 +32,11 @@ You can use `pum.utils.execute_sql` to execute the SQL code without committing.
 The configuration is then:
 
 ```yaml
-migration_hooks:
-  drop_app:
+application_hooks:
+  drop:
     - file: drop_app/drop_view.sql
 
-  create_app:
+  create:
     - file: create_app/create_schema.sql
     - file: create_app/create_view.py
 ```

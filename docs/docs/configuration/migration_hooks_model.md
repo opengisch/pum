@@ -1,3 +1,3 @@
-# MigrationHooksModel
+# ApplicationHookModel
 
-::: pum.config_model.MigrationHooksModel
+::: pum.config_model.ApplicationHookModel

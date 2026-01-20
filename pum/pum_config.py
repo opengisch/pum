@@ -250,9 +250,9 @@ class PumConfig:
         return (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
-                for hook in self.config.migration_hooks.drop_app
+                for hook in self.config.application_hooks.drop
             ]
-            if self.config.migration_hooks.drop_app
+            if self.config.application_hooks.drop
             else []
         )
 
@@ -261,9 +261,9 @@ class PumConfig:
         return (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
-                for hook in self.config.migration_hooks.create_app
+                for hook in self.config.application_hooks.create
             ]
-            if self.config.migration_hooks.create_app
+            if self.config.application_hooks.create
             else []
         )
 
@@ -311,9 +311,9 @@ class PumConfig:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
 
         hook_handlers = []
-        if self.config.migration_hooks.drop_app:
+        if self.config.application_hooks.drop:
             hook_handlers.extend(self.drop_app_handlers())
-        if self.config.migration_hooks.create_app:
+        if self.config.application_hooks.create:
             hook_handlers.extend(self.create_app_handlers())
         for hook_handler in hook_handlers:
             try:

@@ -1,7 +1,7 @@
 
-migration_hooks:
-  drop_app:
+application_hooks:
+  drop:
     - file: drop_app/drop_view.sql
 
-  create_app:
+  create:
     - file: create_app/create_view.sql
