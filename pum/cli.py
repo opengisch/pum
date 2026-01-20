@@ -75,93 +75,6 @@ class Pum:
         else:
             self.config = config
 
-    def run_check(
-        self,
-        pg_service1: str,
-        pg_service2: str,
-        ignore_list: list[str] | None,
-        exclude_schema: list[str] | None,
-        exclude_field_pattern: list[str] | None,
-        output_file: str | None = None,
-        output_format: str = "text",
-    ) -> bool:
-        """Run the check command.
-
-        Args:
-            pg_service1:
-                The name of the postgres service (defined in pg_service.conf)
-                related to the first db to be compared
-            pg_service2:
-                The name of the postgres service (defined in pg_service.conf)
-                related to the second db to be compared
-            ignore_list:
-                List of elements to be ignored in check (ex. tables, columns,
-                views, ...)
-            exclude_schema:
-                List of schemas to be ignored in check.
-            exclude_field_pattern:
-                List of field patterns to be ignored in check.
-            verbose_level:
-                verbose level, 0 -> nothing, 1 -> print first 80 char of each
-                difference, 2 -> print all the difference details
-            output_file:
-                a file path where write the differences
-
-        Returns:
-            True if no differences are found, False otherwise.
-
-        """
-        # self.__out("Check...")
-        ignore_list = ignore_list or []
-        exclude_schema = exclude_schema or []
-        exclude_field_pattern = exclude_field_pattern or []
-        output_format = output_format or "text"
-
-        try:
-            checker = Checker(
-                pg_service1,
-                pg_service2,
-                exclude_schema=exclude_schema,
-                exclude_field_pattern=exclude_field_pattern,
-                ignore_list=ignore_list,
-            )
-            report = checker.run_checks()
-
-            if report.passed:
-                self.__out("OK")
-            else:
-                self.__out("DIFFERENCES FOUND")
-
-            if output_format == "html":
-                html_report = ReportGenerator.generate_html(report)
-                if output_file:
-                    with open(output_file, "w", encoding="utf-8") as f:
-                        f.write(html_report)
-                    self.__out(f"HTML report written to {output_file}")
-                else:
-                    print(html_report)
-            else:
-                # Text output (backward compatible)
-                text_output = ReportGenerator.generate_text(report)
-                if output_file:
-                    with open(output_file, "w") as f:
-                        f.write(text_output)
-                else:
-                    print(text_output)
-
-            return report.passed
-
-        except psycopg.Error as e:
-            self.__out("ERROR")
-            self.__out(e.args[0] if e.args else str(e))
-            sys.exit(1)
-
-        except Exception as e:
-            self.__out("ERROR")
-            # if e.args is empty then use str(e)
-            self.__out(e.args[0] if e.args else str(e))
-            sys.exit(1)
-
 
 def create_parser() -> argparse.ArgumentParser:
     """Create the main argument parser and all subparsers.
@@ -271,14 +184,15 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Parser for the "check" command
-    parser_check = subparsers.add_parser(
+    parser_checker = subparsers.add_parser(
         "check", help="check the differences between two databases"
     )
 
-    parser_check.add_argument("pg_service1", help="Name of the first postgres service")
-    parser_check.add_argument("pg_service2", help="Name of the second postgres service")
+    parser_checker.add_argument(
+        "pg_service_compared", help="Name of the postgres service to compare against"
+    )
 
-    parser_check.add_argument(
+    parser_checker.add_argument(
         "-i",
         "--ignore",
         help="Elements to be ignored",
@@ -295,18 +209,18 @@ def create_parser() -> argparse.ArgumentParser:
             "rules",
         ],
     )
-    parser_check.add_argument(
+    parser_checker.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
     )
-    parser_check.add_argument(
+    parser_checker.add_argument(
         "-P",
         "--exclude-field-pattern",
         help="Fields to be ignored based on a pattern compatible with SQL LIKE.",
         action="append",
     )
 
-    parser_check.add_argument("-o", "--output_file", help="Output file")
-    parser_check.add_argument(
+    parser_checker.add_argument("-o", "--output_file", help="Output file")
+    parser_checker.add_argument(
         "-f",
         "--format",
         choices=["text", "html"],
@@ -463,16 +377,40 @@ def cli() -> int:  # noqa: PLR0912
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
         elif args.command == "check":
-            success = pum.run_check(
-                args.pg_service1,
-                args.pg_service2,
-                ignore_list=args.ignore,
-                exclude_schema=args.exclude_schema,
-                exclude_field_pattern=args.exclude_field_pattern,
-                output_file=args.output_file,
-                output_format=args.format,
+            checker = Checker(
+                args.pg_service,
+                args.pg_service_compared,
+                exclude_schema=args.exclude_schema or [],
+                exclude_field_pattern=args.exclude_field_pattern or [],
+                ignore_list=args.ignore or [],
             )
-            if not success:
+            report = checker.run_checks()
+            checker.conn1.close()
+            checker.conn2.close()
+
+            if report.passed:
+                logger.info("OK")
+            else:
+                logger.info("DIFFERENCES FOUND")
+
+            if args.format == "html":
+                html_report = ReportGenerator.generate_html(report)
+                if args.output_file:
+                    with open(args.output_file, "w", encoding="utf-8") as f:
+                        f.write(html_report)
+                    logger.info(f"HTML report written to {args.output_file}")
+                else:
+                    print(html_report)
+            else:
+                # Text output (backward compatible)
+                text_output = ReportGenerator.generate_text(report)
+                if args.output_file:
+                    with open(args.output_file, "w") as f:
+                        f.write(text_output)
+                else:
+                    print(text_output)
+
+            if not report.passed:
                 exit_code = 1
         elif args.command == "dump":
             pass
