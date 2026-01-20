@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser = create_parser()
     markdown_help = parser_to_markdown(parser)
     with open(current_dir / "docs/cli.md", "w") as f:
-        f.write(markdown_help)
+        f.write(markdown_help + "\n")
 
     subparsers_action = None
     for action in parser._actions:
@@ -104,4 +104,4 @@ if __name__ == "__main__":
             continue
         markdown_help = parser_to_markdown(subparser)
         with open(current_dir / "docs/cli" / f"{cmd}.md", "w") as f:
-            f.write(markdown_help)
+            f.write(markdown_help + "\n")
