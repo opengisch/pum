@@ -67,6 +67,17 @@ jobs:
       - name: Run base tests
         run: nose2 -v
 
+      - name: Check CLI docs are up to date
+        run: |
+          python docs/update_cli_docs.py
+          if git diff --quiet docs/docs/cli/; then
+            echo "✓ CLI docs are up to date"
+          else
+            echo "✗ CLI docs are out of date. Run: python docs/update_cli_docs.py"
+            git diff docs/docs/cli/
+            exit 1
+          fi
+
       # - name: Run migrations tests
       #   shell: bash
       #   run: ./test/test_pum.sh
