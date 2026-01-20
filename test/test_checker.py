@@ -4,6 +4,8 @@ import psycopg
 from pathlib import Path
 
 from pum.checker import Checker
+from pum.pum_config import PumConfig
+from pum.upgrader import Upgrader
 
 
 class TestChecker(unittest.TestCase):
@@ -52,33 +54,33 @@ class TestChecker(unittest.TestCase):
                 cur.execute("DROP SCHEMA IF EXISTS pum_test_checker CASCADE;")
                 cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
 
-        # Read and execute the schema SQL on first database
-        schema_file = self.test_dir / "changelogs" / "1.0.0" / "schema.sql"
-        with open(schema_file) as f:
-            schema_sql = f.read()
-
+        # Install version 1.0.0 on first database using Upgrader
+        cfg = PumConfig(self.test_dir)
         with psycopg.connect(f"service={self.pg_service1}") as conn:
-            cur = conn.cursor()
-            cur.execute(schema_sql)
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.0.0")
 
-    def _install_schema_on_db2(self):
-        """Helper method to install schema on second database."""
-        schema_file = self.test_dir / "changelogs" / "1.0.0" / "schema.sql"
-        with open(schema_file) as f:
-            schema_sql = f.read()
+    def _install_version_on_db2(self, version="1.0.0"):
+        """Helper method to install/upgrade schema on second database.
 
+        Args:
+            version: Target version to install/upgrade to.
+        """
+        cfg = PumConfig(self.test_dir)
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute(schema_sql)
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version=version)
 
     def test_databases_identical_after_both_installed(self):
         """Test that two databases are identical after both have the schema installed."""
-        # Execute schema on second database as well
-        self._install_schema_on_db2()
+        # Install same version on second database
+        self._install_version_on_db2()
 
         # Now compare - should be identical (excluding public schema which may have PostGIS)
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         self.assertTrue(
             report.passed,
@@ -89,9 +91,17 @@ class TestChecker(unittest.TestCase):
 
     def test_check_tables(self):
         """Test table comparison between databases."""
-        # DB1 has tables from installation, DB2 is empty
+        # DB1 has 1.0.0, upgrade DB1 to 1.1.0 which adds a new table
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
+
+        # DB2 is empty - should have differences
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         # Should have differences since DB2 doesn't have the schema
         self.assertFalse(report.passed)
@@ -102,267 +112,276 @@ class TestChecker(unittest.TestCase):
         self.assertFalse(tables_check.passed)
         self.assertGreater(len(tables_check.differences), 0)
 
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install on second database to same version
+        self._install_version_on_db2()
+        with psycopg.connect(f"service={self.pg_service2}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Now check again - should be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         tables_check = next((r for r in report.check_results if r.key == "tables"), None)
         self.assertTrue(tables_check.passed)
 
     def test_check_columns(self):
         """Test column comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Modify a column type in DB2
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "ALTER TABLE pum_test_checker.users ALTER COLUMN username TYPE VARCHAR(50);"
-            )
+        # Upgrade DB1 to 1.1.0 which adds a column to products table
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         columns_check = next((r for r in report.check_results if r.key == "columns"), None)
         self.assertIsNotNone(columns_check)
         self.assertFalse(columns_check.passed)
 
-        # Fix the column
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "ALTER TABLE pum_test_checker.users ALTER COLUMN username TYPE VARCHAR(100);"
-            )
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         columns_check = next((r for r in report.check_results if r.key == "columns"), None)
         self.assertTrue(columns_check.passed)
 
     def test_check_constraints(self):
         """Test constraint comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Remove a UNIQUE constraint in DB2 (Checker doesn't detect CHECK constraints)
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("ALTER TABLE pum_test_checker.users DROP CONSTRAINT users_username_key;")
+        # Upgrade DB1 to 1.1.0 which adds foreign key constraint
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         constraints_check = next((r for r in report.check_results if r.key == "constraints"), None)
         self.assertIsNotNone(constraints_check)
         self.assertFalse(constraints_check.passed)
 
-        # Add the constraint back
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "ALTER TABLE pum_test_checker.users ADD CONSTRAINT users_username_key UNIQUE (username);"
-            )
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         constraints_check = next((r for r in report.check_results if r.key == "constraints"), None)
         self.assertTrue(constraints_check.passed)
 
     def test_check_views(self):
         """Test view comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Modify view definition in DB2
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("DROP VIEW pum_test_checker.active_products;")
-            cur.execute("""
-                CREATE VIEW pum_test_checker.active_products AS
-                SELECT id, name FROM pum_test_checker.products WHERE in_stock = TRUE;
-            """)
+        # Upgrade DB1 to 1.1.0 which adds a new view
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         views_check = next((r for r in report.check_results if r.key == "views"), None)
         self.assertIsNotNone(views_check)
         self.assertFalse(views_check.passed)
 
-        # Fix the view
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("DROP VIEW pum_test_checker.active_products;")
-            cur.execute("""
-                CREATE VIEW pum_test_checker.active_products AS
-                SELECT id, name, price FROM pum_test_checker.products WHERE in_stock = TRUE;
-            """)
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         views_check = next((r for r in report.check_results if r.key == "views"), None)
         self.assertTrue(views_check.passed)
 
     def test_check_sequences(self):
         """Test sequence comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Create an additional sequence in DB2
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("CREATE SEQUENCE pum_test_checker.extra_sequence START 100;")
+        # Upgrade DB1 to 1.1.0 which adds invoice_sequence
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         sequences_check = next((r for r in report.check_results if r.key == "sequences"), None)
         self.assertIsNotNone(sequences_check)
         self.assertFalse(sequences_check.passed)
 
-        # Remove the extra sequence
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("DROP SEQUENCE pum_test_checker.extra_sequence;")
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         sequences_check = next((r for r in report.check_results if r.key == "sequences"), None)
         self.assertTrue(sequences_check.passed)
 
     def test_check_indexes(self):
         """Test index comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Drop an index in DB2
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("DROP INDEX pum_test_checker.idx_products_name;")
+        # Upgrade DB1 to 1.1.0 which adds idx_orders_user_id index
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         indexes_check = next((r for r in report.check_results if r.key == "indexes"), None)
         self.assertIsNotNone(indexes_check)
         self.assertFalse(indexes_check.passed)
 
-        # Recreate the index
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("CREATE INDEX idx_products_name ON pum_test_checker.products(name);")
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         indexes_check = next((r for r in report.check_results if r.key == "indexes"), None)
         self.assertTrue(indexes_check.passed)
 
     def test_check_triggers(self):
         """Test trigger comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Drop a trigger in DB2
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("DROP TRIGGER users_update_trigger ON pum_test_checker.users;")
+        # Upgrade DB1 to 1.1.0 which adds orders_update_trigger
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         triggers_check = next((r for r in report.check_results if r.key == "triggers"), None)
         self.assertIsNotNone(triggers_check)
         self.assertFalse(triggers_check.passed)
 
-        # Recreate the trigger
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE TRIGGER users_update_trigger
-                BEFORE UPDATE ON pum_test_checker.users
-                FOR EACH ROW
-                EXECUTE FUNCTION pum_test_checker.update_timestamp();
-            """)
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         triggers_check = next((r for r in report.check_results if r.key == "triggers"), None)
         self.assertTrue(triggers_check.passed)
 
     def test_check_functions(self):
         """Test function comparison between databases."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases first
+        self._install_version_on_db2()
 
-        # Modify a function in DB2
-        with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE OR REPLACE FUNCTION pum_test_checker.calculate_total(p_price NUMERIC, p_quantity INTEGER)
-                RETURNS NUMERIC AS $$
-                BEGIN
-                    RETURN p_price * p_quantity * 1.1;  -- Changed calculation
-                END;
-                $$ LANGUAGE plpgsql IMMUTABLE;
-            """)
+        # Upgrade DB1 to 1.1.0 which adds get_order_count() function
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Check should detect the difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         functions_check = next((r for r in report.check_results if r.key == "functions"), None)
         self.assertIsNotNone(functions_check)
         self.assertFalse(functions_check.passed)
 
-        # Fix the function (use exact same formatting as original)
+        # Upgrade DB2 to match
         with psycopg.connect(f"service={self.pg_service2}") as conn:
-            cur = conn.cursor()
-            cur.execute("""
-CREATE OR REPLACE FUNCTION pum_test_checker.calculate_total(p_price NUMERIC, p_quantity INTEGER)
-RETURNS NUMERIC AS $$
-BEGIN
-    RETURN p_price * p_quantity;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-""")
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
 
         # Should now be identical
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
 
         functions_check = next((r for r in report.check_results if r.key == "functions"), None)
         self.assertTrue(functions_check.passed)
 
     def test_exclude_schema(self):
         """Test that excluded schemas are not checked."""
-        # Execute schema on second database
-        self._install_schema_on_db2()
+        # Install same version on both databases
+        self._install_version_on_db2()
 
         # Both databases should be identical (excluding public)
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
         self.assertTrue(report.passed)
 
         # Now create a custom schema to test exclusion (not public since we always exclude it)
@@ -374,6 +393,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
         # Without excluding test_schema, should detect difference
         checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
         self.assertFalse(report.passed)
 
         # With excluding both public and test_schema, should be identical
@@ -381,6 +402,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
             self.pg_service1, self.pg_service2, exclude_schema=["public", "test_schema"]
         )
         report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
         self.assertTrue(report.passed)
 
         # Clean up

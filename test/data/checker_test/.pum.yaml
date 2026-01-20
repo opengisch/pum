@@ -1,1 +1,8 @@
 # Test configuration for checker tests
+config:
+  application:
+    name: pum_test_checker
+    schema: pum_test_checker
+  changelog_table_schema: public
+  migration_table_schema: public
+  changelog_directory: changelogs
