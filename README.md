@@ -16,7 +16,7 @@ PUM (PostgreSQL Upgrades Manager) is a robust database migration management tool
 - **Command-line and Python Integration**: Use PUM as a standalone CLI tool or integrate it into your Python project.
 - **Database Versioning**: Automatically manage database versioning with a metadata table.
 - **Changelog Management**: Apply and track SQL delta files for database upgrades.
-- **Migration Hooks**: Define custom hooks to execute additional SQL or Python code before or after migrations. This feature allows you to isolate data (table) code from application code (such as views and triggers), ensuring a clear separation of concerns and more maintainable database structures.
+- **Migration Hooks**: Define custom hooks to execute additional SQL or Python code to drop or create the application schema during migrations. This feature allows you to isolate data (table) code from application code (such as views and triggers), ensuring a clear separation of concerns and more maintainable database structures.
 
 ## Why PUM?
 

@@ -52,8 +52,8 @@ class Upgrader:
         roles: bool = False,
         grant: bool = False,
         beta_testing: bool = False,
-        skip_pre_hooks: bool = False,
-        skip_post_hooks: bool = False,
+        skip_drop_app: bool = False,
+        skip_create_app: bool = False,
         commit: bool = False,
     ) -> None:
         """Installs the given module
@@ -76,10 +76,10 @@ class Upgrader:
                 If True, the module is installed in beta testing mode.
                 This means that the module will not be allowed to receive any future updates.
                 We strongly discourage using this for production.
-            skip_pre_hooks:
-                If True, pre-hook handlers will be skipped.
-            skip_post_hooks:
-                If True, post-hook handlers will be skipped.
+            skip_drop_app:
+                If True, drop app handlers will be skipped.
+            skip_create_app:
+                If True, create app handlers will be skipped.
             commit:
                 If True, the changes will be committed to the database.
         """
@@ -97,9 +97,9 @@ class Upgrader:
                 connection=connection, grant=False, commit=False
             )
 
-        if not skip_pre_hooks:
-            for pre_hook in self.config.pre_hook_handlers():
-                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_drop_app:
+            for drop_app_hook in self.config.drop_app_handlers():
+                drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         last_changelog = None
         for changelog in self.config.changelogs(max_version=max_version):
@@ -112,9 +112,9 @@ class Upgrader:
                 beta_testing=beta_testing,
             )
 
-        if not skip_post_hooks:
-            for post_hook in self.config.post_hook_handlers():
-                post_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_create_app:
+            for create_app_hook in self.config.create_app_handlers():
+                create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         logger.info(
             "Installed %s.pum_migrations table and applied changelogs up to version %s",
@@ -136,8 +136,8 @@ class Upgrader:
         *,
         parameters: dict | None = None,
         grant: bool = True,
-        skip_pre_hooks: bool = False,
-        skip_post_hooks: bool = False,
+        skip_drop_app: bool = False,
+        skip_create_app: bool = False,
     ) -> None:
         """Install demo data for the module.
 
@@ -146,17 +146,17 @@ class Upgrader:
             name: The name of the demo data to install.
             parameters: The parameters to pass to the demo data SQL.
             grant: If True, grant permissions to the roles after installing the demo data. Default is True.
-            skip_pre_hooks: If True, skip pre-hook handlers during demo data installation. Default is False.
-            skip_post_hooks: If True, skip post-hook handlers during demo data installation. Default is False.
+            skip_drop_app: If True, skip drop app handlers during demo data installation. Default is False.
+            skip_create_app: If True, skip create app handlers during demo data installation. Default is False.
         """
         if name not in self.config.demo_data():
             raise PumException(f"Demo data '{name}' not found in the configuration.")
 
         logger.info(f"Installing demo data {name}")
 
-        if not skip_pre_hooks:
-            for pre_hook in self.config.pre_hook_handlers():
-                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_drop_app:
+            for drop_app_hook in self.config.drop_app_handlers():
+                drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
 
@@ -171,9 +171,9 @@ class Upgrader:
 
         connection.commit()
 
-        if not skip_post_hooks:
-            for post_hook in self.config.post_hook_handlers():
-                post_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_create_app:
+            for create_app_hook in self.config.create_app_handlers():
+                create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
 
@@ -191,8 +191,8 @@ class Upgrader:
         parameters: dict | None = None,
         max_version: str | packaging.version.Version | None = None,
         beta_testing: bool = False,
-        skip_pre_hooks: bool = False,
-        skip_post_hooks: bool = False,
+        skip_drop_app: bool = False,
+        skip_create_app: bool = False,
     ) -> None:
         """Upgrades the given module
         The changelogs are applied in the order they are found in the directory.
@@ -208,10 +208,10 @@ class Upgrader:
                 If True, the module is upgraded in beta testing mode.
                 This means that the module will not be allowed to receive any future updates.
                 We strongly discourage using this for production.
-            skip_pre_hooks:
-                If True, pre-hook handlers will be skipped.
-            skip_post_hooks:
-                If True, post-hook handlers will be skipped.
+            skip_drop_app:
+                If True, drop app handlers will be skipped.
+            skip_create_app:
+                If True, create app handlers will be skipped.
         """
         if not self.schema_migrations.exists(connection):
             msg = (
@@ -220,9 +220,9 @@ class Upgrader:
             )
             raise PumException(msg)
 
-        if not skip_pre_hooks:
-            for pre_hook in self.config.pre_hook_handlers():
-                pre_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_drop_app:
+            for drop_app_hook in self.config.drop_app_handlers():
+                drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         for changelog in self.config.changelogs(max_version=max_version):
             if changelog.version <= self.schema_migrations.baseline(connection):
@@ -247,9 +247,9 @@ class Upgrader:
                 beta_testing=beta_testing,
             )
 
-        if not skip_post_hooks:
-            for post_hook in self.config.post_hook_handlers():
-                post_hook.execute(connection=connection, commit=False, parameters=parameters)
+        if not skip_create_app:
+            for create_app_hook in self.config.create_app_handlers():
+                create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         connection.commit()
         logger.info("Upgrade completed and changes committed to the database.")

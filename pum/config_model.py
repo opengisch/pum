@@ -59,12 +59,12 @@ class MigrationHooksModel(PumCustomBaseModel):
     MigrationHooksModel holds the configuration for migration hooks.
 
     Attributes:
-        pre: List of pre-migration hooks.
-        post: List of post-migration hooks.
+        drop_app: Hooks to drop the application schema before applying migrations.
+        create_app: Hooks to create the application schema after applying migrations.
     """
 
-    pre: Optional[List[HookModel]] = []
-    post: Optional[List[HookModel]] = []
+    drop_app: Optional[List[HookModel]] = []
+    create_app: Optional[List[HookModel]] = []
 
 
 class PumModel(PumCustomBaseModel):

@@ -1,11 +1,11 @@
 # Migration hooks
 
-Migration hooks allow you to define actions to be executed before or after a migration. These hooks are defined in the `.pum.yaml` configuration file under the `migration_hooks` section.
+Migration hooks allow you to define actions to be executed during the migration process. These hooks are defined in the `.pum.yaml` configuration file under the `migration_hooks` section.
 
 There are two types of migration hooks:
 
-- `pre`: Executed before the migration.
-- `post`: Executed after the migration.
+- `drop_app`: Hooks to drop the application schema before applying migrations.
+- `create_app`: Hooks to create the application schema after applying migrations.
 
 ## SQL hooks
 
@@ -13,11 +13,11 @@ Hooks are defined as a list of files or plain SQL code to be executed. For examp
 
 ```yaml
 migration_hooks:
-  pre:
+  drop_app:
     - code: DROP VIEW IF EXISTS pum_test_app.some_view;
 
-  post:
-    - file: post/create_view.sql
+  create_app:
+    - file: create_app/create_view.sql
 ```
 
 ## Python hooks
@@ -33,15 +33,15 @@ The configuration is then:
 
 ```yaml
 migration_hooks:
-  pre:
-    - file: pre/drop_view.sql
+  drop_app:
+    - file: drop_app/drop_view.sql
 
-  post:
-    - file: post/create_schema.sql
-    - file: post/create_view.py
+  create_app:
+    - file: create_app/create_schema.sql
+    - file: create_app/create_view.py
 ```
 
-With `post/create_view.py`:
+With `create_app/create_view.py`:
 
 ```py
 from pirogue.utils import select_columns
@@ -85,7 +85,7 @@ class Hook(HookBase):
 > Local imports within the hook file are supported. The parent directory of the hook file is temporarily added to `sys.path` during execution, so you can use local imports in your hook scripts. Ensure your hook files and their dependencies are structured accordingly.
 
 
-## Data and application isoltion
+## Data and application isolation
 
 We recommend to isolate data (tables) from business logic (e.g., views, triggers) into distinct schemas for easier upgrades.
 This will facilitate the migrations but also the code management: you will not have to write diff files for views and triggers.
@@ -102,7 +102,7 @@ project/
 │   │   ├── 01_rename_column.sql
 │   │   └── 02_do_something_else.sql
 ├── app/
-│   ├── drop_views_and_triggers.sql
-│   └── create_views_and_triggers.sql
+│   ├── drop_app.sql
+│   └── create_app.sql
 └── .pum.yaml
 ```

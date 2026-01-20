@@ -62,17 +62,17 @@ class TestConfig(unittest.TestCase):
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")
 
         self.assertEqual(
-            cfg.post_hook_handlers()[0],
+            cfg.create_app_handlers()[0],
             HookHandler(
                 base_path=Path(".").absolute(),
-                file="test/data/pre_post_sql_files/post/create_view.sql",
+                file="test/data/pre_post_sql_files/create_app/create_view.sql",
             ),
         )
         self.assertEqual(
-            cfg.pre_hook_handlers()[0],
+            cfg.drop_app_handlers()[0],
             HookHandler(
                 base_path=Path(".").absolute(),
-                file="test/data/pre_post_sql_files/pre/drop_view.sql",
+                file="test/data/pre_post_sql_files/drop_app/drop_view.sql",
             ),
         )
 

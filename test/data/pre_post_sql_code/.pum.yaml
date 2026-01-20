@@ -1,9 +1,9 @@
 
 migration_hooks:
-  pre:
+  drop_app:
     - code: DROP VIEW IF EXISTS pum_test_app.some_view;
 
-  post:
+  create_app:
     - code: CREATE SCHEMA IF NOT EXISTS pum_test_app;
     - code: |
         CREATE VIEW pum_test_app.some_view AS

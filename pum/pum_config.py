@@ -245,25 +245,25 @@ class PumConfig:
             return RoleManager([])
         return RoleManager([role.model_dump() for role in self.config.roles])
 
-    def pre_hook_handlers(self) -> list[HookHandler]:
-        """Return the list of pre-migration hook handlers."""
+    def drop_app_handlers(self) -> list[HookHandler]:
+        """Return the list of drop app hook handlers."""
         return (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
-                for hook in self.config.migration_hooks.pre
+                for hook in self.config.migration_hooks.drop_app
             ]
-            if self.config.migration_hooks.pre
+            if self.config.migration_hooks.drop_app
             else []
         )
 
-    def post_hook_handlers(self) -> list[HookHandler]:
-        """Return the list of post-migration hook handlers."""
+    def create_app_handlers(self) -> list[HookHandler]:
+        """Return the list of create app hook handlers."""
         return (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
-                for hook in self.config.migration_hooks.post
+                for hook in self.config.migration_hooks.create_app
             ]
-            if self.config.migration_hooks.post
+            if self.config.migration_hooks.create_app
             else []
         )
 
@@ -311,10 +311,10 @@ class PumConfig:
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
 
         hook_handlers = []
-        if self.config.migration_hooks.pre:
-            hook_handlers.extend(self.pre_hook_handlers())
-        if self.config.migration_hooks.post:
-            hook_handlers.extend(self.post_hook_handlers())
+        if self.config.migration_hooks.drop_app:
+            hook_handlers.extend(self.drop_app_handlers())
+        if self.config.migration_hooks.create_app:
+            hook_handlers.extend(self.create_app_handlers())
         for hook_handler in hook_handlers:
             try:
                 hook_handler.validate(parameter_defaults)
