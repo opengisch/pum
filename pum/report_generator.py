@@ -1,7 +1,7 @@
 """Report generation for database comparison results."""
 
 try:
-    from jinja2 import Environment, BaseLoader, Template
+    from jinja2 import Template
 
     JINJA2_AVAILABLE = True
 except ImportError:
@@ -236,6 +236,7 @@ class ReportGenerator:
             line-height: 1.5;
             border-left: 3px solid;
             word-break: break-all;
+            position: relative;
         }
 
         .diff-item.removed {
@@ -252,9 +253,42 @@ class ReportGenerator:
 
         .diff-item .diff-marker {
             display: inline-block;
-            width: 20px;
+            width: 30px;
             font-weight: bold;
             margin-right: 10px;
+        }
+
+        .diff-item .db-label {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 10px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .diff-item.removed .db-label {
+            background: #dc3545;
+            color: white;
+        }
+
+        .diff-item.added .db-label {
+            background: #28a745;
+            color: white;
+        }
+
+        .diff-explanation {
+            font-size: 12px;
+            font-style: italic;
+            color: #6c757d;
+            margin-bottom: 5px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .diff-content {
+            margin-top: 5px;
+            padding-left: 40px;
         }
 
         .footer {
@@ -343,7 +377,18 @@ class ReportGenerator:
                     <ul class="diff-list">
                         {% for diff in result.differences %}
                         <li class="diff-item {{ diff.type.value }}">
-                            <span class="diff-marker">{{ '+' if diff.type.value == 'added' else '-' }}</span>{{ diff.content|e }}
+                            <div class="diff-explanation">
+                                {% if diff.type.value == 'removed' %}
+                                ⚠️ Missing in <strong>{{ report.pg_service2|e }}</strong> (only exists in {{ report.pg_service1|e }})
+                                {% else %}
+                                ⚠️ Extra in <strong>{{ report.pg_service2|e }}</strong> (not in {{ report.pg_service1|e }})
+                                {% endif %}
+                            </div>
+                            <div class="diff-content">
+                                <span class="diff-marker">{{ '-' if diff.type.value == 'removed' else '+' }}</span>
+                                <span class="db-label">{{ 'DB1' if diff.type.value == 'removed' else 'DB2' }}</span>
+                                {{ diff.content|e }}
+                            </div>
                         </li>
                         {% endfor %}
                     </ul>
