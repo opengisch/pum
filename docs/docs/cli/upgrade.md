@@ -1,5 +1,9 @@
-usage: update_cli_docs.py upgrade [-h] [-u MAX_VERSION] [-p PARAMETER PARAMETER]
+usage: update_cli_docs.py upgrade [-h] [-p PARAMETER PARAMETER] [-u MAX_VERSION] [--beta-testing] [--skip-drop-app]
+[--skip-create-app]
 ### options:
 - `-h, --help`: show this help message and exit
-- `-u MAX_VERSION, --max-version MAX_VERSION`: upper bound limit version
-- `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`: Assign variable for running SQL deltas. Format is: name value.
+- `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`: Assign variable for running SQL deltas. Format is name value.
+- `-u MAX_VERSION, --max-version MAX_VERSION`: maximum version to upgrade
+- `--beta-testing`: Install in beta testing mode.
+- `--skip-drop-app`: Skip drop app handlers during upgrade.
+- `--skip-create-app`: Skip create app handlers during upgrade.
