@@ -224,7 +224,6 @@ class Upgrader:
             for pre_hook in self.config.pre_hook_handlers():
                 pre_hook.execute(connection=connection, commit=False, parameters=parameters)
 
-        parameters_literals = SqlContent.prepare_parameters(parameters)
         for changelog in self.config.changelogs(max_version=max_version):
             if changelog.version <= self.schema_migrations.baseline(connection):
                 if not changelog.is_applied(
@@ -243,7 +242,7 @@ class Upgrader:
             changelog.apply(
                 connection,
                 commit=False,
-                parameters=parameters_literals,
+                parameters=parameters,
                 schema_migrations=self.schema_migrations,
                 beta_testing=beta_testing,
             )
