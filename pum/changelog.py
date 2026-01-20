@@ -131,6 +131,7 @@ class Changelog:
     def is_applied(
         self,
         connection: psycopg.Connection,
+        schema_migrations: SchemaMigrations,
     ) -> bool:
         """Check if the changelog has been applied.
 
@@ -139,16 +140,17 @@ class Changelog:
         Returns:
             bool: True if the changelog has been applied, False otherwise.
         """
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
+        query = psycopg.sql.SQL("""
                 SELECT EXISTS (
                     SELECT 1
-                    FROM pum_migrations
-                    WHERE version = %s
+                    FROM {table}
+                    WHERE version = {version}
                 )
-                """,
-                (str(self.version),),
-            )
-            result = cursor.fetchone()
-            return result[0] if result else False
+                """)
+        parameters = {
+            "version": psycopg.sql.Literal(str(self.version)),
+            "table": schema_migrations.migration_table_identifier,
+        }
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        result = cursor.fetchone()
+        return result[0] if result else False

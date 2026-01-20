@@ -227,7 +227,9 @@ class Upgrader:
         parameters_literals = SqlContent.prepare_parameters(parameters)
         for changelog in self.config.changelogs(max_version=max_version):
             if changelog.version <= self.schema_migrations.baseline(connection):
-                if not changelog.is_applied(connection=connection):
+                if not changelog.is_applied(
+                    connection=connection, schema_migrations=self.schema_migrations
+                ):
                     msg = (
                         f"Changelog version {changelog.version} is lower than or equal to the current version "
                         f"{self.schema_migrations.current_version(connection)} but not applied. "
