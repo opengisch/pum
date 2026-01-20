@@ -72,13 +72,13 @@ nav:
       - ConfigModel: configuration/config_model.md
       - DependencyModel: configuration/dependency_model.md
       - HookModel: configuration/hook_model.md
-      - ApplicationHookModel: configuration/application_hooks_model.md
+      - ApplicationModel: configuration/application_model.md
       - ParameterDefinitionModel: configuration/parameter_definition_model.md
       - PermissionModel: configuration/permission_model.md
       - PumModel: configuration/pum_model.md
       - RoleModel: configuration/role_model.md
 
-  - Hooks: hooks.md
+  - Application: application.md
   - Roles: roles.md
   - CLI:
       - Overview: cli.md

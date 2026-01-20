@@ -8,7 +8,7 @@ PUM now supports reading legacy `.pum.yaml` files that use the old field names `
 
 The refactoring renamed hook-related fields for better clarity:
 - **Old**: `migration_hooks` with `pre`/`post` hooks
-- **New**: `application_hooks` with `drop`/`create` hooks
+- **New**: `application` with `drop`/`create` hooks
 
 ## Future Considerations
 

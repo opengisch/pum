@@ -6,7 +6,7 @@ In the config file `.pum.yaml`, you can define, with the YAML syntax:
 
 * `changelogs_directory`: the directory with the changelogs files.
 * `parameters`: the definition of parameters for the migration.
-* `application_hooks`: the `drop` and `create` application schema hooks.
+* `application`: the `drop` and `create` application hooks.
 
 For example:  
 ```yaml

@@ -54,13 +54,13 @@ class HookModel(PumCustomBaseModel):
         return self
 
 
-class ApplicationHookModel(PumCustomBaseModel):
+class ApplicationModel(PumCustomBaseModel):
     """
-    ApplicationHookModel holds the configuration for application schema hooks.
+    ApplicationModel holds the configuration for application hooks.
 
     Attributes:
-        drop: Hooks to drop the application schema before applying migrations.
-        create: Hooks to create the application schema after applying migrations.
+        drop: Hooks to drop the application before applying migrations.
+        create: Hooks to create the application after applying migrations.
     """
 
     drop: Optional[List[HookModel]] = Field(default=[], alias="pre")
@@ -197,15 +197,15 @@ class ConfigModel(PumCustomBaseModel):
     Attributes:
         pum: The PUM (Project Update Manager) configuration. Defaults to a new PumModel instance.
         parameters: List of parameter definitions. Defaults to an empty list.
-        application_hooks: Configuration for application schema hooks. Defaults to a new ApplicationHookModel instance.
+        application: Configuration for application hooks. Defaults to a new ApplicationModel instance.
         changelogs_directory: Directory path for changelogs. Defaults to "changelogs".
         roles: List of role definitions. Defaults to None.
     """
 
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
-    application_hooks: Optional[ApplicationHookModel] = Field(
-        default_factory=ApplicationHookModel, alias="migration_hooks"
+    application: Optional[ApplicationModel] = Field(
+        default_factory=ApplicationModel, alias="migration_hooks"
     )
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = []
@@ -216,6 +216,6 @@ class ConfigModel(PumCustomBaseModel):
     def handle_legacy_field_names(cls, values):
         """Support legacy field names for backward compatibility."""
         # If new name doesn't exist but old name does, use old name
-        if "application_hooks" not in values and "migration_hooks" in values:
-            values["application_hooks"] = values.pop("migration_hooks")
+        if "application" not in values and "migration_hooks" in values:
+            values["application"] = values.pop("migration_hooks")
         return values

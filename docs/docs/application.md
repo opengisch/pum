@@ -1,18 +1,26 @@
-# Migration hooks
+# Application
 
-Migration hooks allow you to define actions to be executed during the migration process. These hooks are defined in the `.pum.yaml` configuration file under the `application_hooks` section.
+## Application/data isolation
+
+Separating application logic from object (business) data is recommended. Place application-owned objects—such as views, functions, procedures, and triggers—into dedicated, application-specific schemas, while keeping persistent business tables in one or several separate data schemas.
+
+This isolation makes application artifacts clearly distinct from long-lived data, so application schemas can be dropped and recreated on demand (for rebuilds, upgrades, or environment resets) without impacting the underlying object data.
+
+Application hooks allow you to define actions to be executed during the migration process.
+They allow the creation and removal of the application part of the data model.
+These hooks are defined in the `.pum.yaml` configuration file under the `application` section.
 
 There are two types of migration hooks:
 
-- `drop`: Hooks to drop the application schema before applying migrations.
-- `create`: Hooks to create the application schema after applying migrations.
+- `drop`: Hooks to drop the application before applying migrations.
+- `create`: Hooks to create the application after applying migrations.
 
 ## SQL hooks
 
 Hooks are defined as a list of files or plain SQL code to be executed. For example:
 
 ```yaml
-application_hooks:
+application:
   drop:
     - code: DROP VIEW IF EXISTS pum_test_app.some_view;
 
@@ -32,7 +40,7 @@ You can use `pum.utils.execute_sql` to execute the SQL code without committing.
 The configuration is then:
 
 ```yaml
-application_hooks:
+application:
   drop:
     - file: drop_app/drop_view.sql
 
