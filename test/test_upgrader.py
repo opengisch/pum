@@ -310,7 +310,7 @@ class TestUpgrader(unittest.TestCase):
             self.assertTrue(exists)
 
     def test_pre_post_sql_code(self) -> None:
-        """Test the pre and post hooks with SQL code."""
+        """Test the drop app and create app hooks with SQL code."""
         test_dir = Path("test") / "data" / "pre_post_sql_code"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
@@ -328,7 +328,7 @@ class TestUpgrader(unittest.TestCase):
             self.assertTrue(exists)
 
     def test_pre_post_python(self) -> None:
-        """Test the pre and post python hooks."""
+        """Test the drop app and create app python hooks."""
         test_dir = Path("test") / "data" / "pre_post_python"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
@@ -346,7 +346,7 @@ class TestUpgrader(unittest.TestCase):
             self.assertTrue(exists)
 
     def test_pre_post_python_parameters(self) -> None:
-        """Test the pre and post python hooks with parameters."""
+        """Test the drop app and create app python hooks with parameters."""
         test_dir = Path("test") / "data" / "pre_post_python_parameters"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)
@@ -373,7 +373,7 @@ class TestUpgrader(unittest.TestCase):
             self.assertEqual(comment, "how cool")
 
     def test_pre_post_python_local_import(self) -> None:
-        """Test the pre and post python hooks with local import."""
+        """Test the drop app and create app python hooks with local import."""
         test_dir = Path("test") / "data" / "pre_post_python_local_import"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         sm = SchemaMigrations(cfg)

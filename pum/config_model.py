@@ -8,7 +8,7 @@ from .parameter import ParameterType
 
 
 class PumCustomBaseModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class ParameterDefinitionModel(PumCustomBaseModel):
@@ -54,17 +54,27 @@ class HookModel(PumCustomBaseModel):
         return self
 
 
-class MigrationHooksModel(PumCustomBaseModel):
+class ApplicationHookModel(PumCustomBaseModel):
     """
-    MigrationHooksModel holds the configuration for migration hooks.
+    ApplicationHookModel holds the configuration for application schema hooks.
 
     Attributes:
-        pre: List of pre-migration hooks.
-        post: List of post-migration hooks.
+        drop: Hooks to drop the application schema before applying migrations.
+        create: Hooks to create the application schema after applying migrations.
     """
 
-    pre: Optional[List[HookModel]] = []
-    post: Optional[List[HookModel]] = []
+    drop: Optional[List[HookModel]] = Field(default=[], alias="pre")
+    create: Optional[List[HookModel]] = Field(default=[], alias="post")
+
+    @model_validator(mode="before")
+    def handle_legacy_names(cls, values):
+        """Support legacy field names for backward compatibility."""
+        # If new names don't exist but old names do, use old names
+        if "drop" not in values and "pre" in values:
+            values["drop"] = values.pop("pre")
+        if "create" not in values and "post" in values:
+            values["create"] = values.pop("post")
+        return values
 
 
 class PumModel(PumCustomBaseModel):
@@ -187,15 +197,25 @@ class ConfigModel(PumCustomBaseModel):
     Attributes:
         pum: The PUM (Project Update Manager) configuration. Defaults to a new PumModel instance.
         parameters: List of parameter definitions. Defaults to an empty list.
-        migration_hooks: Configuration for migration hooks. Defaults to a new MigrationHooksModel instance.
+        application_hooks: Configuration for application schema hooks. Defaults to a new ApplicationHookModel instance.
         changelogs_directory: Directory path for changelogs. Defaults to "changelogs".
         roles: List of role definitions. Defaults to None.
     """
 
     pum: Optional[PumModel] = Field(default_factory=PumModel)
     parameters: Optional[List[ParameterDefinitionModel]] = []
-    migration_hooks: Optional[MigrationHooksModel] = Field(default_factory=MigrationHooksModel)
+    application_hooks: Optional[ApplicationHookModel] = Field(
+        default_factory=ApplicationHookModel, alias="migration_hooks"
+    )
     changelogs_directory: Optional[str] = "changelogs"
     roles: Optional[List[RoleModel]] = []
     demo_data: Optional[List[DemoDataModel]] = []
     dependencies: Optional[List[DependencyModel]] = []
+
+    @model_validator(mode="before")
+    def handle_legacy_field_names(cls, values):
+        """Support legacy field names for backward compatibility."""
+        # If new name doesn't exist but old name does, use old name
+        if "application_hooks" not in values and "migration_hooks" in values:
+            values["application_hooks"] = values.pop("migration_hooks")
+        return values

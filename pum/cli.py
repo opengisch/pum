@@ -217,13 +217,13 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
     parser_install.add_argument(
-        "--skip-pre-hooks",
-        help="Skip pre-hook handlers during installation.",
+        "--skip-drop-app",
+        help="Skip drop app handlers during installation.",
         action="store_true",
     )
     parser_install.add_argument(
-        "--skip-post-hooks",
-        help="Skip post-hook handlers during installation.",
+        "--skip-create-app",
+        help="Skip create app handlers during installation.",
         action="store_true",
     )
 
@@ -241,13 +241,13 @@ def create_parser() -> argparse.ArgumentParser:
         "--beta-testing", help="Install in beta testing mode.", action="store_true"
     )
     parser_upgrade.add_argument(
-        "--skip-pre-hooks",
-        help="Skip pre-hook handlers during upgrade.",
+        "--skip-drop-app",
+        help="Skip drop app handlers during upgrade.",
         action="store_true",
     )
     parser_upgrade.add_argument(
-        "--skip-post-hooks",
-        help="Skip post-hook handlers during upgrade.",
+        "--skip-create-app",
+        help="Skip create app handlers during upgrade.",
         action="store_true",
     )
 
@@ -397,8 +397,8 @@ def cli() -> int:  # noqa: PLR0912
                 roles=args.roles,
                 grant=args.grant,
                 beta_testing=args.beta_testing,
-                skip_pre_hooks=args.skip_pre_hooks,
-                skip_post_hooks=args.skip_post_hooks,
+                skip_drop_app=args.skip_drop_app,
+                skip_create_app=args.skip_create_app,
             )
             conn.commit()
             if args.demo_data:
@@ -407,8 +407,8 @@ def cli() -> int:  # noqa: PLR0912
                     connection=conn,
                     parameters=parameters,
                     grant=args.grant,
-                    skip_post_hooks=args.skip_post_hooks,
-                    skip_pre_hooks=args.skip_pre_hooks,
+                    skip_create_app=args.skip_create_app,
+                    skip_drop_app=args.skip_drop_app,
                 )
         elif args.command == "upgrade":
             upg = Upgrader(config=config)
@@ -417,8 +417,8 @@ def cli() -> int:  # noqa: PLR0912
                 parameters=parameters,
                 max_version=args.max_version,
                 beta_testing=args.beta_testing,
-                skip_pre_hooks=args.skip_pre_hooks,
-                skip_post_hooks=args.skip_post_hooks,
+                skip_drop_app=args.skip_drop_app,
+                skip_create_app=args.skip_create_app,
             )
         elif args.command == "role":
             if not args.action:

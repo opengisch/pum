@@ -4,10 +4,10 @@ parameters:
     type: text
     default: "This is a comment"
 
-migration_hooks:
-  pre:
-    - file: pre/drop_view.sql
+application_hooks:
+  drop:
+    - file: drop_app/drop_view.sql
 
-  post:
-    - file: post/create_schema.sql
-    - file: post/create_view.py
+  create:
+    - file: create_app/create_schema.sql
+    - file: create_app/create_view.py

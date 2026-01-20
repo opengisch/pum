@@ -1,0 +1,7 @@
+changelogs_directory: changelogs
+
+application_hooks:
+  drop:
+    - code: DROP SCHEMA IF EXISTS app CASCADE;
+  create:
+    - file: create/create_schema.sql

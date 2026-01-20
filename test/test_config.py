@@ -62,17 +62,17 @@ class TestConfig(unittest.TestCase):
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")
 
         self.assertEqual(
-            cfg.post_hook_handlers()[0],
+            cfg.create_app_handlers()[0],
             HookHandler(
                 base_path=Path(".").absolute(),
-                file="test/data/pre_post_sql_files/post/create_view.sql",
+                file="test/data/pre_post_sql_files/create_app/create_view.sql",
             ),
         )
         self.assertEqual(
-            cfg.pre_hook_handlers()[0],
+            cfg.drop_app_handlers()[0],
             HookHandler(
                 base_path=Path(".").absolute(),
-                file="test/data/pre_post_sql_files/pre/drop_view.sql",
+                file="test/data/pre_post_sql_files/drop_app/drop_view.sql",
             ),
         )
 
@@ -150,3 +150,22 @@ class TestConfig(unittest.TestCase):
 
         with self.assertRaises(PumConfigError):
             PumConfig(base_path=base_path, invalid_key="You shall not pass!")
+
+    def test_legacy_config_format(self) -> None:
+        """Test backward compatibility with legacy migration_hooks/pre/post format."""
+        # Test 1: Legacy config with migration_hooks and pre/post field names
+        cfg_legacy = PumConfig.from_yaml(
+            Path("test") / "data" / "legacy_migration_hooks" / "legacy" / ".pum.yaml"
+        )
+
+        # Should have converted pre→drop and post→create
+        self.assertEqual(len(cfg_legacy.drop_app_handlers()), 2)
+        self.assertEqual(len(cfg_legacy.create_app_handlers()), 1)
+
+        # Test 2: New config format still works
+        cfg_new = PumConfig.from_yaml(
+            Path("test") / "data" / "legacy_migration_hooks" / "new" / ".pum.yaml"
+        )
+
+        self.assertEqual(len(cfg_new.drop_app_handlers()), 1)
+        self.assertEqual(len(cfg_new.create_app_handlers()), 1)
