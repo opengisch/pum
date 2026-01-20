@@ -207,9 +207,9 @@ def create_parser() -> argparse.ArgumentParser:
         action="append",
     )
     parser_install.add_argument("--max-version", help="maximum version to install")
-    parser_install.add_argument("-r", "--roles", help="Create roles", action="store_true")
+    parser_install.add_argument("--skip-roles", help="Skip creating roles", action="store_true")
     parser_install.add_argument(
-        "-g", "--grant", help="Grant permissions to roles", action="store_true"
+        "--skip-grant", help="Skip granting permissions to roles", action="store_true"
     )
     parser_install.add_argument(
         "-d", "--demo-data", help="Load demo data with the given name", type=str, default=None
@@ -241,7 +241,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_upgrade.add_argument("-u", "--max-version", help="maximum version to upgrade")
     parser_upgrade.add_argument(
-        "-g", "--grant", help="Grant permissions to roles", action="store_true"
+        "--skip-grant", help="Skip granting permissions to roles", action="store_true"
     )
     parser_upgrade.add_argument(
         "--beta-testing", help="Install in beta testing mode.", action="store_true"
@@ -400,8 +400,8 @@ def cli() -> int:  # noqa: PLR0912
                 connection=conn,
                 parameters=parameters,
                 max_version=args.max_version,
-                roles=args.roles,
-                grant=args.grant,
+                roles=not args.skip_roles,
+                grant=not args.skip_grant,
                 beta_testing=args.beta_testing,
                 skip_drop_app=args.skip_drop_app,
                 skip_create_app=args.skip_create_app,
@@ -412,7 +412,7 @@ def cli() -> int:  # noqa: PLR0912
                     name=args.demo_data,
                     connection=conn,
                     parameters=parameters,
-                    grant=args.grant,
+                    grant=not args.skip_grant,
                     skip_create_app=args.skip_create_app,
                     skip_drop_app=args.skip_drop_app,
                 )
@@ -422,7 +422,7 @@ def cli() -> int:  # noqa: PLR0912
                 connection=conn,
                 parameters=parameters,
                 max_version=args.max_version,
-                grant=args.grant,
+                grant=not args.skip_grant,
                 beta_testing=args.beta_testing,
                 skip_drop_app=args.skip_drop_app,
                 skip_create_app=args.skip_create_app,
