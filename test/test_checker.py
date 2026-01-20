@@ -1,12 +1,8 @@
 import unittest
+import logging
+import psycopg
 
-import psycopg2
-import psycopg2.extras
-
-from pum.core.checker import Checker
-
-pg_service1 = "pum_test_1"
-pg_service2 = "pum_test_2"
+from pum import Checker
 
 
 class TestChecker(unittest.TestCase):
@@ -18,35 +14,26 @@ class TestChecker(unittest.TestCase):
     """
 
     def tearDown(self):
-        del self.checker
-
-        self.cur1.execute("DROP SCHEMA IF EXISTS schema_foo CASCADE;")
-        self.conn1.commit()
-        self.conn1.close()
-
-        self.cur2.execute("DROP SCHEMA IF EXISTS schema_foo CASCADE;")
-        self.conn2.commit()
-        self.conn2.close()
+        for service in (self.pg_service, self.pg_service_compared):
+            with psycopg.connect(f"service={service}") as conn:
+                cur = conn.cursor()
+                cur.execute("DROP SCHEMA IF EXISTS pum_test_checker CASCADE;")
+                cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
 
     def setUp(self):
+        """Set up the test environment."""
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-        self.conn1 = psycopg2.connect(f"service={pg_service1}")
-        self.cur1 = self.conn1.cursor()
+        self.maxDiff = 5000
 
-        self.cur1.execute(
-            "DROP SCHEMA IF EXISTS schema_foo CASCADE;" "CREATE SCHEMA schema_foo;"
-        )
-        self.conn1.commit()
+        self.pg_service = "pum_test"
+        self.pg_service_compared = "pum_test_2"
 
-        self.conn2 = psycopg2.connect(f"service={pg_service2}")
-        self.cur2 = self.conn2.cursor()
-
-        self.checker = Checker(pg_service1, pg_service2)
-
-        self.cur2.execute(
-            "DROP SCHEMA IF EXISTS schema_foo CASCADE;" "CREATE SCHEMA schema_foo;"
-        )
-        self.conn2.commit()
+        for service in (self.pg_service, self.pg_service_compared):
+            with psycopg.connect(f"service={service}") as conn:
+                cur = conn.cursor()
+                cur.execute("DROP SCHEMA IF EXISTS pum_test_checker CASCADE;")
+                cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
 
     def test_check_tables(self):
         self.cur1.execute("CREATE TABLE schema_foo.bar (id integer);")
@@ -63,8 +50,7 @@ class TestChecker(unittest.TestCase):
 
     def test_check_columns(self):
         self.cur1.execute(
-            "CREATE TABLE schema_foo.bar "
-            "(id smallint, value integer, name varchar(100));"
+            "CREATE TABLE schema_foo.bar (id smallint, value integer, name varchar(100));"
         )
         self.conn1.commit()
 
@@ -72,24 +58,20 @@ class TestChecker(unittest.TestCase):
         self.assertFalse(result)
 
         self.cur2.execute(
-            "CREATE TABLE schema_foo.bar "
-            "(id integer, value integer, name varchar(100));"
+            "CREATE TABLE schema_foo.bar (id integer, value integer, name varchar(100));"
         )
         self.conn2.commit()
 
         result, differences = self.checker.check_columns()
         self.assertFalse(result)
 
-        self.cur2.execute(
-            "ALTER TABLE schema_foo.bar " "ALTER COLUMN id SET DATA TYPE smallint;"
-        )
+        self.cur2.execute("ALTER TABLE schema_foo.bar ALTER COLUMN id SET DATA TYPE smallint;")
         self.conn2.commit()
 
         result, differences = self.checker.check_columns()
         self.assertTrue(result)
 
     def test_check_constraints(self):
-
         self.cur1.execute(
             "CREATE TABLE schema_foo.bar "
             "(id smallint, value integer, name varchar(100), PRIMARY KEY(id));"
@@ -100,8 +82,7 @@ class TestChecker(unittest.TestCase):
         self.assertFalse(result)
 
         self.cur2.execute(
-            "CREATE TABLE schema_foo.bar "
-            "(id smallint, value integer, name varchar(100));"
+            "CREATE TABLE schema_foo.bar (id smallint, value integer, name varchar(100));"
         )
         self.conn2.commit()
 
@@ -118,7 +99,6 @@ class TestChecker(unittest.TestCase):
         self.assertTrue(result)
 
     def test_check_views(self):
-
         self.cur1.execute("CREATE VIEW schema_foo.bar AS SELECT 'foobar';")
         self.conn1.commit()
 
@@ -164,8 +144,7 @@ class TestChecker(unittest.TestCase):
         self.assertFalse(result)
 
         self.cur2.execute(
-            "CREATE TABLE schema_foo.bar "
-            "(id smallint, value integer, name varchar(100));"
+            "CREATE TABLE schema_foo.bar (id smallint, value integer, name varchar(100));"
         )
         self.conn2.commit()
 
@@ -228,7 +207,6 @@ class TestChecker(unittest.TestCase):
         self.assertTrue(result)
 
     def test_check_functions(self):
-
         self.cur1.execute("DROP FUNCTION IF EXISTS add(integer, integer);")
         self.conn1.commit()
         self.cur2.execute("DROP FUNCTION IF EXISTS add(integer, integer);")

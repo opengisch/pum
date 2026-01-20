@@ -1,6 +1,79 @@
 import difflib
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 
 import psycopg
+
+
+class DifferenceType(Enum):
+    """Type of difference found."""
+
+    ADDED = "added"
+    REMOVED = "removed"
+
+
+@dataclass
+class DifferenceItem:
+    """Represents a single difference between databases."""
+
+    type: DifferenceType
+    content: str
+
+    def __str__(self) -> str:
+        """String representation with marker."""
+        marker = "+" if self.type == DifferenceType.ADDED else "-"
+        return f"{marker} {self.content}"
+
+
+@dataclass
+class CheckResult:
+    """Result of a single check (e.g., tables, columns)."""
+
+    name: str
+    key: str
+    passed: bool
+    differences: list[DifferenceItem] = field(default_factory=list)
+
+    @property
+    def difference_count(self) -> int:
+        """Number of differences found."""
+        return len(self.differences)
+
+
+@dataclass
+class ComparisonReport:
+    """Complete database comparison report."""
+
+    pg_service1: str
+    pg_service2: str
+    timestamp: datetime
+    check_results: list[CheckResult] = field(default_factory=list)
+
+    @property
+    def passed(self) -> bool:
+        """Whether all checks passed."""
+        return all(result.passed for result in self.check_results)
+
+    @property
+    def total_checks(self) -> int:
+        """Total number of checks performed."""
+        return len(self.check_results)
+
+    @property
+    def passed_checks(self) -> int:
+        """Number of checks that passed."""
+        return sum(1 for result in self.check_results if result.passed)
+
+    @property
+    def failed_checks(self) -> int:
+        """Number of checks that failed."""
+        return self.total_checks - self.passed_checks
+
+    @property
+    def total_differences(self) -> int:
+        """Total number of differences across all checks."""
+        return sum(result.difference_count for result in self.check_results)
 
 
 class Checker:
@@ -15,7 +88,6 @@ class Checker:
         exclude_schema=None,
         exclude_field_pattern=None,
         ignore_list=None,
-        verbose_level=1,
     ):
         """Constructor
 
@@ -26,7 +98,7 @@ class Checker:
             related to the first db to be compared
         pg_service2: str
             The name of the postgres service (defined in pg_service.conf)
-            related to the first db to be compared
+            related to the second db to be compared
         ignore_list: list(str)
             List of elements to be ignored in check (ex. tables, columns,
             views, ...)
@@ -34,18 +106,18 @@ class Checker:
             List of schemas to be ignored in check.
         exclude_field_pattern: list of strings
             List of field patterns to be ignored in check.
-        verbose_level: int
-            verbose level, 0 -> nothing, 1 -> print first 80 char of each
-            difference, 2 -> print all the difference details
 
         """
+        self.pg_service1 = pg_service1
+        self.pg_service2 = pg_service2
+
         self.conn1 = psycopg.connect(f"service={pg_service1}")
         self.cur1 = self.conn1.cursor()
 
         self.conn2 = psycopg.connect(f"service={pg_service2}")
         self.cur2 = self.conn2.cursor()
 
-        self.ignore_list = ignore_list
+        self.ignore_list = ignore_list or []
         self.exclude_schema = "('information_schema'"
         if exclude_schema is not None:
             for schema in exclude_schema:
@@ -53,55 +125,46 @@ class Checker:
         self.exclude_schema += ")"
         self.exclude_field_pattern = exclude_field_pattern or []
 
-        self.verbose_level = verbose_level
-
-    def run_checks(self):
+    def run_checks(self) -> ComparisonReport:
         """Run all the checks functions.
 
         Returns
         -------
-        bool
-            True if all the checks are true
-            False otherwise
-        dict
-            Dictionary of lists of differences
+        ComparisonReport
+            Complete comparison report with all check results
 
         """
-        result = True
-        differences_dict = {}
+        checks = [
+            ("tables", "Tables", self.check_tables),
+            ("columns", "Columns", lambda: self.check_columns("views" not in self.ignore_list)),
+            ("constraints", "Constraints", self.check_constraints),
+            ("views", "Views", self.check_views),
+            ("sequences", "Sequences", self.check_sequences),
+            ("indexes", "Indexes", self.check_indexes),
+            ("triggers", "Triggers", self.check_triggers),
+            ("functions", "Functions", self.check_functions),
+            ("rules", "Rules", self.check_rules),
+        ]
 
-        if "tables" not in self.ignore_list:
-            tmp_result, differences_dict["tables"] = self.check_tables()
-            result = False if not tmp_result else result
-        if "columns" not in self.ignore_list:
-            tmp_result, differences_dict["columns"] = self.check_columns(
-                "views" not in self.ignore_list
-            )
-            result = False if not tmp_result else result
-        if "constraints" not in self.ignore_list:
-            tmp_result, differences_dict["constraints"] = self.check_constraints()
-            result = False if not tmp_result else result
-        if "views" not in self.ignore_list:
-            tmp_result, differences_dict["views"] = self.check_views()
-            result = False if not tmp_result else result
-        if "sequences" not in self.ignore_list:
-            tmp_result, differences_dict["sequences"] = self.check_sequences()
-            result = False if not tmp_result else result
-        if "indexes" not in self.ignore_list:
-            tmp_result, differences_dict["indexes"] = self.check_indexes()
-            result = False if not tmp_result else result
-        if "triggers" not in self.ignore_list:
-            tmp_result, differences_dict["triggers"] = self.check_triggers()
-            result = False if not tmp_result else result
-        if "functions" not in self.ignore_list:
-            tmp_result, differences_dict["functions"] = self.check_functions()
-            result = False if not tmp_result else result
-        if "rules" not in self.ignore_list:
-            tmp_result, differences_dict["rules"] = self.check_rules()
-            result = False if not tmp_result else result
-        if self.verbose_level == 0:
-            differences_dict = None
-        return result, differences_dict
+        check_results = []
+        for check_key, check_name, check_func in checks:
+            if check_key not in self.ignore_list:
+                passed, differences = check_func()
+                check_results.append(
+                    CheckResult(
+                        name=check_name,
+                        key=check_key,
+                        passed=passed,
+                        differences=differences,
+                    )
+                )
+
+        return ComparisonReport(
+            pg_service1=self.pg_service1,
+            pg_service2=self.pg_service2,
+            timestamp=datetime.now(),
+            check_results=check_results,
+        )
 
     def check_tables(self):
         """Check if the tables are equals.
@@ -305,7 +368,7 @@ class Checker:
         """
         return self.__check_equals(query)
 
-    def check_triggers(self) -> dict:
+    def check_triggers(self):
         """Check if the triggers are equals.
 
         Returns
@@ -395,7 +458,7 @@ class Checker:
 
         return self.__check_equals(query)
 
-    def __check_equals(self, query):
+    def __check_equals(self, query) -> tuple[bool, list[DifferenceItem]]:
         """Check if the query results on the two databases are equals.
 
         Returns
@@ -403,8 +466,8 @@ class Checker:
         bool
             True if the results are the same
             False otherwise
-        list
-            A list with the differences
+        list[DifferenceItem]
+            A list of DifferenceItem objects
 
         """
         self.cur1.execute(query)
@@ -423,9 +486,12 @@ class Checker:
         for line in d.compare(records1, records2):
             if line[0] in ("-", "+"):
                 result = False
-                if self.verbose_level == 1:
-                    differences.append(line[0:79])
-                elif self.verbose_level == 2:
-                    differences.append(line)
+                diff_type = DifferenceType.REMOVED if line[0] == "-" else DifferenceType.ADDED
+                differences.append(
+                    DifferenceItem(
+                        type=diff_type,
+                        content=line[2:],  # Skip the marker and space
+                    )
+                )
 
         return result, differences

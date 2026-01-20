@@ -3,6 +3,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .changelog import Changelog
+    from .checker import Checker
     from .dependency_handler import DependencyHandler
     from .dumper import Dumper, DumpFormat
     from .hook import HookBase, HookHandler
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from .upgrader import Upgrader
 
 __all__ = [
+    "Checker",
     "Changelog",
     "DependencyHandler",
     "Dumper",
@@ -34,6 +36,7 @@ __all__ = [
 
 
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    "Checker": ("pum.checker", "Checker"),
     "Changelog": ("pum.changelog", "Changelog"),
     "DependencyHandler": ("pum.dependency_handler", "DependencyHandler"),
     "Dumper": ("pum.dumper", "Dumper"),

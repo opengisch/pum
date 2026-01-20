@@ -9,6 +9,7 @@ from pathlib import Path
 import psycopg
 
 from .checker import Checker
+from .report_generator import ReportGenerator
 from .pum_config import PumConfig
 
 from .info import run_info
@@ -81,8 +82,8 @@ class Pum:
         ignore_list: list[str] | None,
         exclude_schema: list[str] | None,
         exclude_field_pattern: list[str] | None,
-        verbose_level: int = 1,
         output_file: str | None = None,
+        output_format: str = "text",
     ) -> bool:
         """Run the check command.
 
@@ -111,10 +112,11 @@ class Pum:
 
         """
         # self.__out("Check...")
-        verbose_level = verbose_level or 1
         ignore_list = ignore_list or []
         exclude_schema = exclude_schema or []
         exclude_field_pattern = exclude_field_pattern or []
+        output_format = output_format or "text"
+
         try:
             checker = Checker(
                 pg_service1,
@@ -122,27 +124,32 @@ class Pum:
                 exclude_schema=exclude_schema,
                 exclude_field_pattern=exclude_field_pattern,
                 ignore_list=ignore_list,
-                verbose_level=verbose_level,
             )
-            result, differences = checker.run_checks()
+            report = checker.run_checks()
 
-            if result:
+            if report.passed:
                 self.__out("OK")
             else:
                 self.__out("DIFFERENCES FOUND")
 
-            if differences:
+            if output_format == "html":
+                html_report = ReportGenerator.generate_html(report)
+                if output_file:
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        f.write(html_report)
+                    self.__out(f"HTML report written to {output_file}")
+                else:
+                    print(html_report)
+            else:
+                # Text output (backward compatible)
+                text_output = ReportGenerator.generate_text(report)
                 if output_file:
                     with open(output_file, "w") as f:
-                        for k, values in differences.items():
-                            f.write(k + "\n")
-                            f.writelines(f"{v}\n" for v in values)
+                        f.write(text_output)
                 else:
-                    for k, values in differences.items():
-                        print(k)
-                        for v in values:
-                            print(v)
-            return result
+                    print(text_output)
+
+            return report.passed
 
         except psycopg.Error as e:
             self.__out("ERROR")
@@ -268,6 +275,9 @@ def create_parser() -> argparse.ArgumentParser:
         "check", help="check the differences between two databases"
     )
 
+    parser_check.add_argument("pg_service1", help="Name of the first postgres service")
+    parser_check.add_argument("pg_service2", help="Name of the second postgres service")
+
     parser_check.add_argument(
         "-i",
         "--ignore",
@@ -296,6 +306,13 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser_check.add_argument("-o", "--output_file", help="Output file")
+    parser_check.add_argument(
+        "-f",
+        "--format",
+        choices=["text", "html"],
+        default="text",
+        help="Output format: text or html. Default: text",
+    )
 
     # Parser for the "dump" command
     parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
@@ -452,8 +469,8 @@ def cli() -> int:  # noqa: PLR0912
                 ignore_list=args.ignore,
                 exclude_schema=args.exclude_schema,
                 exclude_field_pattern=args.exclude_field_pattern,
-                verbose_level=args.verbose_level,
                 output_file=args.output_file,
+                output_format=args.format,
             )
             if not success:
                 exit_code = 1
