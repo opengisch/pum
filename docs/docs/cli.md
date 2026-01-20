@@ -1,5 +1,4 @@
-usage: pum [-h] [-c CONFIG_FILE] -s PG_SERVICE [-d DIR] [-v] [--version]
-{info,install,upgrade,role,check,dump,restore,baseline} ...
+usage: pum [-h] [-c CONFIG_FILE] -s PG_SERVICE [-d DIR] [-v] [--version] {info,install,upgrade,role,check,dump,restore,baseline} ...
 ### options:
 - `-h, --help`: show this help message and exit
 - `-c CONFIG_FILE, --config_file CONFIG_FILE`: set the config file. Default: .pum.yaml
