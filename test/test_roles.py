@@ -74,29 +74,168 @@ class TestRoles(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             cur = conn.cursor()
 
-            # viewer
+            # viewer - READ permissions on schema_1
             cur.execute(
                 "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
             )
             self.assertTrue(cur.fetchone()[0])
+
+            # viewer - no permissions on schema_2
             cur.execute(
                 "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_2.some_table_2', 'SELECT');"
             )
             self.assertFalse(cur.fetchone()[0])
 
-            # user
+            # user - READ permissions on schema_1
             cur.execute(
                 "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
             )
             self.assertTrue(cur.fetchone()[0])
+
+            # user - no INSERT on schema_1 (READ only)
             cur.execute(
                 "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_1.some_table_1', 'INSERT');"
             )
             self.assertFalse(cur.fetchone()[0])
+
+            # user - WRITE permissions on schema_2
             cur.execute(
                 "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'INSERT');"
             )
             self.assertTrue(cur.fetchone()[0])
+
+    def test_grant_permissions_comprehensive(self) -> None:
+        """Test that all object types get correct permissions."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+            cur = conn.cursor()
+
+            # Test viewer (READ) permissions on schema_1
+
+            # Tables
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have SELECT on table")
+
+            # Views
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_view_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have SELECT on view")
+
+            # Sequences
+            cur.execute(
+                "SELECT has_sequence_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_sequence_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have SELECT on sequence")
+
+            cur.execute(
+                "SELECT has_sequence_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_sequence_1', 'UPDATE');"
+            )
+            self.assertFalse(cur.fetchone()[0], "Viewer should NOT have UPDATE on sequence")
+
+            # Functions
+            cur.execute(
+                "SELECT has_function_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_function_1()', 'EXECUTE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have EXECUTE on function")
+
+            # Test user (WRITE) permissions on schema_2
+
+            # Tables
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have INSERT on table")
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'UPDATE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have UPDATE on table")
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'DELETE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have DELETE on table")
+
+            # Sequences
+            cur.execute(
+                "SELECT has_sequence_privilege('pum_test_user', 'pum_test_data_schema_2.some_sequence_2', 'UPDATE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have UPDATE on sequence")
+
+            # Functions
+            cur.execute(
+                "SELECT has_function_privilege('pum_test_user', 'pum_test_data_schema_2.some_function_2()', 'EXECUTE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have EXECUTE on function")
+
+            # Test that user inherits viewer permissions (via READ on schema_1)
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "User should have SELECT on schema_1 table")
+
+    def test_default_privileges(self) -> None:
+        """Test that default privileges work for newly created objects."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+            cur = conn.cursor()
+
+            # Create a new table in schema_1 after granting permissions
+            cur.execute("""
+                CREATE TABLE pum_test_data_schema_1.new_table (
+                    id INT PRIMARY KEY,
+                    data TEXT
+                );
+            """)
+
+            # Create a new sequence
+            cur.execute("CREATE SEQUENCE pum_test_data_schema_1.new_sequence START 1;")
+
+            # Create a new function
+            cur.execute("""
+                CREATE OR REPLACE FUNCTION pum_test_data_schema_1.new_function()
+                RETURNS INT AS $$
+                BEGIN
+                    RETURN 99;
+                END;
+                $$ LANGUAGE plpgsql;
+            """)
+
+            conn.commit()
+
+            # Verify viewer has SELECT on the new table (due to default privileges)
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.new_table', 'SELECT');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Viewer should have SELECT on newly created table via default privileges",
+            )
+
+            # Verify viewer has SELECT on the new sequence
+            cur.execute(
+                "SELECT has_sequence_privilege('pum_test_viewer', 'pum_test_data_schema_1.new_sequence', 'SELECT');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Viewer should have SELECT on newly created sequence via default privileges",
+            )
+
+            # Verify viewer can execute the new function
+            cur.execute(
+                "SELECT has_function_privilege('pum_test_viewer', 'pum_test_data_schema_1.new_function()', 'EXECUTE');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Viewer should have EXECUTE on newly created function via default privileges",
+            )
 
     def test_multiple_installs_roles(self) -> None:
         """Test granting permissions to roles."""
