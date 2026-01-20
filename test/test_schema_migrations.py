@@ -82,3 +82,51 @@ class TestSchemaMigrations(unittest.TestCase):
                 sm.set_baseline(connection=conn, version="1.2.3")
             sm.set_baseline(connection=conn, version="1.2.4")
             self.assertEqual(sm.baseline(connection=conn), Version("1.2.4"))
+
+    def test_compare(self) -> None:
+        """Test the compare method."""
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig(test_dir)
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Create the migrations table and set baseline
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="1.2.3")
+
+            # Database is behind since there are more changelogs (1.2.4, 1.3.0, 2.0.0)
+            result = sm.compare(connection=conn)
+            self.assertEqual(result, -1)
+
+            # Add more migrations to match all changelogs
+            sm.set_baseline(connection=conn, version="1.2.4")
+            result = sm.compare(connection=conn)
+            self.assertEqual(result, -1)  # Still behind
+
+            sm.set_baseline(connection=conn, version="1.3.0")
+            result = sm.compare(connection=conn)
+            self.assertEqual(result, -1)  # Still behind
+
+            sm.set_baseline(connection=conn, version="2.0.0")
+            # Now database should be up to date
+            result = sm.compare(connection=conn)
+            self.assertEqual(result, 0)
+
+    def test_compare_error_version_not_in_changelog(self) -> None:
+        """Test the compare method raises error when migration version is not in changelogs."""
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig(test_dir)
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Create the migrations table and set baseline with a version not in changelogs
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="9.9.9")
+
+            # Should raise error because 9.9.9 is not in the changelogs
+            with self.assertRaises(PumException) as context:
+                sm.compare(connection=conn)
+
+            self.assertIn(
+                "Changelog for version 9.9.9 not found in the source", str(context.exception)
+            )
