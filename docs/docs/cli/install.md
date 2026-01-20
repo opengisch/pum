@@ -1,5 +1,5 @@
-usage: update_cli_docs.py install [-h] [-p PARAMETER PARAMETER] [--max-version MAX_VERSION] [-r] [-g]
-[-d DEMO_DATA] [--beta-testing] [--skip-drop-app] [--skip-create-app]
+usage: pum install [-h] [-p PARAMETER PARAMETER] [--max-version MAX_VERSION] [-r] [-g] [-d DEMO_DATA]
+[--beta-testing] [--skip-drop-app] [--skip-create-app]
 ### options:
 - `-h, --help`: show this help message and exit
 - `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`: Assign variable for running SQL deltas. Format is name value.

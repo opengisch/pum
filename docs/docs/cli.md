@@ -1,4 +1,4 @@
-usage: update_cli_docs.py [-h] [-c CONFIG_FILE] -s PG_SERVICE [-d DIR] [-v] [--version]
+usage: pum [-h] [-c CONFIG_FILE] -s PG_SERVICE [-d DIR] [-v] [--version]
 {info,install,upgrade,role,check,dump,restore,baseline} ...
 ### options:
 - `-h, --help`: show this help message and exit
