@@ -40,9 +40,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Determine Docker tags
+        id: docker_tags
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            # Manual workflow dispatch with custom tag
+            echo "tags=opengisch/pum:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            # Tag push: use tag name and latest
+            echo "tags=opengisch/pum:${{ github.ref_name }},opengisch/pum:latest" >> $GITHUB_OUTPUT
+          else
+            # Other branches: use branch name
+            echo "tags=opengisch/pum:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: opengisch/pum:${{ inputs.tag || github.ref_name != github.event.repository.default_branch && github.ref_name || 'latest' }}
+          tags: ${{ steps.docker_tags.outputs.tags }}
