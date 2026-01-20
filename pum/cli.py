@@ -241,6 +241,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_upgrade.add_argument("-u", "--max-version", help="maximum version to upgrade")
     parser_upgrade.add_argument(
+        "-g", "--grant", help="Grant permissions to roles", action="store_true"
+    )
+    parser_upgrade.add_argument(
         "--beta-testing", help="Install in beta testing mode.", action="store_true"
     )
     parser_upgrade.add_argument(
@@ -419,6 +422,7 @@ def cli() -> int:  # noqa: PLR0912
                 connection=conn,
                 parameters=parameters,
                 max_version=args.max_version,
+                grant=args.grant,
                 beta_testing=args.beta_testing,
                 skip_drop_app=args.skip_drop_app,
                 skip_create_app=args.skip_create_app,

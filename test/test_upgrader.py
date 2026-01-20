@@ -25,7 +25,11 @@ class TestUpgrader(unittest.TestCase):
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_user;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
 
         self.tmpdir.cleanup()
         self.tmp = None
@@ -43,7 +47,11 @@ class TestUpgrader(unittest.TestCase):
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_custom_migrations_schema CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_user;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
@@ -464,6 +472,35 @@ class TestUpgrader(unittest.TestCase):
             # Now upgrade to the latest version
             upgrader.upgrade(connection=conn)
             self.assertEqual(sm.baseline(conn), Version("2.0.0"))
+
+    def test_upgrade_with_grant(self) -> None:
+        """Test that permissions are granted correctly after upgrade."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Install with roles but without granting permissions
+            Upgrader(cfg).install(connection=conn, roles=True, grant=False, commit=True)
+
+            cur = conn.cursor()
+            # Verify viewer role doesn't have SELECT permission initially
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(cur.fetchone()[0])
+
+            # Now upgrade with grant=True (even though there are no new changelogs, it should grant permissions)
+            Upgrader(cfg).upgrade(connection=conn, grant=True)
+
+            # Verify permissions were granted
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', 'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0])
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertTrue(cur.fetchone()[0])
 
 
 if __name__ == "__main__":

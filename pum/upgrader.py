@@ -193,6 +193,7 @@ class Upgrader:
         beta_testing: bool = False,
         skip_drop_app: bool = False,
         skip_create_app: bool = False,
+        grant: bool = True,
     ) -> None:
         """Upgrades the given module
         The changelogs are applied in the order they are found in the directory.
@@ -212,6 +213,8 @@ class Upgrader:
                 If True, drop app handlers will be skipped.
             skip_create_app:
                 If True, create app handlers will be skipped.
+            grant:
+                If True, permissions will be granted to the roles.
         """
         if not self.schema_migrations.exists(connection):
             msg = (
@@ -250,6 +253,9 @@ class Upgrader:
         if not skip_create_app:
             for create_app_hook in self.config.create_app_handlers():
                 create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        if grant:
+            self.config.role_manager().grant_permissions(connection=connection, commit=False)
 
         connection.commit()
         logger.info("Upgrade completed and changes committed to the database.")
