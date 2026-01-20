@@ -58,9 +58,14 @@ class Permission:
             if self.type == PermissionType.READ:
                 SqlContent("""
                         GRANT USAGE ON SCHEMA {schema} TO {role};
-                        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
                         GRANT SELECT, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA {schema} TO {role};
+                        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
+                        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {schema} TO {role};
+                        GRANT EXECUTE ON ALL ROUTINES IN SCHEMA {schema} TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT, REFERENCES, TRIGGER ON TABLES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON SEQUENCES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON FUNCTIONS TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON ROUTINES TO {role};
                            """).execute(
                     connection=connection,
                     commit=False,
@@ -74,7 +79,12 @@ class Permission:
                         GRANT ALL ON SCHEMA {schema} TO {role};
                         GRANT ALL ON ALL TABLES IN SCHEMA {schema} TO {role};
                         GRANT ALL ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
+                        GRANT ALL ON ALL FUNCTIONS IN SCHEMA {schema} TO {role};
+                        GRANT ALL ON ALL ROUTINES IN SCHEMA {schema} TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON TABLES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON SEQUENCES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON FUNCTIONS TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON ROUTINES TO {role};
                            """).execute(
                     connection=connection,
                     commit=False,
