@@ -89,24 +89,17 @@ class Checker:
         exclude_field_pattern=None,
         ignore_list=None,
     ):
-        """Constructor
+        """Initialize the Checker.
 
-        Parameters
-        ----------
-        pg_service1: str
-            The name of the postgres service (defined in pg_service.conf)
-            related to the first db to be compared
-        pg_service2: str
-            The name of the postgres service (defined in pg_service.conf)
-            related to the second db to be compared
-        ignore_list: list(str)
-            List of elements to be ignored in check (ex. tables, columns,
-            views, ...)
-        exclude_schema: list of strings
-            List of schemas to be ignored in check.
-        exclude_field_pattern: list of strings
-            List of field patterns to be ignored in check.
-
+        Args:
+            pg_service1: The name of the postgres service (defined in pg_service.conf)
+                related to the first db to be compared.
+            pg_service2: The name of the postgres service (defined in pg_service.conf)
+                related to the second db to be compared.
+            exclude_schema: List of schemas to be ignored in check.
+            exclude_field_pattern: List of field patterns to be ignored in check.
+            ignore_list: List of elements to be ignored in check (ex. tables, columns,
+                views, ...).
         """
         self.pg_service1 = pg_service1
         self.pg_service2 = pg_service2
@@ -128,11 +121,8 @@ class Checker:
     def run_checks(self) -> ComparisonReport:
         """Run all the checks functions.
 
-        Returns
-        -------
-        ComparisonReport
-            Complete comparison report with all check results
-
+        Returns:
+            Complete comparison report with all check results.
         """
         checks = [
             ("tables", "Tables", self.check_tables),
@@ -169,14 +159,10 @@ class Checker:
     def check_tables(self):
         """Check if the tables are equals.
 
-        Returns
-        -------
-        bool
-            True if the tables are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the tables are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""SELECT table_schema, table_name
                 FROM information_schema.tables
@@ -191,20 +177,14 @@ class Checker:
     def check_columns(self, check_views=True):
         """Check if the columns in all tables are equals.
 
-        Parameters
-        ----------
-        check_views: bool
-            if True, check the columns of all the tables and views, if
-            False check only the columns of the tables
+        Args:
+            check_views: If True, check the columns of all the tables and views,
+                if False check only the columns of the tables.
 
-        Returns
-        -------
-        bool
-            True if the columns are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the columns are the same, False otherwise.
+                - list: A list with the differences.
         """
         with_query = None
         if check_views:
@@ -249,14 +229,10 @@ class Checker:
     def check_constraints(self):
         """Check if the constraints are equals.
 
-        Returns
-        -------
-        bool
-            True if the constraints are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the constraints are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = f""" select
                         tc.constraint_name,
@@ -284,14 +260,10 @@ class Checker:
     def check_views(self):
         """Check if the views are equals.
 
-        Returns
-        -------
-        bool
-            True if the views are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the views are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
         SELECT table_name, REPLACE(view_definition,'"','')
@@ -307,14 +279,10 @@ class Checker:
     def check_sequences(self):
         """Check if the sequences are equals.
 
-        Returns
-        -------
-        bool
-            True if the sequences are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the sequences are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = f"""
         SELECT c.relname,
@@ -330,14 +298,10 @@ class Checker:
     def check_indexes(self):
         """Check if the indexes are equals.
 
-        Returns
-        -------
-        bool
-            True if the indexes are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the indexes are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
         select
@@ -371,14 +335,10 @@ class Checker:
     def check_triggers(self):
         """Check if the triggers are equals.
 
-        Returns
-        -------
-        bool
-            True if the triggers are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the triggers are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = f"""
         WITH trigger_list AS (
@@ -400,14 +360,10 @@ class Checker:
     def check_functions(self):
         """Check if the functions are equals.
 
-        Returns
-        -------
-        bool
-            True if the functions are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the functions are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
         SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
@@ -427,14 +383,10 @@ class Checker:
     def check_rules(self):
         """Check if the rules are equals.
 
-        Returns
-        -------
-        bool
-            True if the rules are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the rules are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
         select n.nspname as rule_schema,
@@ -461,14 +413,13 @@ class Checker:
     def __check_equals(self, query) -> tuple[bool, list[DifferenceItem]]:
         """Check if the query results on the two databases are equals.
 
-        Returns
-        -------
-        bool
-            True if the results are the same
-            False otherwise
-        list[DifferenceItem]
-            A list of DifferenceItem objects
+        Args:
+            query: The SQL query to execute on both databases.
 
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the results are the same, False otherwise.
+                - list[DifferenceItem]: A list of DifferenceItem objects.
         """
         self.cur1.execute(query)
         records1 = self.cur1.fetchall()
