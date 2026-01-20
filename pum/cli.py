@@ -286,6 +286,47 @@ def cli() -> int:  # noqa: PLR0912
         parser.print_help()
         parser.exit()
 
+    # Handle check command separately (doesn't need db connection)
+    if args.command == "check":
+        exit_code = 0
+        checker = Checker(
+            args.pg_service,
+            args.pg_service_compared,
+            exclude_schema=args.exclude_schema or [],
+            exclude_field_pattern=args.exclude_field_pattern or [],
+            ignore_list=args.ignore or [],
+        )
+        report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
+
+        if report.passed:
+            logger.info("OK")
+        else:
+            logger.info("DIFFERENCES FOUND")
+
+        if args.format == "html":
+            html_report = ReportGenerator.generate_html(report)
+            if args.output_file:
+                with open(args.output_file, "w", encoding="utf-8") as f:
+                    f.write(html_report)
+                logger.info(f"HTML report written to {args.output_file}")
+            else:
+                print(html_report)
+        else:
+            # Text output (backward compatible)
+            text_output = ReportGenerator.generate_text(report)
+            if args.output_file:
+                with open(args.output_file, "w") as f:
+                    f.write(text_output)
+            else:
+                print(text_output)
+
+        if not report.passed:
+            exit_code = 1
+
+        return exit_code
+
     validate = args.command not in ("info", "baseline")
     if args.config_file:
         config = PumConfig.from_yaml(args.config_file, validate=validate, install_dependencies=True)
@@ -376,42 +417,6 @@ def cli() -> int:  # noqa: PLR0912
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
-        elif args.command == "check":
-            checker = Checker(
-                args.pg_service,
-                args.pg_service_compared,
-                exclude_schema=args.exclude_schema or [],
-                exclude_field_pattern=args.exclude_field_pattern or [],
-                ignore_list=args.ignore or [],
-            )
-            report = checker.run_checks()
-            checker.conn1.close()
-            checker.conn2.close()
-
-            if report.passed:
-                logger.info("OK")
-            else:
-                logger.info("DIFFERENCES FOUND")
-
-            if args.format == "html":
-                html_report = ReportGenerator.generate_html(report)
-                if args.output_file:
-                    with open(args.output_file, "w", encoding="utf-8") as f:
-                        f.write(html_report)
-                    logger.info(f"HTML report written to {args.output_file}")
-                else:
-                    print(html_report)
-            else:
-                # Text output (backward compatible)
-                text_output = ReportGenerator.generate_text(report)
-                if args.output_file:
-                    with open(args.output_file, "w") as f:
-                        f.write(text_output)
-                else:
-                    print(text_output)
-
-            if not report.passed:
-                exit_code = 1
         elif args.command == "dump":
             pass
         elif args.command == "restore":
