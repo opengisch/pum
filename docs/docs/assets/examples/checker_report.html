@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Comparison Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header .meta {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .summary-card.success {
+            border-left-color: #28a745;
+        }
+
+        .summary-card.error {
+            border-left-color: #dc3545;
+        }
+
+        .summary-card.warning {
+            border-left-color: #ffc107;
+        }
+
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .summary-card.success .value {
+            color: #28a745;
+        }
+
+        .summary-card.error .value {
+            color: #dc3545;
+        }
+
+        .summary-card.warning .value {
+            color: #ffc107;
+        }
+
+        .summary-card .label {
+            font-size: 14px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .check-section {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .check-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .check-header:hover {
+            background: #e9ecef;
+        }
+
+        .check-header h2 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .diff-count {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .check-body {
+            padding: 20px;
+            background: white;
+        }
+
+        .check-body.collapsed {
+            display: none;
+        }
+
+        .no-differences {
+            color: #28a745;
+            font-style: italic;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .diff-list {
+            list-style: none;
+        }
+
+        .diff-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            border-left: 3px solid;
+            word-break: break-all;
+            position: relative;
+        }
+
+        .diff-item.removed {
+            background: #fff5f5;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+
+        .diff-item.added {
+            background: #f0f9ff;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+
+        .diff-item .diff-marker {
+            display: inline-block;
+            width: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .diff-item .db-label {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 10px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .diff-item.removed .db-label {
+            background: #dc3545;
+            color: white;
+        }
+
+        .diff-item.added .db-label {
+            background: #28a745;
+            color: white;
+        }
+
+        .diff-explanation {
+            font-size: 12px;
+            font-style: italic;
+            color: #6c757d;
+            margin-bottom: 5px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .tooltip {
+            position: relative;
+            cursor: help;
+            border-bottom: 1px dotted #999;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #555;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            font-style: normal;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .diff-content {
+            margin-top: 5px;
+            padding-left: 40px;
+        }
+
+        .schema-object {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .object-detail {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .object-extra {
+            color: #6c757d;
+            font-size: 12px;
+            margin-top: 3px;
+            padding-left: 40px;
+        }
+
+        .object-content {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+        }
+
+        .collapsible-toggle {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            margin-left: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: background 0.2s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .collapsible-toggle:hover {
+            background: #0056b3;
+        }
+
+        .collapsible-toggle::before {
+            content: '▶ ';
+            font-size: 10px;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .collapsible-toggle:not(.collapsed)::before {
+            content: '▼ ';
+        }
+
+        .collapsible-content {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            display: block;
+            width: 100%;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+
+        .sql-widget {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .sql-widget::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .sql-widget::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .sql-widget::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .sql-widget::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .expand-collapse {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .expand-collapse button {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 14px;
+            padding: 5px 10px;
+        }
+
+        .expand-collapse button:hover {
+            color: #764ba2;
+        }
+    </style>
+    <script>
+        function toggleCollapsible(element) {
+            // Check if element is a button or a table header div
+            if (element.tagName === 'BUTTON') {
+                element.classList.toggle('collapsed');
+                // Find the corresponding collapsible-content div
+                let content = null;
+                const parent = element.parentElement;
+
+                // Check if collapsible-content is a sibling of the button (constraints/indexes/views/etc)
+                // or a sibling of the parent div (columns)
+                let hasSiblingContent = false;
+                let sibling = element.nextElementSibling;
+                while (sibling) {
+                    if (sibling.classList && sibling.classList.contains('collapsible-content')) {
+                        hasSiblingContent = true;
+                        break;
+                    }
+                    sibling = sibling.nextElementSibling;
+                }
+
+                if (hasSiblingContent) {
+                    // Content divs are siblings of buttons - match by index
+                    const allButtons = [];
+                    const allContents = [];
+                    sibling = parent.firstElementChild;
+
+                    while (sibling) {
+                        if (sibling.tagName === 'BUTTON' && sibling.classList.contains('collapsible-toggle')) {
+                            allButtons.push(sibling);
+                        } else if (sibling.classList && sibling.classList.contains('collapsible-content')) {
+                            allContents.push(sibling);
+                        }
+                        sibling = sibling.nextElementSibling;
+                    }
+
+                    const buttonIndex = allButtons.indexOf(element);
+                    if (buttonIndex >= 0 && buttonIndex < allContents.length) {
+                        content = allContents[buttonIndex];
+                    }
+                } else {
+                    // Content div is sibling of parent (columns case)
+                    content = parent.nextElementSibling;
+                }
+
+                if (content && content.classList.contains('collapsible-content')) {
+                    content.classList.toggle('collapsed');
+                }
+            } else if (element.tagName === 'DIV') {
+                // Handle table header clicks
+                const schemaObject = element.querySelector('.schema-object');
+                if (schemaObject) {
+                    const isExpanded = schemaObject.textContent.startsWith('▼');
+                    schemaObject.textContent = (isExpanded ? '▶' : '▼') + schemaObject.textContent.substring(1);
+                }
+                const content = element.nextElementSibling;
+                if (content && content.classList.contains('collapsible-content')) {
+                    content.classList.toggle('collapsed');
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Database Comparison Report</h1>
+            <div class="meta">
+                <div>Database 1: <strong>pum_test</strong></div>
+                <div>Database 2: <strong>pum_test_2</strong></div>
+                <div>Generated: 2026-01-21 16:11:56</div>
+            </div>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card">
+                <div class="label">Total Checks</div>
+                <div class="value">9</div>
+            </div>
+            <div class="summary-card success">
+                <div class="label">Passed</div>
+                <div class="value">0</div>
+            </div>
+            <div class="summary-card error">
+                <div class="label">Failed</div>
+                <div class="value">9</div>
+            </div>
+            <div class="summary-card warning">
+                <div class="label">Total Differences</div>
+                <div class="value">21</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="expand-collapse">
+                <button onclick="expandAll()">Expand All</button> |
+                <button onclick="collapseAll()">Collapse All</button>
+            </div>
+
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('tables')">
+                    <h2>
+                        Tables
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        2 differences
+                    </span>
+                </div>
+                <div id="tables" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.orders</span>
+
+
+
+
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item added">
+                            <div class="diff-content">
+                                <span class="diff-marker">+</span>
+                                <span class="db-label tooltip">
+                                    DB2
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Extra in <strong>pum_test_2</strong><br>
+                                        Not present in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.inventory</span>
+
+
+
+
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('columns')">
+                    <h2>
+                        Columns
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        5 differences
+                    </span>
+                </div>
+                <div id="columns" class="check-body">
+
+
+
+
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="margin-bottom: 10px; cursor: pointer;" onclick="toggleCollapsible(this)">
+                                <span class="schema-object">▼ pum_test_checker.users</span>
+                            </div>
+                            <div class="collapsible-content">
+                                <ul class="diff-list">
+
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                                    Only exists in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">phone</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: character varying | Nullable: YES | Max length: 20</div>
+                                        </div>
+
+                                    </li>
+
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                                    Only exists in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">status</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: character varying | Nullable: YES | Default: &#39;active&#39;::character varying | Max length: 20</div>
+                                        </div>
+
+                                    </li>
+
+
+                                    <li class="diff-item added">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">+</span>
+                                            <span class="db-label tooltip">
+                                                DB2
+                                                <span class="tooltiptext">
+                                                    ⚠️ Extra in <strong>pum_test_2</strong><br>
+                                                    Not present in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">email</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: character varying | Nullable: NO | Max length: 255</div>
+                                        </div>
+
+                                    </li>
+
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="margin-bottom: 10px; cursor: pointer;" onclick="toggleCollapsible(this)">
+                                <span class="schema-object">▼ pum_test_checker.products</span>
+                            </div>
+                            <div class="collapsible-content">
+                                <ul class="diff-list">
+
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                                    Only exists in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">weight</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: numeric | Nullable: YES | Precision: 10</div>
+                                        </div>
+
+                                    </li>
+
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                                    Only exists in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">description</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: text | Nullable: YES</div>
+                                        </div>
+
+                                    </li>
+
+
+                                </ul>
+                            </div>
+                        </div>
+
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('constraints')">
+                    <h2>
+                        Constraints
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        4 differences
+                    </span>
+                </div>
+                <div id="constraints" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.products</span>
+
+                                        <span class="object-detail">products_weight_positive</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: CHECK</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">CHECK (((weight IS NULL) OR (weight &gt; (0)::numeric)))</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.users</span>
+
+                                        <span class="object-detail">users_status_check</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: CHECK</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">CHECK (((status)::text = ANY ((ARRAY[&#39;active&#39;::character varying, &#39;inactive&#39;::character varying, &#39;pending&#39;::character varying])::text[])))</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item added">
+                            <div class="diff-content">
+                                <span class="diff-marker">+</span>
+                                <span class="db-label tooltip">
+                                    DB2
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Extra in <strong>pum_test_2</strong><br>
+                                        Not present in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.users</span>
+
+                                        <span class="object-detail">check_email</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: CHECK</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">CHECK (((email)::text ~~ &#39;%@%&#39;::text))</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item added">
+                            <div class="diff-content">
+                                <span class="diff-marker">+</span>
+                                <span class="db-label tooltip">
+                                    DB2
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Extra in <strong>pum_test_2</strong><br>
+                                        Not present in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.products</span>
+
+                                        <span class="object-detail">products_in_stock_check</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: CHECK</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">CHECK ((in_stock IS NOT NULL))</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('views')">
+                    <h2>
+                        Views
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        1 difference
+                    </span>
+                </div>
+                <div id="views" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.user_orders</span>
+
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget"> SELECT u.id,
+    u.username,
+    count(o.id) AS order_count
+   FROM (pum_test_checker.users u
+     LEFT JOIN pum_test_checker.orders o ON ((u.id = o.user_id)))
+  GROUP BY u.id, u.username;</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('sequences')">
+                    <h2>
+                        Sequences
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        3 differences
+                    </span>
+                </div>
+                <div id="sequences" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.orders_id_seq</span>
+
+
+
+
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.invoice_sequence</span>
+
+
+
+
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item added">
+                            <div class="diff-content">
+                                <span class="diff-marker">+</span>
+                                <span class="db-label tooltip">
+                                    DB2
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Extra in <strong>pum_test_2</strong><br>
+                                        Not present in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.inventory_id_seq</span>
+
+
+
+
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('indexes')">
+                    <h2>
+                        Indexes
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        2 differences
+                    </span>
+                </div>
+                <div id="indexes" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.products</span>
+
+                                        <span class="object-detail">idx_products_name_desc</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Column: name</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">CREATE INDEX idx_products_name_desc ON pum_test_checker.products USING btree (name, description)</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.products</span>
+
+                                        <span class="object-detail">idx_products_name_desc</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Column: description</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">CREATE INDEX idx_products_name_desc ON pum_test_checker.products USING btree (name, description)</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('triggers')">
+                    <h2>
+                        Triggers
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        1 difference
+                    </span>
+                </div>
+                <div id="triggers" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.orders</span>
+
+                                        <span class="object-detail">orders_update_trigger</span>
+
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">
+BEGIN
+    NEW.order_date = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('functions')">
+                    <h2>
+                        Functions
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        2 differences
+                    </span>
+                </div>
+                <div id="functions" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.get_order_count</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Parameter type: integer</div>
+                                        </div>
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">
+BEGIN
+    RETURN (SELECT COUNT(*) FROM pum_test_checker.orders WHERE user_id = p_user_id);
+END;
+</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.update_order_timestamp</span>
+
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">
+BEGIN
+    NEW.order_date = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+</div>
+                                        </div>
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+            <div class="check-section">
+                <div class="check-header" onclick="toggleSection('rules')">
+                    <h2>
+                        Rules
+                        <span class="badge error">
+                            FAILED
+                        </span>
+                    </h2>
+                    <span class="diff-count">
+                        1 difference
+                    </span>
+                </div>
+                <div id="rules" class="check-body">
+
+
+                    <ul class="diff-list">
+
+
+                        <li class="diff-item removed">
+                            <div class="diff-content">
+                                <span class="diff-marker">-</span>
+                                <span class="db-label tooltip">
+                                    DB1
+                                    <span class="tooltiptext">
+
+                                        ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                        Only exists in pum_test
+
+                                    </span>
+                                </span>
+
+                                    <span class="schema-object">pum_test_checker.user_orders</span>
+
+                                        <span class="object-detail">_RETURN</span>
+
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+
+
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Event: SELECT</div>
+                                        </div>
+
+
+
+                            </div>
+                        </li>
+
+                    </ul>
+
+
+                </div>
+            </div>
+
+        </div>
+
+        <div class="footer">
+            Generated by PUM Database Checker
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(id) {
+            const element = document.getElementById(id);
+            element.classList.toggle('collapsed');
+        }
+
+        function expandAll() {
+            document.querySelectorAll('.check-body').forEach(el => {
+                el.classList.remove('collapsed');
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.check-body').forEach(el => {
+                el.classList.add('collapsed');
+            });
+        }
+    </script>
+</body>
+</html>

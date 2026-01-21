@@ -1,0 +1,314 @@
+{
+  "pg_service1": "pum_test",
+  "pg_service2": "pum_test_2",
+  "timestamp": "2026-01-21T16:11:55.444711",
+  "passed": false,
+  "total_checks": 9,
+  "passed_checks": 0,
+  "failed_checks": 9,
+  "total_differences": 21,
+  "check_results": [
+    {
+      "name": "Tables",
+      "key": "tables",
+      "passed": false,
+      "difference_count": 2,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "orders"
+          }
+        },
+        {
+          "type": "added",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "inventory"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Columns",
+      "key": "columns",
+      "passed": false,
+      "difference_count": 5,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "users",
+            "column_name": "phone",
+            "column_default": null,
+            "is_nullable": "YES",
+            "data_type": "character varying",
+            "character_maximum_length": "20",
+            "numeric_precision": null,
+            "numeric_precision_radix": null,
+            "datetime_precision": null
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "products",
+            "column_name": "weight",
+            "column_default": null,
+            "is_nullable": "YES",
+            "data_type": "numeric",
+            "character_maximum_length": null,
+            "numeric_precision": "10",
+            "numeric_precision_radix": "10",
+            "datetime_precision": null
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "products",
+            "column_name": "description",
+            "column_default": null,
+            "is_nullable": "YES",
+            "data_type": "text",
+            "character_maximum_length": null,
+            "numeric_precision": null,
+            "numeric_precision_radix": null,
+            "datetime_precision": null
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "users",
+            "column_name": "status",
+            "column_default": "'active'::character varying",
+            "is_nullable": "YES",
+            "data_type": "character varying",
+            "character_maximum_length": "20",
+            "numeric_precision": null,
+            "numeric_precision_radix": null,
+            "datetime_precision": null
+          }
+        },
+        {
+          "type": "added",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "users",
+            "column_name": "email",
+            "column_default": null,
+            "is_nullable": "NO",
+            "data_type": "character varying",
+            "character_maximum_length": "255",
+            "numeric_precision": null,
+            "numeric_precision_radix": null,
+            "datetime_precision": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "Constraints",
+      "key": "constraints",
+      "passed": false,
+      "difference_count": 4,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "constraint_name": "users_status_check",
+            "physical_full_name": "pum_test_checker.users",
+            "constraint_schema": "pum_test_checker",
+            "table_name": "users",
+            "column_name": "",
+            "foreign_table_name": "",
+            "foreign_column_name": "",
+            "constraint_type": "CHECK",
+            "constraint_definition": "CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying, 'pending'::character varying])::text[])))"
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "constraint_name": "products_weight_positive",
+            "physical_full_name": "pum_test_checker.products",
+            "constraint_schema": "pum_test_checker",
+            "table_name": "products",
+            "column_name": "",
+            "foreign_table_name": "",
+            "foreign_column_name": "",
+            "constraint_type": "CHECK",
+            "constraint_definition": "CHECK (((weight IS NULL) OR (weight > (0)::numeric)))"
+          }
+        },
+        {
+          "type": "added",
+          "content": {
+            "constraint_name": "products_in_stock_check",
+            "physical_full_name": "pum_test_checker.products",
+            "constraint_schema": "pum_test_checker",
+            "table_name": "products",
+            "column_name": "",
+            "foreign_table_name": "",
+            "foreign_column_name": "",
+            "constraint_type": "CHECK",
+            "constraint_definition": "CHECK ((in_stock IS NOT NULL))"
+          }
+        },
+        {
+          "type": "added",
+          "content": {
+            "constraint_name": "check_email",
+            "physical_full_name": "pum_test_checker.users",
+            "constraint_schema": "pum_test_checker",
+            "table_name": "users",
+            "column_name": "",
+            "foreign_table_name": "",
+            "foreign_column_name": "",
+            "constraint_type": "CHECK",
+            "constraint_definition": "CHECK (((email)::text ~~ '%@%'::text))"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Views",
+      "key": "views",
+      "passed": false,
+      "difference_count": 1,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "table_schema": "pum_test_checker",
+            "table_name": "user_orders",
+            "replace": " SELECT u.id,\n    u.username,\n    count(o.id) AS order_count\n   FROM (pum_test_checker.users u\n     LEFT JOIN pum_test_checker.orders o ON ((u.id = o.user_id)))\n  GROUP BY u.id, u.username;"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sequences",
+      "key": "sequences",
+      "passed": false,
+      "difference_count": 3,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "relname": "invoice_sequence",
+            "schema_name": "pum_test_checker"
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "relname": "orders_id_seq",
+            "schema_name": "pum_test_checker"
+          }
+        },
+        {
+          "type": "added",
+          "content": {
+            "relname": "inventory_id_seq",
+            "schema_name": "pum_test_checker"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Indexes",
+      "key": "indexes",
+      "passed": false,
+      "difference_count": 2,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "schema_name": "pum_test_checker",
+            "table_name": "products",
+            "index_name": "idx_products_name_desc",
+            "column_name": "description",
+            "index_definition": "CREATE INDEX idx_products_name_desc ON pum_test_checker.products USING btree (name, description)"
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "schema_name": "pum_test_checker",
+            "table_name": "products",
+            "index_name": "idx_products_name_desc",
+            "column_name": "name",
+            "index_definition": "CREATE INDEX idx_products_name_desc ON pum_test_checker.products USING btree (name, description)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Triggers",
+      "key": "triggers",
+      "passed": false,
+      "difference_count": 1,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "schema_name": "pum_test_checker",
+            "relname": "orders",
+            "tgname": "orders_update_trigger",
+            "prosrc": "\nBEGIN\n    NEW.order_date = CURRENT_TIMESTAMP;\n    RETURN NEW;\nEND;\n"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Functions",
+      "key": "functions",
+      "passed": false,
+      "difference_count": 2,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "routine_schema": "pum_test_checker",
+            "routine_name": "update_order_timestamp",
+            "data_type": null,
+            "routine_definition": "\nBEGIN\n    NEW.order_date = CURRENT_TIMESTAMP;\n    RETURN NEW;\nEND;\n"
+          }
+        },
+        {
+          "type": "removed",
+          "content": {
+            "routine_schema": "pum_test_checker",
+            "routine_name": "get_order_count",
+            "data_type": "integer",
+            "routine_definition": "\nBEGIN\n    RETURN (SELECT COUNT(*) FROM pum_test_checker.orders WHERE user_id = p_user_id);\nEND;\n"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rules",
+      "key": "rules",
+      "passed": false,
+      "difference_count": 1,
+      "differences": [
+        {
+          "type": "removed",
+          "content": {
+            "rule_schema": "pum_test_checker",
+            "rule_table": "user_orders",
+            "rule_name": "_RETURN",
+            "rule_event": "SELECT"
+          }
+        }
+      ]
+    }
+  ]
+}

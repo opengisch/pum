@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Script to test the PUM checker CLI and generate HTML report
+# Script to test the PUM checker CLI and generate example reports in all formats
 # This script sets up two test databases with different schemas and runs the checker
 
 # Don't exit on error for the checker command (it returns 1 when differences found)
@@ -10,7 +10,13 @@ set -e
 PG_SERVICE1="pum_test"
 PG_SERVICE2="pum_test_2"
 TEST_DIR="test/data/checker_test"
-OUTPUT_FILE="checker_report.html"
+DOCS_DIR="docs/docs/assets/examples"
+OUTPUT_TEXT="$DOCS_DIR/checker_report.txt"
+OUTPUT_JSON="$DOCS_DIR/checker_report.json"
+OUTPUT_HTML="$DOCS_DIR/checker_report.html"
+
+# Create docs directory if it doesn't exist
+mkdir -p "$DOCS_DIR"
 
 echo "🔧 Setting up test databases..."
 
@@ -27,22 +33,43 @@ pum -s $PG_SERVICE2 -d $TEST_DIR install --max-version 1.0.0
 echo "⬆️  Upgrading $PG_SERVICE1 to version 1.1.0..."
 pum -s $PG_SERVICE1 -d $TEST_DIR upgrade
 
-# Run checker and generate HTML report (allow exit code 1 for differences found)
-echo "🔍 Running checker and generating HTML report..."
+# Run checker and generate reports in all formats
+echo "🔍 Running checker and generating reports in all formats..."
 set +e  # Don't exit on error for this command
+
+# Text format
+echo "  📝 Generating text report..."
+pum -s $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
+    -N public \
+    -f text \
+    -o $OUTPUT_TEXT
+CHECKER_EXIT=$?
+
+# JSON format
+echo "  📊 Generating JSON report..."
+pum -s $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
+    -N public \
+    -f json \
+    -o $OUTPUT_JSON
+
+# HTML format
+echo "  🌐 Generating HTML report..."
 pum -s $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
     -N public \
     -f html \
-    -o $OUTPUT_FILE
-CHECKER_EXIT=$?
+    -o $OUTPUT_HTML
+
 set -e
 
 if [ $CHECKER_EXIT -eq 0 ]; then
     echo "✅ No differences found (unexpected!)"
 elif [ $CHECKER_EXIT -eq 1 ]; then
-    echo "✅ Done! Differences found and HTML report generated."
-    echo "📄 HTML report saved to: $OUTPUT_FILE"
-    echo "🌐 Open it with: open $OUTPUT_FILE"
+    echo "✅ Done! Differences found and reports generated."
+    echo "📄 Reports saved to:"
+    echo "   - Text: $OUTPUT_TEXT"
+    echo "   - JSON: $OUTPUT_JSON"
+    echo "   - HTML: $OUTPUT_HTML"
+    echo "🌐 Open HTML with: open $OUTPUT_HTML"
 else
     echo "❌ Checker failed with exit code $CHECKER_EXIT"
     exit $CHECKER_EXIT
