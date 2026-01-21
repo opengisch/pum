@@ -13,6 +13,7 @@ PUM (PostgreSQL Upgrades Manager) is a robust database migration management tool
 
 ## Key Features
 
+- **Flexible Database Connections**: Connect using PostgreSQL service names or direct connection strings (URI or parameters).
 - **Command-line and Python Integration**: Use PUM as a standalone CLI tool or integrate it into your Python project.
 - **Database Versioning**: Automatically manage database versioning with a metadata table.
 - **Changelog Management**: Apply and track SQL delta files for database upgrades.

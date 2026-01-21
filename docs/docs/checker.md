@@ -13,7 +13,7 @@ The Checker compares two PostgreSQL databases by analyzing their metadata from `
 
 ### Comparison Process
 
-1. **Connection**: Establishes connections to both databases using PostgreSQL service names
+1. **Connection**: Establishes connections to both databases using either PostgreSQL service names or connection strings
 2. **Element Scanning**: Queries database metadata for each structural element
 3. **Comparison**: Compares the results between the two databases
 4. **Difference Detection**: Identifies added (+) or removed (-) elements
@@ -177,7 +177,8 @@ This compares the `my_database` service against `production_database` and shows 
 ### Advanced Example
 
 ```bash
-pum -s dev_db check prod_db \
+```bash
+pum -p dev_db check prod_db \
   --ignore triggers functions \
   --exclude-schema audit \
   --format html \
@@ -185,6 +186,13 @@ pum -s dev_db check prod_db \
 ```
 
 This creates an HTML report comparing databases while ignoring triggers and functions, and excluding the audit schema.
+
+You can also use full connection strings:
+
+```bash
+pum -p "postgresql://user:pass@localhost/dev_db" check "postgresql://user:pass@remotehost/prod_db" \
+  --format json
+```
 
 ## Exit Codes
 
@@ -201,9 +209,18 @@ You can also use the Checker in Python code:
 from pum.checker import Checker
 from pum.report_generator import ReportGenerator
 
+# Using service names
 checker = Checker(
-    pg_service1="development",
-    pg_service2="production",
+    pg_connection1="development",
+    pg_connection2="production",
+    exclude_schema=["audit"],
+    ignore_list=["triggers"]
+)
+
+# Or using connection strings
+checker = Checker(
+    pg_connection1="postgresql://user:pass@localhost/dev_db",
+    pg_connection2="postgresql://user:pass@remotehost/prod_db",
     exclude_schema=["audit"],
     ignore_list=["triggers"]
 )
@@ -219,6 +236,7 @@ else:
 html = ReportGenerator.generate_html(report)
 with open("report.html", "w") as f:
     f.write(html)
+```
 ```
 
 ## See Also

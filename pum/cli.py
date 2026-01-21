@@ -19,6 +19,35 @@ from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat
 
 
+def format_connection_string(pg_connection: str) -> str:
+    """Format a connection string for use with psycopg.
+
+    Detects whether the input is a service name or a full connection string.
+    If it's a service name (simple identifier), wraps it as 'service=name'.
+    If it's a connection string (contains '=' or '://'), returns as-is.
+
+    Args:
+        pg_connection: Either a service name or a PostgreSQL connection string
+
+    Returns:
+        A properly formatted connection string for psycopg
+
+    Examples:
+        >>> format_connection_string('myservice')
+        'service=myservice'
+        >>> format_connection_string('postgresql://user:pass@localhost/db')
+        'postgresql://user:pass@localhost/db'
+        >>> format_connection_string('host=localhost dbname=mydb')
+        'host=localhost dbname=mydb'
+
+    """
+    # If it contains '=' or '://', it's already a connection string
+    if "=" in pg_connection or "://" in pg_connection:
+        return pg_connection
+    # Otherwise, it's a service name
+    return f"service={pg_connection}"
+
+
 def setup_logging(verbosity: int = 0):
     """Configure logging for the CLI.
 
@@ -60,15 +89,17 @@ def setup_logging(verbosity: int = 0):
 
 
 class Pum:
-    def __init__(self, pg_service: str, config: str | PumConfig = None) -> None:
+    def __init__(self, pg_connection: str, config: str | PumConfig = None) -> None:
         """Initialize the PUM class with a database connection and configuration.
 
         Args:
-            pg_service (str): The name of the postgres service (defined in pg_service.conf)
+            pg_connection (str): PostgreSQL service name or connection string.
+                Can be a service name (e.g., 'mydb') or a full connection string
+                (e.g., 'postgresql://user:pass@host/db' or 'host=localhost dbname=mydb').
             config (str | PumConfig): The configuration file path or a PumConfig object.
 
         """
-        self.pg_service = pg_service
+        self.pg_connection = pg_connection
 
         if isinstance(config, str):
             self.config = PumConfig.from_yaml(config)
@@ -102,7 +133,12 @@ def create_parser(
         formatter_class=formatter_class,
     )
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
-    parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
+    parser.add_argument(
+        "-p",
+        "--pg-connection",
+        help="PostgreSQL service name or connection string (e.g., 'mydb' or 'postgresql://user:pass@host/db')",
+        required=True,
+    )
 
     parser.add_argument(
         "-d", "--dir", help="Directory or URL of the module. Default: .", default="."
@@ -213,7 +249,8 @@ def create_parser(
     )
 
     parser_checker.add_argument(
-        "pg_service_compared", help="Name of the postgres service to compare against"
+        "pg_connection_compared",
+        help="PostgreSQL service name or connection string for the database to compare against",
     )
 
     parser_checker.add_argument(
@@ -320,8 +357,8 @@ def cli() -> int:  # noqa: PLR0912
     if args.command == "check":
         exit_code = 0
         checker = Checker(
-            args.pg_service,
-            args.pg_service_compared,
+            args.pg_connection,
+            args.pg_connection_compared,
             exclude_schema=args.exclude_schema or [],
             exclude_field_pattern=args.exclude_field_pattern or [],
             ignore_list=args.ignore or [],
@@ -373,10 +410,10 @@ def cli() -> int:  # noqa: PLR0912
             Path(args.dir) / ".pum.yaml", validate=validate, install_dependencies=True
         )
 
-    with psycopg.connect(f"service={args.pg_service}") as conn:
+    with psycopg.connect(format_connection_string(args.pg_connection)) as conn:
         # Check if the connection is successful
         if not conn:
-            logger.error(f"Could not connect to the database using service: {args.pg_service}")
+            logger.error(f"Could not connect to the database: {args.pg_connection}")
             sys.exit(1)
 
         # Build parameters dict for install and upgrade commands
@@ -399,7 +436,7 @@ def cli() -> int:  # noqa: PLR0912
                     raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
             logger.debug(f"Parameters: {parameters}")
 
-        pum = Pum(args.pg_service, config)
+        pum = Pum(args.pg_connection, config)
         exit_code = 0
 
         if args.command == "info":
@@ -458,7 +495,7 @@ def cli() -> int:  # noqa: PLR0912
         elif args.command == "dump":
             pass
         elif args.command == "restore":
-            pum.run_restore(args.pg_service, args.file, args.x, args.exclude_schema)
+            pum.run_restore(args.pg_connection, args.file, args.x, args.exclude_schema)
         elif args.command == "baseline":
             sm = SchemaMigrations(config=config)
             if not sm.exists(connection=conn):
