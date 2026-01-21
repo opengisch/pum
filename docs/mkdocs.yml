@@ -67,6 +67,7 @@ markdown_extensions:
 nav:
   - About: index.md
   - Getting Started: getting_started.md
+  - Application: application.md
   - Configuration:
       - Overview: configuration/configuration.md
       - ConfigModel: configuration/config_model.md
@@ -78,8 +79,8 @@ nav:
       - PumModel: configuration/pum_model.md
       - RoleModel: configuration/role_model.md
 
-  - Application: application.md
   - Roles: roles.md
+  - Checker: checker.md
   - CLI:
       - Overview: cli.md
       - info: cli/info.md
