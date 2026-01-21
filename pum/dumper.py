@@ -8,29 +8,9 @@ from .exceptions import (
     PgRestoreCommandError,
     PgRestoreFailed,
 )
+from .connection import format_connection_string
 
 logger = logging.getLogger(__name__)
-
-
-def format_connection_string(pg_connection: str) -> str:
-    """Format a connection string for use with PostgreSQL tools.
-
-    Detects whether the input is a service name or a full connection string.
-    If it's a service name (simple identifier), wraps it as 'service=name'.
-    If it's a connection string (contains '=' or '://'), returns as-is.
-
-    Args:
-        pg_connection: Either a service name or a PostgreSQL connection string
-
-    Returns:
-        A properly formatted connection string
-
-    """
-    # If it contains '=' or '://', it's already a connection string
-    if "=" in pg_connection or "://" in pg_connection:
-        return pg_connection
-    # Otherwise, it's a service name
-    return f"service={pg_connection}"
 
 
 class DumpFormat(Enum):
