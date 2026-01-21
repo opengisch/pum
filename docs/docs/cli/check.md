@@ -1,10 +1,9 @@
 usage: pum check [-h]
 [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
 [-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE] [-f {text,html}]
-pg_service1 pg_service2
+pg_service_compared
 ### positional arguments:
-- `pg_service1`: Name of the first postgres service
-- `pg_service2`: Name of the second postgres service
+- `pg_service_compared`: Name of the postgres service to compare against
 ### options:
 - `-h, --help`: show this help message and exit
 - `-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...], --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]`: Elements to be ignored
