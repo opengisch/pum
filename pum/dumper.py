@@ -76,7 +76,7 @@ class Dumper:
                 command.append(f"--exclude-schema={schema}")
         command.extend(["-d", connection])
 
-        logger.info("Running pg_dump command: %s", " ".join(command))
+        logger.debug("Running pg_dump command: %s", " ".join(command))
 
         try:
             output = subprocess.run(command, capture_output=True, text=True, check=False)
@@ -106,7 +106,7 @@ class Dumper:
                 command.append(f"--exclude-schema={schema}")
         command.append(self.dump_path)
 
-        logger.info("Running pg_restore command: %s", " ".join(command))
+        logger.debug("Running pg_restore command: %s", " ".join(command))
 
         try:
             output = subprocess.run(command, capture_output=True, text=True, check=False)

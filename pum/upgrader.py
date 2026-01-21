@@ -239,7 +239,7 @@ class Upgrader:
                     )
                     logger.error(msg)
                     raise PumException(msg)
-                logger.info("Changelog version %s already applied, skipping.", changelog.version)
+                logger.debug("Changelog version %s already applied, skipping.", changelog.version)
                 continue
 
             changelog.apply(

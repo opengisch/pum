@@ -188,7 +188,7 @@ class HookHandler:
             parameters (dict, optional): Parameters to bind to the SQL statement. Defaults to ().
 
         """
-        logger.info(
+        logger.debug(
             f"Executing hook from file: {self.file} or SQL code with parameters: {parameters}",
         )
 

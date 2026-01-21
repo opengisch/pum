@@ -51,7 +51,7 @@ class DependencyHandler:
                     f"Installed version of `{self.name}` ({installed_version}) is higher than the maximum allowed ({self.maximum_version})."
                 )
 
-            logger.info(f"Dependency {self.name} is satisfied.")
+            logger.debug(f"Dependency {self.name} is satisfied.")
 
         except importlib.metadata.PackageNotFoundError as e:
             if not install_dependencies:

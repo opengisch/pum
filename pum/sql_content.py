@@ -234,7 +234,7 @@ class SqlContent:
 
         """
         if isinstance(self.sql, Path):
-            logger.info(
+            logger.debug(
                 f"Checking SQL from file: {self.sql} with parameters: {parameters}",
             )
             sql_code = sql_chunks_from_file(self.sql)

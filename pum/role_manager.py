@@ -54,7 +54,9 @@ class Permission:
             raise ValueError("Schemas must be defined for the permission.")
 
         for schema in self.schemas:
-            logger.info(f"Granting {self.type.value} permission on schema {schema} to role {role}.")
+            logger.debug(
+                f"Granting {self.type.value} permission on schema {schema} to role {role}."
+            )
             if self.type == PermissionType.READ:
                 SqlContent("""
                         GRANT USAGE ON SCHEMA {schema} TO {role};
@@ -218,9 +220,9 @@ class Role:
             commit: Whether to commit the transaction. Defaults to False.
         """
         if self.exists(connection):
-            logger.info(f"Role {self.name} already exists, skipping creation.")
+            logger.debug(f"Role {self.name} already exists, skipping creation.")
         else:
-            logger.info(f"Creating role {self.name}.")
+            logger.debug(f"Creating role {self.name}.")
             SqlContent(
                 "CREATE ROLE {name} NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION"
             ).execute(
