@@ -411,6 +411,72 @@ class TestChecker(unittest.TestCase):
             cur = conn.cursor()
             cur.execute("DROP SCHEMA IF EXISTS test_schema CASCADE;")
 
+    def test_report_generation(self):
+        """Test that report generation works for all formats (text, HTML, JSON)."""
+        from pum.report_generator import ReportGenerator
+        import json
+
+        # DB1 has 1.0.0, upgrade to 1.1.0 which adds differences
+        cfg = PumConfig(self.test_dir)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
+
+        # DB2 is empty - will have differences
+        checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
+        report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
+
+        self.assertFalse(report.passed)
+        self.assertGreater(report.total_differences, 0)
+
+        # Test text output
+        text_output = ReportGenerator.generate_text(report)
+        self.assertIsInstance(text_output, str)
+        self.assertIn("Tables", text_output)
+        self.assertIn("Columns", text_output)
+        self.assertIn("Constraints", text_output)
+
+        # Test JSON output
+        json_output = ReportGenerator.generate_json(report)
+        self.assertIsInstance(json_output, str)
+
+        # Verify JSON is valid and parseable
+        json_data = json.loads(json_output)
+        self.assertIn("pg_service1", json_data)
+        self.assertIn("pg_service2", json_data)
+        self.assertIn("timestamp", json_data)
+        self.assertIn("passed", json_data)
+        self.assertIn("check_results", json_data)
+        self.assertFalse(json_data["passed"])
+        self.assertIsInstance(json_data["check_results"], list)
+
+        # Verify check results have expected structure
+        for check in json_data["check_results"]:
+            self.assertIn("name", check)
+            self.assertIn("passed", check)
+            self.assertIn("difference_count", check)
+            self.assertIn("differences", check)
+            self.assertIsInstance(check["differences"], list)
+
+        # Test HTML output
+        html_output = ReportGenerator.generate_html(report)
+        self.assertIsInstance(html_output, str)
+        self.assertIn("<!DOCTYPE html>", html_output)
+        self.assertIn("Database Comparison Report", html_output)
+        self.assertIn(self.pg_service1, html_output)
+        self.assertIn(self.pg_service2, html_output)
+
+        # Verify collapsible functionality exists
+        self.assertIn("toggleCollapsible", html_output)
+        self.assertIn("collapsible-toggle", html_output)
+        self.assertIn("collapsible-content", html_output)
+
+        # Verify structured formatting helpers exist
+        self.assertIn("schema-object", html_output)
+        self.assertIn("object-detail", html_output)
+
 
 if __name__ == "__main__":
     unittest.main()
