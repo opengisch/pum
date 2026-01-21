@@ -197,6 +197,101 @@ class TestChecker(unittest.TestCase):
         constraints_check = next((r for r in report.check_results if r.key == "constraints"), None)
         self.assertTrue(constraints_check.passed)
 
+    def test_check_constraint_definition_changes(self):
+        """Test that constraint definition changes are detected.
+
+        This test addresses the issue from https://github.com/qwat/qwat-data-model/pull/366
+        where a constraint definition was changed from 'year > 1800' to 'year >= 1800'.
+        The checker should detect such changes in constraint definitions, not just
+        added/removed constraints.
+        """
+        # Clean up any previous test data
+        for service in (self.pg_service1, self.pg_service2):
+            with psycopg.connect(f"service={service}") as conn:
+                cur = conn.cursor()
+                cur.execute("DROP SCHEMA IF EXISTS pum_test_constraint_def CASCADE;")
+                cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
+
+        # Use the constraint definition change test data
+        test_dir = Path("test") / "data" / "constraint_definition_change"
+        cfg = PumConfig(test_dir)
+
+        # Install version 1.0.0 on both databases with old constraint definition (year > 1800)
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.0.0")
+
+        with psycopg.connect(f"service={self.pg_service2}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.0.0")
+
+        # At this point, both databases should be identical
+        checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
+        report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
+
+        constraints_check = next((r for r in report.check_results if r.key == "constraints"), None)
+        self.assertIsNotNone(constraints_check)
+        self.assertTrue(
+            constraints_check.passed,
+            "Databases should be identical after both installed with 1.0.0",
+        )
+
+        # Now upgrade DB1 to 1.1.0 which changes the constraint definition
+        # from 'year > 1800' to 'year >= 1800'
+        with psycopg.connect(f"service={self.pg_service1}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
+
+        # Check should now detect the constraint definition difference
+        checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
+        report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
+
+        constraints_check = next((r for r in report.check_results if r.key == "constraints"), None)
+        self.assertIsNotNone(constraints_check)
+        self.assertFalse(
+            constraints_check.passed, "Checker should detect constraint definition changes"
+        )
+
+        # Verify we have differences reported
+        self.assertGreater(
+            len(constraints_check.differences),
+            0,
+            "Should report differences in constraint definitions",
+        )
+
+        # Verify the differences mention the constraint
+        differences_str = str(constraints_check.differences)
+        self.assertIn(
+            "pipe_year_check", differences_str, "Should report the pipe_year_check constraint"
+        )
+
+        # Now upgrade DB2 to match DB1
+        with psycopg.connect(f"service={self.pg_service2}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn)
+
+        # Should now be identical again
+        checker = Checker(self.pg_service1, self.pg_service2, exclude_schema=["public"])
+        report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
+
+        constraints_check = next((r for r in report.check_results if r.key == "constraints"), None)
+        self.assertTrue(
+            constraints_check.passed, "Databases should be identical after both upgraded to 1.1.0"
+        )
+
+        # Cleanup
+        for service in (self.pg_service1, self.pg_service2):
+            with psycopg.connect(f"service={service}") as conn:
+                cur = conn.cursor()
+                cur.execute("DROP SCHEMA IF EXISTS pum_test_constraint_def CASCADE;")
+                cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
+
     def test_check_views(self):
         """Test view comparison between databases."""
         # Install same version on both databases first
