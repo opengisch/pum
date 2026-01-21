@@ -87,7 +87,7 @@ def parser_to_markdown(parser: argparse.ArgumentParser) -> str:
 
 if __name__ == "__main__":
     current_dir = Path(__file__).parent
-    parser = create_parser()
+    parser = create_parser(width=200, max_help_position=40)
     markdown_help = parser_to_markdown(parser)
     with open(current_dir / "docs/cli.md", "w") as f:
         f.write(markdown_help + "\n")

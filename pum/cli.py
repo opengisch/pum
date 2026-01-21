@@ -76,16 +76,30 @@ class Pum:
             self.config = config
 
 
-def create_parser() -> argparse.ArgumentParser:
+def create_parser(
+    max_help_position: int | None = None, width: int | None = None
+) -> argparse.ArgumentParser:
     """Create the main argument parser and all subparsers.
+
+    Args:
+        max_help_position: Maximum help position for formatting.
+        width: Width for formatting.
 
     Returns:
         The fully configured argument parser.
 
     """
+    if max_help_position is not None or width is not None:
+
+        def formatter_class(prog):
+            return argparse.HelpFormatter(
+                prog, max_help_position=max_help_position or 40, width=width or 200
+            )
+    else:
+        formatter_class = argparse.HelpFormatter
     parser = argparse.ArgumentParser(
         prog="pum",
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=200),
+        formatter_class=formatter_class,
     )
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
