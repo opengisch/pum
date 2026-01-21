@@ -1,6 +1,5 @@
-usage: pum check [-h]
-[-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
-[-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE] [-f {text,html}]
+usage: pum check [-h] [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
+[-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE] [-f {text,html,json}]
 pg_service_compared
 ### positional arguments:
 - `pg_service_compared`: Name of the postgres service to compare against
@@ -10,4 +9,4 @@ pg_service_compared
 - `-N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA`: Schema to be ignored.
 - `-P EXCLUDE_FIELD_PATTERN, --exclude-field-pattern EXCLUDE_FIELD_PATTERN`: Fields to be ignored based on a pattern compatible with SQL LIKE.
 - `-o OUTPUT_FILE, --output_file OUTPUT_FILE`: Output file
-- `-f {text,html}, --format {text,html}`: Output format: text or html. Default: text
+- `-f {text,html,json}, --format {text,html,json}`: Output format: text, html, or json. Default: text

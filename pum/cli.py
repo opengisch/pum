@@ -129,10 +129,16 @@ def create_parser(
     )
 
     # Parser for the "info" command
-    parser_info = subparsers.add_parser("info", help="show info about schema migrations history.")  # NOQA
+    parser_info = subparsers.add_parser(  # NOQA
+        "info",
+        help="show info about schema migrations history.",
+        formatter_class=formatter_class,
+    )
 
     # Parser for the "install" command
-    parser_install = subparsers.add_parser("install", help="Installs the module.")
+    parser_install = subparsers.add_parser(
+        "install", help="Installs the module.", formatter_class=formatter_class
+    )
     parser_install.add_argument(
         "-p",
         "--parameter",
@@ -165,7 +171,9 @@ def create_parser(
     )
 
     # Upgrade parser
-    parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade the database.")
+    parser_upgrade = subparsers.add_parser(
+        "upgrade", help="Upgrade the database.", formatter_class=formatter_class
+    )
     parser_upgrade.add_argument(
         "-p",
         "--parameter",
@@ -192,14 +200,16 @@ def create_parser(
     )
 
     # Role management parser
-    parser_role = subparsers.add_parser("role", help="manage roles in the database")
+    parser_role = subparsers.add_parser(
+        "role", help="manage roles in the database", formatter_class=formatter_class
+    )
     parser_role.add_argument(
         "action", choices=["create", "grant", "revoke", "drop"], help="Action to perform"
     )
 
     # Parser for the "check" command
     parser_checker = subparsers.add_parser(
-        "check", help="check the differences between two databases"
+        "check", help="check the differences between two databases", formatter_class=formatter_class
     )
 
     parser_checker.add_argument(
@@ -243,7 +253,9 @@ def create_parser(
     )
 
     # Parser for the "dump" command
-    parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
+    parser_dump = subparsers.add_parser(
+        "dump", help="dump a Postgres database", formatter_class=formatter_class
+    )
     parser_dump.add_argument(
         "-f",
         "--format",
@@ -259,7 +271,9 @@ def create_parser(
 
     # Parser for the "restore" command
     parser_restore = subparsers.add_parser(
-        "restore", help="restore a Postgres database from a dump file"
+        "restore",
+        help="restore a Postgres database from a dump file",
+        formatter_class=formatter_class,
     )
     parser_restore.add_argument("-x", help="ignore pg_restore errors", action="store_true")
     parser_restore.add_argument(
@@ -269,7 +283,9 @@ def create_parser(
 
     # Parser for the "baseline" command
     parser_baseline = subparsers.add_parser(
-        "baseline", help="Create upgrade information table and set baseline"
+        "baseline",
+        help="Create upgrade information table and set baseline",
+        formatter_class=formatter_class,
     )
     parser_baseline.add_argument(
         "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
