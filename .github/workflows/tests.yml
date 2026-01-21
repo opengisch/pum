@@ -79,6 +79,10 @@ jobs:
             exit 1
           fi
 
+      - name: Run dump and restore tests
+        shell: bash
+        run: ./test/test_dump_restore.sh
+
       # - name: Run migrations tests
       #   shell: bash
       #   run: ./test/test_pum.sh

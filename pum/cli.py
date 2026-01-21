@@ -17,7 +17,7 @@ from .info import run_info
 from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
-from .dumper import DumpFormat
+from .dumper import DumpFormat, Dumper
 
 
 def setup_logging(verbosity: int = 0):
@@ -408,7 +408,6 @@ def cli() -> int:  # noqa: PLR0912
                     raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
             logger.debug(f"Parameters: {parameters}")
 
-        pum = Pum(args.pg_connection, config)
         exit_code = 0
 
         if args.command == "info":
@@ -465,9 +464,21 @@ def cli() -> int:  # noqa: PLR0912
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
         elif args.command == "dump":
-            pass
+            dumper = Dumper(args.pg_connection, args.file)
+            dumper.pg_dump(
+                exclude_schema=args.exclude_schema or [],
+                format=args.format,
+            )
+            logger.info(f"Database dumped to {args.file}")
         elif args.command == "restore":
-            pum.run_restore(args.pg_connection, args.file, args.x, args.exclude_schema)
+            dumper = Dumper(args.pg_connection, args.file)
+            try:
+                dumper.pg_restore(exclude_schema=args.exclude_schema or [])
+                logger.info(f"Database restored from {args.file}")
+            except Exception as e:
+                if not args.x:
+                    raise
+                logger.warning(f"Restore completed with errors (ignored): {e}")
         elif args.command == "baseline":
             sm = SchemaMigrations(config=config)
             if not sm.exists(connection=conn):
