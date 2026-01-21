@@ -1,5 +1,14 @@
 import importlib
+import logging
 from typing import Any, TYPE_CHECKING
+
+# Configure default logging for API usage (not CLI)
+# CLI will override this with its own configuration
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+    )
 
 if TYPE_CHECKING:
     from .changelog import Changelog

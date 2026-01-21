@@ -6,8 +6,6 @@ from .pum_config import PumConfig
 from .schema_migrations import SchemaMigrations, MIGRATION_TABLE_NAME
 
 logger = logging.getLogger(__name__)
-# set to info here
-logger.setLevel(logging.INFO)
 
 
 def run_info(connection: psycopg.Connection, config: PumConfig) -> None:

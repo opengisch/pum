@@ -24,15 +24,15 @@ def setup_logging(verbosity: int = 0):
     """Configure logging for the CLI.
 
     Args:
-        verbosity: Verbosity level (0=WARNING, 1=INFO, 2+=DEBUG).
+        verbosity: Verbosity level (-1=quiet/WARNING, 0=INFO (default), 1+=DEBUG).
 
     """
-    level = logging.WARNING  # default
-
-    if verbosity == 1:
-        level = logging.INFO
-    elif verbosity >= 2:
+    if verbosity < 0:
+        level = logging.WARNING  # quiet mode
+    elif verbosity >= 1:
         level = logging.DEBUG
+    else:
+        level = logging.INFO  # default
 
     class ColorFormatter(logging.Formatter):
         COLORS = {
@@ -119,9 +119,15 @@ def create_parser(
     parser.add_argument(
         "-v",
         "--verbose",
-        action="count",
-        default=0,
-        help="Increase output verbosity (e.g. -v, -vv)",
+        action="store_true",
+        help="Show debug messages",
+    )
+
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress info messages, only show warnings and errors",
     )
 
     version = importlib.metadata.version("pum")
@@ -317,7 +323,19 @@ def cli() -> int:  # noqa: PLR0912
     parser = create_parser()
     args = parser.parse_args()
 
-    setup_logging(args.verbose)
+    # Validate mutually exclusive flags
+    if args.quiet and args.verbose:
+        parser.error("--quiet and --verbose are mutually exclusive")
+
+    # Set verbosity level (-1 for quiet, 0 for normal, 1 for verbose)
+    if args.quiet:
+        verbosity = -1
+    elif args.verbose:
+        verbosity = 1
+    else:
+        verbosity = 0
+
+    setup_logging(verbosity)
     logger = logging.getLogger(__name__)
 
     # if no command is passed, print the help and exit
