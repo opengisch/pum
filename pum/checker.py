@@ -1,6 +1,81 @@
-import difflib
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 
 import psycopg
+
+
+class DifferenceType(Enum):
+    """Type of difference found."""
+
+    ADDED = "added"
+    REMOVED = "removed"
+
+
+@dataclass
+class DifferenceItem:
+    """Represents a single difference between databases."""
+
+    type: DifferenceType
+    content: dict | str  # dict for structured data, str for backward compatibility
+
+    def __str__(self) -> str:
+        """String representation with marker."""
+        marker = "+" if self.type == DifferenceType.ADDED else "-"
+        if isinstance(self.content, dict):
+            # For structured content, create a readable string
+            return f"{marker} {self.content}"
+        return f"{marker} {self.content}"
+
+
+@dataclass
+class CheckResult:
+    """Result of a single check (e.g., tables, columns)."""
+
+    name: str
+    key: str
+    passed: bool
+    differences: list[DifferenceItem] = field(default_factory=list)
+
+    @property
+    def difference_count(self) -> int:
+        """Number of differences found."""
+        return len(self.differences)
+
+
+@dataclass
+class ComparisonReport:
+    """Complete database comparison report."""
+
+    pg_service1: str
+    pg_service2: str
+    timestamp: datetime
+    check_results: list[CheckResult] = field(default_factory=list)
+
+    @property
+    def passed(self) -> bool:
+        """Whether all checks passed."""
+        return all(result.passed for result in self.check_results)
+
+    @property
+    def total_checks(self) -> int:
+        """Total number of checks performed."""
+        return len(self.check_results)
+
+    @property
+    def passed_checks(self) -> int:
+        """Number of checks that passed."""
+        return sum(1 for result in self.check_results if result.passed)
+
+    @property
+    def failed_checks(self) -> int:
+        """Number of checks that failed."""
+        return self.total_checks - self.passed_checks
+
+    @property
+    def total_differences(self) -> int:
+        """Total number of differences across all checks."""
+        return sum(result.difference_count for result in self.check_results)
 
 
 class Checker:
@@ -15,37 +90,29 @@ class Checker:
         exclude_schema=None,
         exclude_field_pattern=None,
         ignore_list=None,
-        verbose_level=1,
     ):
-        """Constructor
+        """Initialize the Checker.
 
-        Parameters
-        ----------
-        pg_service1: str
-            The name of the postgres service (defined in pg_service.conf)
-            related to the first db to be compared
-        pg_service2: str
-            The name of the postgres service (defined in pg_service.conf)
-            related to the first db to be compared
-        ignore_list: list(str)
-            List of elements to be ignored in check (ex. tables, columns,
-            views, ...)
-        exclude_schema: list of strings
-            List of schemas to be ignored in check.
-        exclude_field_pattern: list of strings
-            List of field patterns to be ignored in check.
-        verbose_level: int
-            verbose level, 0 -> nothing, 1 -> print first 80 char of each
-            difference, 2 -> print all the difference details
-
+        Args:
+            pg_service1: The name of the postgres service (defined in pg_service.conf)
+                related to the first db to be compared.
+            pg_service2: The name of the postgres service (defined in pg_service.conf)
+                related to the second db to be compared.
+            exclude_schema: List of schemas to be ignored in check.
+            exclude_field_pattern: List of field patterns to be ignored in check.
+            ignore_list: List of elements to be ignored in check (ex. tables, columns,
+                views, ...).
         """
+        self.pg_service1 = pg_service1
+        self.pg_service2 = pg_service2
+
         self.conn1 = psycopg.connect(f"service={pg_service1}")
         self.cur1 = self.conn1.cursor()
 
         self.conn2 = psycopg.connect(f"service={pg_service2}")
         self.cur2 = self.conn2.cursor()
 
-        self.ignore_list = ignore_list
+        self.ignore_list = ignore_list or []
         self.exclude_schema = "('information_schema'"
         if exclude_schema is not None:
             for schema in exclude_schema:
@@ -53,67 +120,51 @@ class Checker:
         self.exclude_schema += ")"
         self.exclude_field_pattern = exclude_field_pattern or []
 
-        self.verbose_level = verbose_level
-
-    def run_checks(self):
+    def run_checks(self) -> ComparisonReport:
         """Run all the checks functions.
 
-        Returns
-        -------
-        bool
-            True if all the checks are true
-            False otherwise
-        dict
-            Dictionary of lists of differences
-
+        Returns:
+            Complete comparison report with all check results.
         """
-        result = True
-        differences_dict = {}
+        checks = [
+            ("tables", "Tables", self.check_tables),
+            ("columns", "Columns", lambda: self.check_columns("views" not in self.ignore_list)),
+            ("constraints", "Constraints", self.check_constraints),
+            ("views", "Views", self.check_views),
+            ("sequences", "Sequences", self.check_sequences),
+            ("indexes", "Indexes", self.check_indexes),
+            ("triggers", "Triggers", self.check_triggers),
+            ("functions", "Functions", self.check_functions),
+            ("rules", "Rules", self.check_rules),
+        ]
 
-        if "tables" not in self.ignore_list:
-            tmp_result, differences_dict["tables"] = self.check_tables()
-            result = False if not tmp_result else result
-        if "columns" not in self.ignore_list:
-            tmp_result, differences_dict["columns"] = self.check_columns(
-                "views" not in self.ignore_list
-            )
-            result = False if not tmp_result else result
-        if "constraints" not in self.ignore_list:
-            tmp_result, differences_dict["constraints"] = self.check_constraints()
-            result = False if not tmp_result else result
-        if "views" not in self.ignore_list:
-            tmp_result, differences_dict["views"] = self.check_views()
-            result = False if not tmp_result else result
-        if "sequences" not in self.ignore_list:
-            tmp_result, differences_dict["sequences"] = self.check_sequences()
-            result = False if not tmp_result else result
-        if "indexes" not in self.ignore_list:
-            tmp_result, differences_dict["indexes"] = self.check_indexes()
-            result = False if not tmp_result else result
-        if "triggers" not in self.ignore_list:
-            tmp_result, differences_dict["triggers"] = self.check_triggers()
-            result = False if not tmp_result else result
-        if "functions" not in self.ignore_list:
-            tmp_result, differences_dict["functions"] = self.check_functions()
-            result = False if not tmp_result else result
-        if "rules" not in self.ignore_list:
-            tmp_result, differences_dict["rules"] = self.check_rules()
-            result = False if not tmp_result else result
-        if self.verbose_level == 0:
-            differences_dict = None
-        return result, differences_dict
+        check_results = []
+        for check_key, check_name, check_func in checks:
+            if check_key not in self.ignore_list:
+                passed, differences = check_func()
+                check_results.append(
+                    CheckResult(
+                        name=check_name,
+                        key=check_key,
+                        passed=passed,
+                        differences=differences,
+                    )
+                )
+
+        return ComparisonReport(
+            pg_service1=self.pg_service1,
+            pg_service2=self.pg_service2,
+            timestamp=datetime.now(),
+            check_results=check_results,
+        )
 
     def check_tables(self):
         """Check if the tables are equals.
 
-        Returns
-        -------
-        bool
-            True if the tables are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the tables are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""SELECT table_schema, table_name
                 FROM information_schema.tables
@@ -128,74 +179,116 @@ class Checker:
     def check_columns(self, check_views=True):
         """Check if the columns in all tables are equals.
 
-        Parameters
-        ----------
-        check_views: bool
-            if True, check the columns of all the tables and views, if
-            False check only the columns of the tables
+        Args:
+            check_views: If True, check the columns of all the tables and views,
+                if False check only the columns of the tables.
 
-        Returns
-        -------
-        bool
-            True if the columns are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the columns are the same, False otherwise.
+                - list: A list with the differences.
         """
-        with_query = None
+        # First, get the list of tables that exist in BOTH databases
+        # to avoid reporting columns from tables that don't exist in one DB
         if check_views:
-            with_query = rf"""WITH table_list AS (
-                         SELECT table_schema, table_name
+            table_query = rf"""SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE table_schema NOT IN {self.exclude_schema}
                             AND table_schema NOT LIKE 'pg\_%'
                          ORDER BY table_schema,table_name
-                         )"""
-
+                         """
         else:
-            with_query = rf"""WITH table_list AS (
-                         SELECT table_schema, table_name
+            table_query = rf"""SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE table_schema NOT IN {self.exclude_schema}
                             AND table_schema NOT LIKE 'pg\_%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
-                         )"""
+                         """
 
-        query = """{wq}
+        # Get tables from both databases
+        self.cur1.execute(table_query)
+        tables1 = set(self.cur1.fetchall())
+
+        self.cur2.execute(table_query)
+        tables2 = set(self.cur2.fetchall())
+
+        # Only check columns for tables that exist in both databases
+        common_tables = tables1.intersection(tables2)
+
+        if not common_tables:
+            # No common tables, so no columns to compare
+            return True, []
+
+        # Build the WHERE clause to only include common tables
+        table_conditions = " OR ".join(
+            [
+                f"(isc.table_schema = '{schema}' AND isc.table_name = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
+        query = f"""
                 SELECT isc.table_schema, isc.table_name, column_name,
                     column_default, is_nullable, data_type,
                     character_maximum_length::text, numeric_precision::text,
                     numeric_precision_radix::text, datetime_precision::text
-                FROM information_schema.columns isc,
-                table_list tl
-                WHERE isc.table_schema = tl.table_schema
-                    AND isc.table_name = tl.table_name
-                    {efp}
+                FROM information_schema.columns isc
+                WHERE ({table_conditions})
+                    {("".join([f" AND column_name NOT LIKE '{pattern}'" for pattern in self.exclude_field_pattern]))}
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(
-            wq=with_query,
-            efp="".join(
-                [f" AND column_name NOT LIKE '{pattern}'" for pattern in self.exclude_field_pattern]
-            ),
-        )
+                """
 
         return self.__check_equals(query)
 
     def check_constraints(self):
         """Check if the constraints are equals.
 
-        Returns
-        -------
-        bool
-            True if the constraints are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the constraints are the same, False otherwise.
+                - list: A list with the differences.
         """
-        query = f""" select
+        # Get tables from both databases to filter constraints
+        table_query = f"""SELECT table_schema, table_name
+                         FROM information_schema.tables
+                         WHERE table_schema NOT IN {self.exclude_schema}
+                            AND table_schema NOT LIKE 'pg\\_%'
+                            AND table_type NOT LIKE 'VIEW'
+                         ORDER BY table_schema,table_name
+                         """
+
+        self.cur1.execute(table_query)
+        tables1 = set(self.cur1.fetchall())
+
+        self.cur2.execute(table_query)
+        tables2 = set(self.cur2.fetchall())
+
+        # Only check constraints for tables that exist in both databases
+        common_tables = tables1.intersection(tables2)
+
+        if not common_tables:
+            return True, []
+
+        # Build the WHERE clause to only include common tables
+        table_conditions = " OR ".join(
+            [
+                f"(tc.constraint_schema = '{schema}' AND tc.table_name = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
+        # Build WHERE clause for CHECK constraints
+        check_table_conditions = " OR ".join(
+            [
+                f"(n.nspname = '{schema}' AND cl.relname = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
+        # Query for KEY constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE)
+        key_query = f"""
+                    SELECT
                         tc.constraint_name,
                         tc.constraint_schema || '.' || tc.table_name || '.' ||
                             kcu.column_name as physical_full_name,
@@ -204,34 +297,62 @@ class Checker:
                         kcu.column_name,
                         ccu.table_name as foreign_table_name,
                         ccu.column_name as foreign_column_name,
-                        tc.constraint_type
-                    from information_schema.table_constraints as tc
-                    join information_schema.key_column_usage as kcu on
-                        (tc.constraint_name = kcu.constraint_name and
+                        tc.constraint_type,
+                        pg_get_constraintdef((
+                            SELECT con.oid FROM pg_constraint con
+                            JOIN pg_namespace nsp ON con.connamespace = nsp.oid
+                            WHERE con.conname = tc.constraint_name
+                            AND nsp.nspname = tc.constraint_schema
+                            LIMIT 1
+                        )) as constraint_definition
+                    FROM information_schema.table_constraints as tc
+                    JOIN information_schema.key_column_usage as kcu ON
+                        (tc.constraint_name = kcu.constraint_name AND
                         tc.table_name = kcu.table_name)
-                    join information_schema.constraint_column_usage as ccu on
+                    JOIN information_schema.constraint_column_usage as ccu ON
                         ccu.constraint_name = tc.constraint_name
-                    WHERE tc.constraint_schema NOT IN {self.exclude_schema}
+                    WHERE ({table_conditions})
                     ORDER BY tc.constraint_schema, physical_full_name,
                         tc.constraint_name, foreign_table_name,
-                        foreign_column_name  """
+                        foreign_column_name
+                    """
 
-        return self.__check_equals(query)
+        # Query for CHECK constraints (they don't appear in key_column_usage)
+        check_query = f"""
+                    SELECT
+                        c.conname as constraint_name,
+                        n.nspname || '.' || cl.relname as physical_full_name,
+                        n.nspname as constraint_schema,
+                        cl.relname as table_name,
+                        '' as column_name,
+                        '' as foreign_table_name,
+                        '' as foreign_column_name,
+                        'CHECK' as constraint_type,
+                        pg_get_constraintdef(c.oid) as constraint_definition
+                    FROM pg_constraint c
+                    JOIN pg_class cl ON c.conrelid = cl.oid
+                    JOIN pg_namespace n ON cl.relnamespace = n.oid
+                    WHERE c.contype = 'c'
+                        AND ({check_table_conditions})
+                    ORDER BY n.nspname, cl.relname, c.conname
+                    """
+
+        # Execute both queries and combine results
+        passed_keys, diffs_keys = self.__check_equals(key_query)
+        passed_checks, diffs_checks = self.__check_equals(check_query)
+
+        return (passed_keys and passed_checks, diffs_keys + diffs_checks)
 
     def check_views(self):
         """Check if the views are equals.
 
-        Returns
-        -------
-        bool
-            True if the views are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the views are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
-        SELECT table_name, REPLACE(view_definition,'"','')
+        SELECT table_schema, table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
         WHERE table_schema NOT IN {self.exclude_schema}
         AND table_schema NOT LIKE 'pg\_%'
@@ -244,14 +365,10 @@ class Checker:
     def check_sequences(self):
         """Check if the sequences are equals.
 
-        Returns
-        -------
-        bool
-            True if the sequences are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the sequences are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = f"""
         SELECT c.relname,
@@ -267,55 +384,76 @@ class Checker:
     def check_indexes(self):
         """Check if the indexes are equals.
 
-        Returns
-        -------
-        bool
-            True if the indexes are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the indexes are the same, False otherwise.
+                - list: A list with the differences.
         """
+        # Get tables from both databases to filter indexes
+        table_query = f"""SELECT table_schema, table_name
+                         FROM information_schema.tables
+                         WHERE table_schema NOT IN {self.exclude_schema}
+                            AND table_schema NOT LIKE 'pg\\_%'
+                            AND table_type NOT LIKE 'VIEW'
+                         ORDER BY table_schema,table_name
+                         """
+
+        self.cur1.execute(table_query)
+        tables1 = set(self.cur1.fetchall())
+
+        self.cur2.execute(table_query)
+        tables2 = set(self.cur2.fetchall())
+
+        # Only check indexes for tables that exist in both databases
+        common_tables = tables1.intersection(tables2)
+
+        if not common_tables:
+            return True, []
+
+        # Build the WHERE clause to only include common tables
+        table_conditions = " OR ".join(
+            [
+                f"(ns.nspname = '{schema}' AND t.relname = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
         query = rf"""
-        select
+        SELECT
+            ns.nspname as schema_name,
             t.relname as table_name,
             i.relname as index_name,
             a.attname as column_name,
-            ns.nspname as schema_name
-        from
+            pg_get_indexdef(i.oid) as index_definition
+        FROM
             pg_class t,
             pg_class i,
             pg_index ix,
             pg_attribute a,
             pg_namespace ns
-        where
+        WHERE
             t.oid = ix.indrelid
-            and i.oid = ix.indexrelid
-            and a.attrelid = t.oid
-            and t.relnamespace = ns.oid
-            and a.attnum = ANY(ix.indkey)
-            and t.relkind = 'r'
-            AND t.relname NOT IN ('information_schema')
-            AND t.relname NOT LIKE 'pg\_%'
-            AND ns.nspname NOT IN {self.exclude_schema}
-        order by
+            AND i.oid = ix.indexrelid
+            AND a.attrelid = t.oid
+            AND t.relnamespace = ns.oid
+            AND a.attnum = ANY(ix.indkey)
+            AND t.relkind = 'r'
+            AND ({table_conditions})
+        ORDER BY
+            ns.nspname,
             t.relname,
             i.relname,
             a.attname
         """
         return self.__check_equals(query)
 
-    def check_triggers(self) -> dict:
+    def check_triggers(self):
         """Check if the triggers are equals.
 
-        Returns
-        -------
-        bool
-            True if the triggers are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the triggers are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = f"""
         WITH trigger_list AS (
@@ -337,14 +475,10 @@ class Checker:
     def check_functions(self):
         """Check if the functions are equals.
 
-        Returns
-        -------
-        bool
-            True if the functions are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the functions are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
         SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
@@ -364,14 +498,10 @@ class Checker:
     def check_rules(self):
         """Check if the rules are equals.
 
-        Returns
-        -------
-        bool
-            True if the rules are the same
-            False otherwise
-        list
-            A list with the differences
-
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the rules are the same, False otherwise.
+                - list: A list with the differences.
         """
         query = rf"""
         select n.nspname as rule_schema,
@@ -395,17 +525,16 @@ class Checker:
 
         return self.__check_equals(query)
 
-    def __check_equals(self, query):
+    def __check_equals(self, query) -> tuple[bool, list[DifferenceItem]]:
         """Check if the query results on the two databases are equals.
 
-        Returns
-        -------
-        bool
-            True if the results are the same
-            False otherwise
-        list
-            A list with the differences
+        Args:
+            query: The SQL query to execute on both databases.
 
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the results are the same, False otherwise.
+                - list[DifferenceItem]: A list of DifferenceItem objects with structured data.
         """
         self.cur1.execute(query)
         records1 = self.cur1.fetchall()
@@ -416,16 +545,46 @@ class Checker:
         result = True
         differences = []
 
-        d = difflib.Differ()
-        records1 = [str(x) for x in records1]
-        records2 = [str(x) for x in records2]
+        # Convert records to dictionaries based on column names
+        col_names = [desc[0] for desc in self.cur1.description]
 
-        for line in d.compare(records1, records2):
-            if line[0] in ("-", "+"):
-                result = False
-                if self.verbose_level == 1:
-                    differences.append(line[0:79])
-                elif self.verbose_level == 2:
-                    differences.append(line)
+        # Create structured records
+        structured1 = [dict(zip(col_names, record)) for record in records1]
+        structured2 = [dict(zip(col_names, record)) for record in records2]
+
+        # Create sets for comparison
+        set1 = {str(tuple(r)) for r in records1}
+        set2 = {str(tuple(r)) for r in records2}
+
+        # Find differences
+        removed = set1 - set2
+        added = set2 - set1
+
+        if removed or added:
+            result = False
+
+            # Map string representations back to structured data
+            str_to_struct1 = {str(tuple(r)): s for r, s in zip(records1, structured1)}
+            str_to_struct2 = {str(tuple(r)): s for r, s in zip(records2, structured2)}
+
+            # Add removed items
+            for item_str in removed:
+                if item_str in str_to_struct1:
+                    differences.append(
+                        DifferenceItem(
+                            type=DifferenceType.REMOVED,
+                            content=str_to_struct1[item_str],
+                        )
+                    )
+
+            # Add added items
+            for item_str in added:
+                if item_str in str_to_struct2:
+                    differences.append(
+                        DifferenceItem(
+                            type=DifferenceType.ADDED,
+                            content=str_to_struct2[item_str],
+                        )
+                    )
 
         return result, differences

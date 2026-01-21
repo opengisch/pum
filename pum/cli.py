@@ -9,6 +9,7 @@ from pathlib import Path
 import psycopg
 
 from .checker import Checker
+from .report_generator import ReportGenerator
 from .pum_config import PumConfig
 
 from .info import run_info
@@ -74,98 +75,31 @@ class Pum:
         else:
             self.config = config
 
-    def run_check(
-        self,
-        pg_service1: str,
-        pg_service2: str,
-        ignore_list: list[str] | None,
-        exclude_schema: list[str] | None,
-        exclude_field_pattern: list[str] | None,
-        verbose_level: int = 1,
-        output_file: str | None = None,
-    ) -> bool:
-        """Run the check command.
 
-        Args:
-            pg_service1:
-                The name of the postgres service (defined in pg_service.conf)
-                related to the first db to be compared
-            pg_service2:
-                The name of the postgres service (defined in pg_service.conf)
-                related to the second db to be compared
-            ignore_list:
-                List of elements to be ignored in check (ex. tables, columns,
-                views, ...)
-            exclude_schema:
-                List of schemas to be ignored in check.
-            exclude_field_pattern:
-                List of field patterns to be ignored in check.
-            verbose_level:
-                verbose level, 0 -> nothing, 1 -> print first 80 char of each
-                difference, 2 -> print all the difference details
-            output_file:
-                a file path where write the differences
-
-        Returns:
-            True if no differences are found, False otherwise.
-
-        """
-        # self.__out("Check...")
-        verbose_level = verbose_level or 1
-        ignore_list = ignore_list or []
-        exclude_schema = exclude_schema or []
-        exclude_field_pattern = exclude_field_pattern or []
-        try:
-            checker = Checker(
-                pg_service1,
-                pg_service2,
-                exclude_schema=exclude_schema,
-                exclude_field_pattern=exclude_field_pattern,
-                ignore_list=ignore_list,
-                verbose_level=verbose_level,
-            )
-            result, differences = checker.run_checks()
-
-            if result:
-                self.__out("OK")
-            else:
-                self.__out("DIFFERENCES FOUND")
-
-            if differences:
-                if output_file:
-                    with open(output_file, "w") as f:
-                        for k, values in differences.items():
-                            f.write(k + "\n")
-                            f.writelines(f"{v}\n" for v in values)
-                else:
-                    for k, values in differences.items():
-                        print(k)
-                        for v in values:
-                            print(v)
-            return result
-
-        except psycopg.Error as e:
-            self.__out("ERROR")
-            self.__out(e.args[0] if e.args else str(e))
-            sys.exit(1)
-
-        except Exception as e:
-            self.__out("ERROR")
-            # if e.args is empty then use str(e)
-            self.__out(e.args[0] if e.args else str(e))
-            sys.exit(1)
-
-
-def create_parser() -> argparse.ArgumentParser:
+def create_parser(
+    max_help_position: int | None = None, width: int | None = None
+) -> argparse.ArgumentParser:
     """Create the main argument parser and all subparsers.
+
+    Args:
+        max_help_position: Maximum help position for formatting.
+        width: Width for formatting.
 
     Returns:
         The fully configured argument parser.
 
     """
+    if max_help_position is not None or width is not None:
+
+        def formatter_class(prog):
+            return argparse.HelpFormatter(
+                prog, max_help_position=max_help_position or 40, width=width or 200
+            )
+    else:
+        formatter_class = argparse.HelpFormatter
     parser = argparse.ArgumentParser(
         prog="pum",
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=200),
+        formatter_class=formatter_class,
     )
     parser.add_argument("-c", "--config_file", help="set the config file. Default: .pum.yaml")
     parser.add_argument("-s", "--pg-service", help="Name of the postgres service", required=True)
@@ -195,10 +129,16 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Parser for the "info" command
-    parser_info = subparsers.add_parser("info", help="show info about schema migrations history.")  # NOQA
+    parser_info = subparsers.add_parser(  # NOQA
+        "info",
+        help="show info about schema migrations history.",
+        formatter_class=formatter_class,
+    )
 
     # Parser for the "install" command
-    parser_install = subparsers.add_parser("install", help="Installs the module.")
+    parser_install = subparsers.add_parser(
+        "install", help="Installs the module.", formatter_class=formatter_class
+    )
     parser_install.add_argument(
         "-p",
         "--parameter",
@@ -231,7 +171,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Upgrade parser
-    parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade the database.")
+    parser_upgrade = subparsers.add_parser(
+        "upgrade", help="Upgrade the database.", formatter_class=formatter_class
+    )
     parser_upgrade.add_argument(
         "-p",
         "--parameter",
@@ -258,17 +200,23 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # Role management parser
-    parser_role = subparsers.add_parser("role", help="manage roles in the database")
+    parser_role = subparsers.add_parser(
+        "role", help="manage roles in the database", formatter_class=formatter_class
+    )
     parser_role.add_argument(
         "action", choices=["create", "grant", "revoke", "drop"], help="Action to perform"
     )
 
     # Parser for the "check" command
-    parser_check = subparsers.add_parser(
-        "check", help="check the differences between two databases"
+    parser_checker = subparsers.add_parser(
+        "check", help="check the differences between two databases", formatter_class=formatter_class
     )
 
-    parser_check.add_argument(
+    parser_checker.add_argument(
+        "pg_service_compared", help="Name of the postgres service to compare against"
+    )
+
+    parser_checker.add_argument(
         "-i",
         "--ignore",
         help="Elements to be ignored",
@@ -285,20 +233,29 @@ def create_parser() -> argparse.ArgumentParser:
             "rules",
         ],
     )
-    parser_check.add_argument(
+    parser_checker.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
     )
-    parser_check.add_argument(
+    parser_checker.add_argument(
         "-P",
         "--exclude-field-pattern",
         help="Fields to be ignored based on a pattern compatible with SQL LIKE.",
         action="append",
     )
 
-    parser_check.add_argument("-o", "--output_file", help="Output file")
+    parser_checker.add_argument("-o", "--output_file", help="Output file")
+    parser_checker.add_argument(
+        "-f",
+        "--format",
+        choices=["text", "html", "json"],
+        default="text",
+        help="Output format: text, html, or json. Default: text",
+    )
 
     # Parser for the "dump" command
-    parser_dump = subparsers.add_parser("dump", help="dump a Postgres database")
+    parser_dump = subparsers.add_parser(
+        "dump", help="dump a Postgres database", formatter_class=formatter_class
+    )
     parser_dump.add_argument(
         "-f",
         "--format",
@@ -314,7 +271,9 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Parser for the "restore" command
     parser_restore = subparsers.add_parser(
-        "restore", help="restore a Postgres database from a dump file"
+        "restore",
+        help="restore a Postgres database from a dump file",
+        formatter_class=formatter_class,
     )
     parser_restore.add_argument("-x", help="ignore pg_restore errors", action="store_true")
     parser_restore.add_argument(
@@ -324,7 +283,9 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Parser for the "baseline" command
     parser_baseline = subparsers.add_parser(
-        "baseline", help="Create upgrade information table and set baseline"
+        "baseline",
+        help="Create upgrade information table and set baseline",
+        formatter_class=formatter_class,
     )
     parser_baseline.add_argument(
         "-b", "--baseline", help="Set baseline in the format x.x.x", required=True
@@ -354,6 +315,55 @@ def cli() -> int:  # noqa: PLR0912
     if not args.command:
         parser.print_help()
         parser.exit()
+
+    # Handle check command separately (doesn't need db connection)
+    if args.command == "check":
+        exit_code = 0
+        checker = Checker(
+            args.pg_service,
+            args.pg_service_compared,
+            exclude_schema=args.exclude_schema or [],
+            exclude_field_pattern=args.exclude_field_pattern or [],
+            ignore_list=args.ignore or [],
+        )
+        report = checker.run_checks()
+        checker.conn1.close()
+        checker.conn2.close()
+
+        if report.passed:
+            logger.info("OK")
+        else:
+            logger.info("DIFFERENCES FOUND")
+
+        if args.format == "html":
+            html_report = ReportGenerator.generate_html(report)
+            if args.output_file:
+                with open(args.output_file, "w", encoding="utf-8") as f:
+                    f.write(html_report)
+                logger.info(f"HTML report written to {args.output_file}")
+            else:
+                print(html_report)
+        elif args.format == "json":
+            json_report = ReportGenerator.generate_json(report)
+            if args.output_file:
+                with open(args.output_file, "w", encoding="utf-8") as f:
+                    f.write(json_report)
+                logger.info(f"JSON report written to {args.output_file}")
+            else:
+                print(json_report)
+        else:
+            # Text output (backward compatible)
+            text_output = ReportGenerator.generate_text(report)
+            if args.output_file:
+                with open(args.output_file, "w") as f:
+                    f.write(text_output)
+            else:
+                print(text_output)
+
+        if not report.passed:
+            exit_code = 1
+
+        return exit_code
 
     validate = args.command not in ("info", "baseline")
     if args.config_file:
@@ -445,18 +455,6 @@ def cli() -> int:  # noqa: PLR0912
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
-        elif args.command == "check":
-            success = pum.run_check(
-                args.pg_service1,
-                args.pg_service2,
-                ignore_list=args.ignore,
-                exclude_schema=args.exclude_schema,
-                exclude_field_pattern=args.exclude_field_pattern,
-                verbose_level=args.verbose_level,
-                output_file=args.output_file,
-            )
-            if not success:
-                exit_code = 1
         elif args.command == "dump":
             pass
         elif args.command == "restore":

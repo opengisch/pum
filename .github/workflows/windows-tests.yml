@@ -55,6 +55,7 @@ jobs:
         run: |
           python -m pip install -r requirements/base.txt
           python -m pip install -r requirements/development.txt
+          python -m pip install -r requirements/html.txt
 
       - name: Install pum
         run: python -m pip install .
