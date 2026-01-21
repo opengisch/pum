@@ -1,5 +1,7 @@
 """Report generation for database comparison results."""
 
+import json
+
 try:
     from jinja2 import Template
 
@@ -246,6 +248,49 @@ class ReportGenerator:
             for diff in result.differences:
                 lines.append(str(diff))
         return "\n".join(lines)
+
+    @staticmethod
+    def generate_json(report: ComparisonReport) -> str:
+        """Generate a JSON report.
+
+        Args:
+            report: The comparison report
+
+        Returns:
+            JSON report as a string
+
+        """
+
+        def serialize_diff(diff):
+            """Serialize a DifferenceItem to a dict."""
+            return {
+                "type": diff.type.value,
+                "content": diff.content if isinstance(diff.content, dict) else str(diff.content),
+            }
+
+        def serialize_result(result):
+            """Serialize a CheckResult to a dict."""
+            return {
+                "name": result.name,
+                "key": result.key,
+                "passed": result.passed,
+                "difference_count": result.difference_count,
+                "differences": [serialize_diff(diff) for diff in result.differences],
+            }
+
+        data = {
+            "pg_service1": report.pg_service1,
+            "pg_service2": report.pg_service2,
+            "timestamp": report.timestamp.isoformat(),
+            "passed": report.passed,
+            "total_checks": report.total_checks,
+            "passed_checks": report.passed_checks,
+            "failed_checks": report.failed_checks,
+            "total_differences": report.total_differences,
+            "check_results": [serialize_result(result) for result in report.check_results],
+        }
+
+        return json.dumps(data, indent=2)
 
     @staticmethod
     def generate_html(report: ComparisonReport) -> str:

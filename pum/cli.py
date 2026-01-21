@@ -237,9 +237,9 @@ def create_parser(
     parser_checker.add_argument(
         "-f",
         "--format",
-        choices=["text", "html"],
+        choices=["text", "html", "json"],
         default="text",
-        help="Output format: text or html. Default: text",
+        help="Output format: text, html, or json. Default: text",
     )
 
     # Parser for the "dump" command
@@ -327,6 +327,14 @@ def cli() -> int:  # noqa: PLR0912
                 logger.info(f"HTML report written to {args.output_file}")
             else:
                 print(html_report)
+        elif args.format == "json":
+            json_report = ReportGenerator.generate_json(report)
+            if args.output_file:
+                with open(args.output_file, "w", encoding="utf-8") as f:
+                    f.write(json_report)
+                logger.info(f"JSON report written to {args.output_file}")
+            else:
+                print(json_report)
         else:
             # Text output (backward compatible)
             text_output = ReportGenerator.generate_text(report)
