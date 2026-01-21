@@ -327,8 +327,8 @@ class ReportGenerator:
             }
 
         data = {
-            "pg_service1": report.pg_service1,
-            "pg_service2": report.pg_service2,
+            "pg_connection1": report.pg_connection1,
+            "pg_connection2": report.pg_connection2,
             "timestamp": report.timestamp.isoformat(),
             "passed": report.passed,
             "total_checks": report.total_checks,
@@ -847,8 +847,8 @@ class ReportGenerator:
         <div class="header">
             <h1>Database Comparison Report</h1>
             <div class="meta">
-                <div>Database 1: <strong>{{ report.pg_service1|e }}</strong></div>
-                <div>Database 2: <strong>{{ report.pg_service2|e }}</strong></div>
+                <div>Database 1: <strong>{{ report.pg_connection1|e }}</strong></div>
+                <div>Database 2: <strong>{{ report.pg_connection2|e }}</strong></div>
                 <div>Generated: {{ report.timestamp.strftime('%Y-%m-%d %H:%M:%S')|e }}</div>
             </div>
         </div>
@@ -912,8 +912,8 @@ class ReportGenerator:
                                             <span class="db-label tooltip">
                                                 DB1
                                                 <span class="tooltiptext">
-                                                    ⚠️ Missing in <strong>{{ report.pg_service2|e }}</strong><br>
-                                                    Only exists in {{ report.pg_service1|e }}
+                                                    ⚠️ Missing in <strong>{{ report.pg_connection2|e }}</strong><br>
+                                                    Only exists in {{ report.pg_connection1|e }}
                                                 </span>
                                             </span>
                                             <span class="object-detail">{{ col.column }}</span>
@@ -935,8 +935,8 @@ class ReportGenerator:
                                             <span class="db-label tooltip">
                                                 DB2
                                                 <span class="tooltiptext">
-                                                    ⚠️ Extra in <strong>{{ report.pg_service2|e }}</strong><br>
-                                                    Not present in {{ report.pg_service1|e }}
+                                                    ⚠️ Extra in <strong>{{ report.pg_connection2|e }}</strong><br>
+                                                    Not present in {{ report.pg_connection1|e }}
                                                 </span>
                                             </span>
                                             <span class="object-detail">{{ col.column }}</span>
@@ -966,11 +966,11 @@ class ReportGenerator:
                                     {{ 'DB1' if diff.type.value == 'removed' else 'DB2' }}
                                     <span class="tooltiptext">
                                         {% if diff.type.value == 'removed' %}
-                                        ⚠️ Missing in <strong>{{ report.pg_service2|e }}</strong><br>
-                                        Only exists in {{ report.pg_service1|e }}
+                                        ⚠️ Missing in <strong>{{ report.pg_connection2|e }}</strong><br>
+                                        Only exists in {{ report.pg_connection1|e }}
                                         {% else %}
-                                        ⚠️ Extra in <strong>{{ report.pg_service2|e }}</strong><br>
-                                        Not present in {{ report.pg_service1|e }}
+                                        ⚠️ Extra in <strong>{{ report.pg_connection2|e }}</strong><br>
+                                        Not present in {{ report.pg_connection1|e }}
                                         {% endif %}
                                     </span>
                                 </span>

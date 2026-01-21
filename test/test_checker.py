@@ -539,8 +539,8 @@ class TestChecker(unittest.TestCase):
 
         # Verify JSON is valid and parseable
         json_data = json.loads(json_output)
-        self.assertIn("pg_service1", json_data)
-        self.assertIn("pg_service2", json_data)
+        self.assertIn("pg_connection1", json_data)
+        self.assertIn("pg_connection2", json_data)
         self.assertIn("timestamp", json_data)
         self.assertIn("passed", json_data)
         self.assertIn("check_results", json_data)
