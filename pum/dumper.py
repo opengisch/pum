@@ -8,6 +8,7 @@ from .exceptions import (
     PgRestoreCommandError,
     PgRestoreFailed,
 )
+from .connection import format_connection_string
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,17 @@ class DumpFormat(Enum):
 class Dumper:
     """This class is used to dump and restore a Postgres database."""
 
-    def __init__(self, pg_service: str, dump_path: str):
-        self.pg_service = pg_service
+    def __init__(self, pg_connection: str, dump_path: str):
+        """Initialize the Dumper.
+
+        Args:
+            pg_connection: PostgreSQL service name or connection string.
+                Can be a service name (e.g., 'mydb') or a full connection string
+                (e.g., 'postgresql://user:pass@host/db' or 'host=localhost dbname=mydb').
+            dump_path: Path where the dump file will be saved or loaded from.
+
+        """
+        self.pg_connection = pg_connection
         self.dump_path = dump_path
 
     def pg_dump(
@@ -49,7 +59,7 @@ class Dumper:
             format: DumpFormat, either custom (default) or plain
         """
 
-        connection = f"service={self.pg_service}"
+        connection = format_connection_string(self.pg_connection)
         if dbname:
             connection = f"{connection} dbname={dbname}"
 
@@ -85,7 +95,7 @@ class Dumper:
     ):
         """ """
 
-        connection = f"service={self.pg_service}"
+        connection = format_connection_string(self.pg_connection)
         if dbname:
             connection = f"{connection} dbname={dbname}"
 

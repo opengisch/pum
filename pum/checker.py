@@ -4,6 +4,8 @@ from enum import Enum
 
 import psycopg
 
+from .connection import format_connection_string
+
 
 class DifferenceType(Enum):
     """Type of difference found."""
@@ -47,8 +49,8 @@ class CheckResult:
 class ComparisonReport:
     """Complete database comparison report."""
 
-    pg_service1: str
-    pg_service2: str
+    pg_connection1: str
+    pg_connection2: str
     timestamp: datetime
     check_results: list[CheckResult] = field(default_factory=list)
 
@@ -85,8 +87,8 @@ class Checker:
 
     def __init__(
         self,
-        pg_service1,
-        pg_service2,
+        pg_connection1,
+        pg_connection2,
         exclude_schema=None,
         exclude_field_pattern=None,
         ignore_list=None,
@@ -94,22 +96,22 @@ class Checker:
         """Initialize the Checker.
 
         Args:
-            pg_service1: The name of the postgres service (defined in pg_service.conf)
-                related to the first db to be compared.
-            pg_service2: The name of the postgres service (defined in pg_service.conf)
-                related to the second db to be compared.
+            pg_connection1: PostgreSQL service name or connection string for the first database.
+                Can be a service name (e.g., 'mydb') or a full connection string
+                (e.g., 'postgresql://user:pass@host/db' or 'host=localhost dbname=mydb').
+            pg_connection2: PostgreSQL service name or connection string for the second database.
             exclude_schema: List of schemas to be ignored in check.
             exclude_field_pattern: List of field patterns to be ignored in check.
             ignore_list: List of elements to be ignored in check (ex. tables, columns,
                 views, ...).
         """
-        self.pg_service1 = pg_service1
-        self.pg_service2 = pg_service2
+        self.pg_connection1 = pg_connection1
+        self.pg_connection2 = pg_connection2
 
-        self.conn1 = psycopg.connect(f"service={pg_service1}")
+        self.conn1 = psycopg.connect(format_connection_string(pg_connection1))
         self.cur1 = self.conn1.cursor()
 
-        self.conn2 = psycopg.connect(f"service={pg_service2}")
+        self.conn2 = psycopg.connect(format_connection_string(pg_connection2))
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list or []
@@ -152,8 +154,8 @@ class Checker:
                 )
 
         return ComparisonReport(
-            pg_service1=self.pg_service1,
-            pg_service2=self.pg_service2,
+            pg_connection1=self.pg_connection1,
+            pg_connection2=self.pg_connection2,
             timestamp=datetime.now(),
             check_results=check_results,
         )
