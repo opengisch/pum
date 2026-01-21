@@ -29,23 +29,25 @@ class ReportGenerator:
         # If already structured data (dict), format it appropriately
         if isinstance(content, dict):
             # Determine object type based on available keys
-            # Check for constraints BEFORE columns (constraints also have 'column_name')
+            # IMPORTANT: Check order matters! Constraints, Indexes, and Columns all have 'column_name'
+            # Check most specific first
             if check_name == "Constraints" or "constraint_name" in content:
                 # Constraint format
                 schema = content.get("constraint_schema", "") or "public"
                 table = content.get("table_name", "")
                 constraint_name = content.get("constraint_name", "")
                 constraint_type = content.get("constraint_type", "")
+                constraint_def = content.get("constraint_definition", "")
 
-                # Build details
+                # Build details - only include non-empty values
                 details = []
                 if constraint_type:
                     details.append(f"Type: {constraint_type}")
-                if content.get("column_name"):
+                if content.get("column_name") and content.get("column_name") != "":
                     details.append(f"Column: {content['column_name']}")
-                if content.get("foreign_table_name"):
+                if content.get("foreign_table_name") and content.get("foreign_table_name") != "":
                     details.append(f"References: {content['foreign_table_name']}")
-                if content.get("foreign_column_name"):
+                if content.get("foreign_column_name") and content.get("foreign_column_name") != "":
                     details.append(f"Foreign column: {content['foreign_column_name']}")
 
                 return {
@@ -53,32 +55,75 @@ class ReportGenerator:
                     "type": "constraint",
                     "schema_object": f"{schema}.{table}",
                     "detail": constraint_name,
-                    "extra": " | ".join(details) if details else "",
-                    "sql": None,
+                    "extra": " | ".join(details) if details else None,
+                    "sql": constraint_def if constraint_def and constraint_def != "" else None,
+                }
+            elif check_name == "Indexes" or "index_name" in content:
+                # Index format - check BEFORE columns since indexes also have column_name
+                schema = content.get("schema_name", "") or "public"
+                table = content.get("table_name", "")
+                index_name = content.get("index_name", "")
+                column = content.get("column_name", "")
+                index_def = content.get("index_definition", "")
+
+                # Build details
+                details = []
+                if column and column != "":
+                    details.append(f"Column: {column}")
+
+                return {
+                    "is_structured": True,
+                    "type": "index",
+                    "schema_object": f"{schema}.{table}",
+                    "detail": index_name,
+                    "extra": " | ".join(details) if details else None,
+                    "sql": index_def if index_def and index_def != "" else None,
                 }
             elif check_name == "Columns" or "column_name" in content:
                 # Column format
+                schema = content.get("table_schema", "")
+                table = content.get("table_name", "")
+
+                # Build details
+                details = []
+                if content.get("data_type"):
+                    details.append(f"Type: {content['data_type']}")
+                if content.get("is_nullable"):
+                    details.append(f"Nullable: {content['is_nullable']}")
+                if (
+                    content.get("column_default")
+                    and str(content.get("column_default")).lower() != "none"
+                ):
+                    details.append(f"Default: {content['column_default']}")
+                if (
+                    content.get("character_maximum_length")
+                    and str(content.get("character_maximum_length")).lower() != "none"
+                ):
+                    details.append(f"Max length: {content['character_maximum_length']}")
+                if (
+                    content.get("numeric_precision")
+                    and str(content.get("numeric_precision")).lower() != "none"
+                ):
+                    details.append(f"Precision: {content['numeric_precision']}")
+
                 return {
                     "is_structured": True,
                     "type": "column",
-                    "schema_object": f"{content.get('table_schema', '')}.{content.get('table_name', '')}",
+                    "schema_object": f"{schema}.{table}",
                     "detail": content.get("column_name", ""),
-                    "data_type": content.get("data_type", ""),
-                    "nullable": content.get("is_nullable", ""),
-                    "default": content.get("column_default", ""),
-                    "char_max_length": content.get("character_maximum_length", ""),
-                    "numeric_precision": content.get("numeric_precision", ""),
+                    "extra": " | ".join(details) if details else None,
                     "sql": None,
                 }
             elif check_name == "Views" or "view_definition" in content:
                 # View format
+                schema = content.get("table_schema", "") or "public"
                 view_name = content.get("table_name", "")
-                schema = content.get("table_schema", "")
-                sql = content.get("view_definition", str(content.get("replace", "")))
+                # Handle both old and new column names
+                sql = content.get("view_definition") or content.get("replace", "")
                 return {
                     "is_structured": True,
                     "type": "view",
-                    "schema_object": f"{schema}.{view_name}" if schema else view_name,
+                    "schema_object": f"{schema}.{view_name}",
                     "detail": None,
                     "sql": sql,
                 }
@@ -102,8 +147,10 @@ class ReportGenerator:
                 sql = content.get("routine_definition", "")
                 param_type = content.get("data_type", "")
 
-                # Add parameter type as extra detail if present
-                extra = f"Parameter type: {param_type}" if param_type else ""
+                # Only add parameter type if it's a real value
+                extra = None
+                if param_type and param_type not in ["", "None", None]:
+                    extra = f"Parameter type: {param_type}"
 
                 return {
                     "is_structured": True,
@@ -111,7 +158,7 @@ class ReportGenerator:
                     "schema_object": f"{schema}.{function_name}",
                     "detail": "",
                     "extra": extra,
-                    "sql": sql,
+                    "sql": sql if sql and sql != "" else None,
                 }
             elif check_name == "Rules" or "rule_name" in content:
                 # Rule format
@@ -130,11 +177,11 @@ class ReportGenerator:
                     "type": "rule",
                     "schema_object": f"{schema}.{table}",
                     "detail": rule_name,
-                    "extra": " | ".join(details) if details else "",
+                    "extra": " | ".join(details) if details else None,
                     "sql": None,
                 }
             else:
-                # Generic object format (tables, sequences, indexes, constraints, etc.)
+                # Generic object format (tables, sequences, etc.)
                 # Try to find schema and name keys
                 schema = (
                     content.get("table_schema")
@@ -158,6 +205,7 @@ class ReportGenerator:
                     "type": "object",
                     "schema_object": f"{schema}.{name}" if schema and name else str(content),
                     "detail": None,
+                    "extra": None,
                     "sql": None,
                 }
 
@@ -624,13 +672,56 @@ class ReportGenerator:
             font-size: 13px;
         }
 
+        .collapsible-toggle {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            margin-left: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: background 0.2s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .collapsible-toggle:hover {
+            background: #0056b3;
+        }
+
+        .collapsible-toggle::before {
+            content: '\u25b6 ';
+            font-size: 10px;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .collapsible-toggle:not(.collapsed)::before {
+            content: '\u25bc ';
+        }
+
+        .collapsible-content {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            display: block;
+            width: 100%;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+
         .sql-widget {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 4px;
             padding: 12px;
-            margin-top: 8px;
-            max-height: 200px;
+            margin-top: 4px;
+            max-height: 300px;
             overflow-y: auto;
             overflow-x: auto;
             font-family: 'Courier New', Courier, monospace;
@@ -688,6 +779,31 @@ class ReportGenerator:
             color: #764ba2;
         }
     </style>
+    <script>
+        function toggleCollapsible(element) {
+            // Check if element is a button or a table header div
+            if (element.tagName === 'BUTTON') {
+                element.classList.toggle('collapsed');
+                // For buttons inside .diff-content, find the next sibling of the parent
+                const parent = element.parentElement;
+                const content = parent ? parent.nextElementSibling : element.nextElementSibling;
+                if (content && content.classList.contains('collapsible-content')) {
+                    content.classList.toggle('collapsed');
+                }
+            } else if (element.tagName === 'DIV') {
+                // Handle table header clicks
+                const schemaObject = element.querySelector('.schema-object');
+                if (schemaObject) {
+                    const isExpanded = schemaObject.textContent.startsWith('▼');
+                    schemaObject.textContent = (isExpanded ? '▶' : '▼') + schemaObject.textContent.substring(1);
+                }
+                const content = element.nextElementSibling;
+                if (content && content.classList.contains('collapsible-content')) {
+                    content.classList.toggle('collapsed');
+                }
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -747,47 +863,59 @@ class ReportGenerator:
                         {% set grouped = group_columns(result.differences) %}
                         {% for table, columns in grouped.items() %}
                         <div style="margin-bottom: 20px;">
-                            <div style="margin-bottom: 10px;">
-                                <span class="schema-object">{{ table }}</span>
+                            <div style="margin-bottom: 10px; cursor: pointer;" onclick="toggleCollapsible(this)">
+                                <span class="schema-object">▼ {{ table }}</span>
                             </div>
-                            <ul class="diff-list">
-                                {% for col in columns.removed %}
-                                <li class="diff-item removed">
-                                    <div class="diff-content">
-                                        <span class="diff-marker">-</span>
-                                        <span class="db-label tooltip">
-                                            DB1
-                                            <span class="tooltiptext">
-                                                ⚠️ Missing in <strong>{{ report.pg_service2|e }}</strong><br>
-                                                Only exists in {{ report.pg_service1|e }}
+                            <div class="collapsible-content">
+                                <ul class="diff-list">
+                                    {% for col in columns.removed %}
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>{{ report.pg_service2|e }}</strong><br>
+                                                    Only exists in {{ report.pg_service1|e }}
+                                                </span>
                                             </span>
-                                        </span>
-                                        <span class="object-detail">{{ col.column }}</span>
+                                            <span class="object-detail">{{ col.column }}</span>
+                                            {% if col.extra %}
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+                                            {% endif %}
+                                        </div>
                                         {% if col.extra %}
-                                        <div class="object-extra">{{ col.extra|e }}</div>
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">{{ col.extra|e }}</div>
+                                        </div>
                                         {% endif %}
-                                    </div>
-                                </li>
-                                {% endfor %}
-                                {% for col in columns.added %}
-                                <li class="diff-item added">
-                                    <div class="diff-content">
-                                        <span class="diff-marker">+</span>
-                                        <span class="db-label tooltip">
-                                            DB2
-                                            <span class="tooltiptext">
-                                                ⚠️ Extra in <strong>{{ report.pg_service2|e }}</strong><br>
-                                                Not present in {{ report.pg_service1|e }}
+                                    </li>
+                                    {% endfor %}
+                                    {% for col in columns.added %}
+                                    <li class="diff-item added">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">+</span>
+                                            <span class="db-label tooltip">
+                                                DB2
+                                                <span class="tooltiptext">
+                                                    ⚠️ Extra in <strong>{{ report.pg_service2|e }}</strong><br>
+                                                    Not present in {{ report.pg_service1|e }}
+                                                </span>
                                             </span>
-                                        </span>
-                                        <span class="object-detail">{{ col.column }}</span>
+                                            <span class="object-detail">{{ col.column }}</span>
+                                            {% if col.extra %}
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+                                            {% endif %}
+                                        </div>
                                         {% if col.extra %}
-                                        <div class="object-extra">{{ col.extra|e }}</div>
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">{{ col.extra|e }}</div>
+                                        </div>
                                         {% endif %}
-                                    </div>
-                                </li>
-                                {% endfor %}
-                            </ul>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                         </div>
                         {% endfor %}
                     {% else %}
@@ -814,10 +942,21 @@ class ReportGenerator:
                                     {% if formatted.detail %}
                                         <span class="object-detail">{{ formatted.detail }}</span>
                                     {% endif %}
+                                    {% if formatted.extra %}
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
+                                    {% endif %}
                                     {% if formatted.sql %}
-                                    <div class="sql-widget">{{ formatted.sql|e }}</div>
-                                    {% elif formatted.extra %}
-                                    <div class="object-extra">{{ formatted.extra|e }}</div>
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
+                                    {% endif %}
+                                    {% if formatted.extra %}
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">{{ formatted.extra|e }}</div>
+                                        </div>
+                                    {% endif %}
+                                    {% if formatted.sql %}
+                                        <div class="collapsible-content collapsed">
+                                            <div class="sql-widget">{{ formatted.sql|e }}</div>
+                                        </div>
                                     {% endif %}
                                 {% else %}
                                     <span class="object-content">{{ formatted.content|e }}</span>

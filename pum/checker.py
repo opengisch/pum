@@ -287,7 +287,8 @@ class Checker:
         )
 
         # Query for KEY constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE)
-        key_query = f""" select
+        key_query = f"""
+                    SELECT
                         tc.constraint_name,
                         tc.constraint_schema || '.' || tc.table_name || '.' ||
                             kcu.column_name as physical_full_name,
@@ -296,17 +297,25 @@ class Checker:
                         kcu.column_name,
                         ccu.table_name as foreign_table_name,
                         ccu.column_name as foreign_column_name,
-                        tc.constraint_type
-                    from information_schema.table_constraints as tc
-                    join information_schema.key_column_usage as kcu on
-                        (tc.constraint_name = kcu.constraint_name and
+                        tc.constraint_type,
+                        pg_get_constraintdef((
+                            SELECT con.oid FROM pg_constraint con
+                            JOIN pg_namespace nsp ON con.connamespace = nsp.oid
+                            WHERE con.conname = tc.constraint_name
+                            AND nsp.nspname = tc.constraint_schema
+                            LIMIT 1
+                        )) as constraint_definition
+                    FROM information_schema.table_constraints as tc
+                    JOIN information_schema.key_column_usage as kcu ON
+                        (tc.constraint_name = kcu.constraint_name AND
                         tc.table_name = kcu.table_name)
-                    join information_schema.constraint_column_usage as ccu on
+                    JOIN information_schema.constraint_column_usage as ccu ON
                         ccu.constraint_name = tc.constraint_name
                     WHERE ({table_conditions})
                     ORDER BY tc.constraint_schema, physical_full_name,
                         tc.constraint_name, foreign_table_name,
-                        foreign_column_name  """
+                        foreign_column_name
+                    """
 
         # Query for CHECK constraints (they don't appear in key_column_usage)
         check_query = f"""
@@ -318,7 +327,8 @@ class Checker:
                         '' as column_name,
                         '' as foreign_table_name,
                         '' as foreign_column_name,
-                        'CHECK' as constraint_type
+                        'CHECK' as constraint_type,
+                        pg_get_constraintdef(c.oid) as constraint_definition
                     FROM pg_constraint c
                     JOIN pg_class cl ON c.conrelid = cl.oid
                     JOIN pg_namespace n ON cl.relnamespace = n.oid
@@ -342,7 +352,7 @@ class Checker:
                 - list: A list with the differences.
         """
         query = rf"""
-        SELECT table_name, REPLACE(view_definition,'"','')
+        SELECT table_schema, table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
         WHERE table_schema NOT IN {self.exclude_schema}
         AND table_schema NOT LIKE 'pg\_%'
@@ -409,26 +419,28 @@ class Checker:
         )
 
         query = rf"""
-        select
+        SELECT
+            ns.nspname as schema_name,
             t.relname as table_name,
             i.relname as index_name,
             a.attname as column_name,
-            ns.nspname as schema_name
-        from
+            pg_get_indexdef(i.oid) as index_definition
+        FROM
             pg_class t,
             pg_class i,
             pg_index ix,
             pg_attribute a,
             pg_namespace ns
-        where
+        WHERE
             t.oid = ix.indrelid
-            and i.oid = ix.indexrelid
-            and a.attrelid = t.oid
-            and t.relnamespace = ns.oid
-            and a.attnum = ANY(ix.indkey)
-            and t.relkind = 'r'
+            AND i.oid = ix.indexrelid
+            AND a.attrelid = t.oid
+            AND t.relnamespace = ns.oid
+            AND a.attnum = ANY(ix.indkey)
+            AND t.relkind = 'r'
             AND ({table_conditions})
-        order by
+        ORDER BY
+            ns.nspname,
             t.relname,
             i.relname,
             a.attname
