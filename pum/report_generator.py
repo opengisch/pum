@@ -784,9 +784,46 @@ class ReportGenerator:
             // Check if element is a button or a table header div
             if (element.tagName === 'BUTTON') {
                 element.classList.toggle('collapsed');
-                // For buttons inside .diff-content, find the next sibling of the parent
+                // Find the corresponding collapsible-content div
+                let content = null;
                 const parent = element.parentElement;
-                const content = parent ? parent.nextElementSibling : element.nextElementSibling;
+
+                // Check if collapsible-content is a sibling of the button (constraints/indexes/views/etc)
+                // or a sibling of the parent div (columns)
+                let hasSiblingContent = false;
+                let sibling = element.nextElementSibling;
+                while (sibling) {
+                    if (sibling.classList && sibling.classList.contains('collapsible-content')) {
+                        hasSiblingContent = true;
+                        break;
+                    }
+                    sibling = sibling.nextElementSibling;
+                }
+
+                if (hasSiblingContent) {
+                    // Content divs are siblings of buttons - match by index
+                    const allButtons = [];
+                    const allContents = [];
+                    sibling = parent.firstElementChild;
+
+                    while (sibling) {
+                        if (sibling.tagName === 'BUTTON' && sibling.classList.contains('collapsible-toggle')) {
+                            allButtons.push(sibling);
+                        } else if (sibling.classList && sibling.classList.contains('collapsible-content')) {
+                            allContents.push(sibling);
+                        }
+                        sibling = sibling.nextElementSibling;
+                    }
+
+                    const buttonIndex = allButtons.indexOf(element);
+                    if (buttonIndex >= 0 && buttonIndex < allContents.length) {
+                        content = allContents[buttonIndex];
+                    }
+                } else {
+                    // Content div is sibling of parent (columns case)
+                    content = parent.nextElementSibling;
+                }
+
                 if (content && content.classList.contains('collapsible-content')) {
                     content.classList.toggle('collapsed');
                 }
