@@ -1,4 +1,3 @@
-import difflib
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -18,11 +17,14 @@ class DifferenceItem:
     """Represents a single difference between databases."""
 
     type: DifferenceType
-    content: str
+    content: dict | str  # dict for structured data, str for backward compatibility
 
     def __str__(self) -> str:
         """String representation with marker."""
         marker = "+" if self.type == DifferenceType.ADDED else "-"
+        if isinstance(self.content, dict):
+            # For structured content, create a readable string
+            return f"{marker} {self.content}"
         return f"{marker} {self.content}"
 
 
@@ -186,43 +188,56 @@ class Checker:
                 - bool: True if the columns are the same, False otherwise.
                 - list: A list with the differences.
         """
-        with_query = None
+        # First, get the list of tables that exist in BOTH databases
+        # to avoid reporting columns from tables that don't exist in one DB
         if check_views:
-            with_query = rf"""WITH table_list AS (
-                         SELECT table_schema, table_name
+            table_query = rf"""SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE table_schema NOT IN {self.exclude_schema}
                             AND table_schema NOT LIKE 'pg\_%'
                          ORDER BY table_schema,table_name
-                         )"""
-
+                         """
         else:
-            with_query = rf"""WITH table_list AS (
-                         SELECT table_schema, table_name
+            table_query = rf"""SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE table_schema NOT IN {self.exclude_schema}
                             AND table_schema NOT LIKE 'pg\_%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
-                         )"""
+                         """
 
-        query = """{wq}
+        # Get tables from both databases
+        self.cur1.execute(table_query)
+        tables1 = set(self.cur1.fetchall())
+
+        self.cur2.execute(table_query)
+        tables2 = set(self.cur2.fetchall())
+
+        # Only check columns for tables that exist in both databases
+        common_tables = tables1.intersection(tables2)
+
+        if not common_tables:
+            # No common tables, so no columns to compare
+            return True, []
+
+        # Build the WHERE clause to only include common tables
+        table_conditions = " OR ".join(
+            [
+                f"(isc.table_schema = '{schema}' AND isc.table_name = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
+        query = f"""
                 SELECT isc.table_schema, isc.table_name, column_name,
                     column_default, is_nullable, data_type,
                     character_maximum_length::text, numeric_precision::text,
                     numeric_precision_radix::text, datetime_precision::text
-                FROM information_schema.columns isc,
-                table_list tl
-                WHERE isc.table_schema = tl.table_schema
-                    AND isc.table_name = tl.table_name
-                    {efp}
+                FROM information_schema.columns isc
+                WHERE ({table_conditions})
+                    {("".join([f" AND column_name NOT LIKE '{pattern}'" for pattern in self.exclude_field_pattern]))}
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """.format(
-            wq=with_query,
-            efp="".join(
-                [f" AND column_name NOT LIKE '{pattern}'" for pattern in self.exclude_field_pattern]
-            ),
-        )
+                """
 
         return self.__check_equals(query)
 
@@ -234,7 +249,45 @@ class Checker:
                 - bool: True if the constraints are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = f""" select
+        # Get tables from both databases to filter constraints
+        table_query = f"""SELECT table_schema, table_name
+                         FROM information_schema.tables
+                         WHERE table_schema NOT IN {self.exclude_schema}
+                            AND table_schema NOT LIKE 'pg\\_%'
+                            AND table_type NOT LIKE 'VIEW'
+                         ORDER BY table_schema,table_name
+                         """
+
+        self.cur1.execute(table_query)
+        tables1 = set(self.cur1.fetchall())
+
+        self.cur2.execute(table_query)
+        tables2 = set(self.cur2.fetchall())
+
+        # Only check constraints for tables that exist in both databases
+        common_tables = tables1.intersection(tables2)
+
+        if not common_tables:
+            return True, []
+
+        # Build the WHERE clause to only include common tables
+        table_conditions = " OR ".join(
+            [
+                f"(tc.constraint_schema = '{schema}' AND tc.table_name = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
+        # Build WHERE clause for CHECK constraints
+        check_table_conditions = " OR ".join(
+            [
+                f"(n.nspname = '{schema}' AND cl.relname = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
+        # Query for KEY constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE)
+        key_query = f""" select
                         tc.constraint_name,
                         tc.constraint_schema || '.' || tc.table_name || '.' ||
                             kcu.column_name as physical_full_name,
@@ -250,12 +303,35 @@ class Checker:
                         tc.table_name = kcu.table_name)
                     join information_schema.constraint_column_usage as ccu on
                         ccu.constraint_name = tc.constraint_name
-                    WHERE tc.constraint_schema NOT IN {self.exclude_schema}
+                    WHERE ({table_conditions})
                     ORDER BY tc.constraint_schema, physical_full_name,
                         tc.constraint_name, foreign_table_name,
                         foreign_column_name  """
 
-        return self.__check_equals(query)
+        # Query for CHECK constraints (they don't appear in key_column_usage)
+        check_query = f"""
+                    SELECT
+                        c.conname as constraint_name,
+                        n.nspname || '.' || cl.relname as physical_full_name,
+                        n.nspname as constraint_schema,
+                        cl.relname as table_name,
+                        '' as column_name,
+                        '' as foreign_table_name,
+                        '' as foreign_column_name,
+                        'CHECK' as constraint_type
+                    FROM pg_constraint c
+                    JOIN pg_class cl ON c.conrelid = cl.oid
+                    JOIN pg_namespace n ON cl.relnamespace = n.oid
+                    WHERE c.contype = 'c'
+                        AND ({check_table_conditions})
+                    ORDER BY n.nspname, cl.relname, c.conname
+                    """
+
+        # Execute both queries and combine results
+        passed_keys, diffs_keys = self.__check_equals(key_query)
+        passed_checks, diffs_checks = self.__check_equals(check_query)
+
+        return (passed_keys and passed_checks, diffs_keys + diffs_checks)
 
     def check_views(self):
         """Check if the views are equals.
@@ -303,6 +379,35 @@ class Checker:
                 - bool: True if the indexes are the same, False otherwise.
                 - list: A list with the differences.
         """
+        # Get tables from both databases to filter indexes
+        table_query = f"""SELECT table_schema, table_name
+                         FROM information_schema.tables
+                         WHERE table_schema NOT IN {self.exclude_schema}
+                            AND table_schema NOT LIKE 'pg\\_%'
+                            AND table_type NOT LIKE 'VIEW'
+                         ORDER BY table_schema,table_name
+                         """
+
+        self.cur1.execute(table_query)
+        tables1 = set(self.cur1.fetchall())
+
+        self.cur2.execute(table_query)
+        tables2 = set(self.cur2.fetchall())
+
+        # Only check indexes for tables that exist in both databases
+        common_tables = tables1.intersection(tables2)
+
+        if not common_tables:
+            return True, []
+
+        # Build the WHERE clause to only include common tables
+        table_conditions = " OR ".join(
+            [
+                f"(ns.nspname = '{schema}' AND t.relname = '{table}')"
+                for schema, table in common_tables
+            ]
+        )
+
         query = rf"""
         select
             t.relname as table_name,
@@ -322,9 +427,7 @@ class Checker:
             and t.relnamespace = ns.oid
             and a.attnum = ANY(ix.indkey)
             and t.relkind = 'r'
-            AND t.relname NOT IN ('information_schema')
-            AND t.relname NOT LIKE 'pg\_%'
-            AND ns.nspname NOT IN {self.exclude_schema}
+            AND ({table_conditions})
         order by
             t.relname,
             i.relname,
@@ -419,7 +522,7 @@ class Checker:
         Returns:
             tuple: A tuple containing:
                 - bool: True if the results are the same, False otherwise.
-                - list[DifferenceItem]: A list of DifferenceItem objects.
+                - list[DifferenceItem]: A list of DifferenceItem objects with structured data.
         """
         self.cur1.execute(query)
         records1 = self.cur1.fetchall()
@@ -430,19 +533,46 @@ class Checker:
         result = True
         differences = []
 
-        d = difflib.Differ()
-        records1 = [str(x) for x in records1]
-        records2 = [str(x) for x in records2]
+        # Convert records to dictionaries based on column names
+        col_names = [desc[0] for desc in self.cur1.description]
 
-        for line in d.compare(records1, records2):
-            if line[0] in ("-", "+"):
-                result = False
-                diff_type = DifferenceType.REMOVED if line[0] == "-" else DifferenceType.ADDED
-                differences.append(
-                    DifferenceItem(
-                        type=diff_type,
-                        content=line[2:],  # Skip the marker and space
+        # Create structured records
+        structured1 = [dict(zip(col_names, record)) for record in records1]
+        structured2 = [dict(zip(col_names, record)) for record in records2]
+
+        # Create sets for comparison
+        set1 = {str(tuple(r)) for r in records1}
+        set2 = {str(tuple(r)) for r in records2}
+
+        # Find differences
+        removed = set1 - set2
+        added = set2 - set1
+
+        if removed or added:
+            result = False
+
+            # Map string representations back to structured data
+            str_to_struct1 = {str(tuple(r)): s for r, s in zip(records1, structured1)}
+            str_to_struct2 = {str(tuple(r)): s for r, s in zip(records2, structured2)}
+
+            # Add removed items
+            for item_str in removed:
+                if item_str in str_to_struct1:
+                    differences.append(
+                        DifferenceItem(
+                            type=DifferenceType.REMOVED,
+                            content=str_to_struct1[item_str],
+                        )
                     )
-                )
+
+            # Add added items
+            for item_str in added:
+                if item_str in str_to_struct2:
+                    differences.append(
+                        DifferenceItem(
+                            type=DifferenceType.ADDED,
+                            content=str_to_struct2[item_str],
+                        )
+                    )
 
         return result, differences

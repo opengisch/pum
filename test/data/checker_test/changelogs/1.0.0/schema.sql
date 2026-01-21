@@ -15,6 +15,15 @@ CREATE TABLE pum_test_checker.products (
     in_stock BOOLEAN DEFAULT TRUE
 );
 
+-- Table that will be removed in 1.1.0 (will only exist in DB2)
+CREATE TABLE pum_test_checker.inventory (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES pum_test_checker.products(id),
+    quantity INTEGER NOT NULL DEFAULT 0,
+    warehouse_location VARCHAR(50),
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Sequences
 CREATE SEQUENCE pum_test_checker.order_sequence START 1000;
 
@@ -43,8 +52,10 @@ WHERE in_stock = TRUE;
 CREATE INDEX idx_users_username ON pum_test_checker.users(username);
 CREATE INDEX idx_products_name ON pum_test_checker.products(name);
 
--- Constraints
+-- Constraints (will be modified in 1.1.0)
 ALTER TABLE pum_test_checker.users ADD CONSTRAINT check_email CHECK (email LIKE '%@%');
+ALTER TABLE pum_test_checker.products ADD CONSTRAINT products_in_stock_check CHECK (in_stock IS NOT NULL);
+ALTER TABLE pum_test_checker.inventory ADD CONSTRAINT inventory_quantity_check CHECK (quantity >= 0);
 
 -- Triggers
 CREATE OR REPLACE FUNCTION pum_test_checker.update_timestamp()

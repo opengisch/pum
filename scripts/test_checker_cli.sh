@@ -23,7 +23,7 @@ echo "📦 Installing version 1.0.0 on both databases..."
 pum -s $PG_SERVICE1 -d $TEST_DIR install --max-version 1.0.0
 pum -s $PG_SERVICE2 -d $TEST_DIR install --max-version 1.0.0
 
-# Upgrade first database to 1.1.0 to create differences
+# Upgrade first database to 1.1.0 to create differences (second stays at 1.0.0)
 echo "⬆️  Upgrading $PG_SERVICE1 to version 1.1.0..."
 pum -s $PG_SERVICE1 -d $TEST_DIR upgrade
 
