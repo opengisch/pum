@@ -41,7 +41,7 @@ class TestDumper(unittest.TestCase):
 
         # Dump the database
         dumper = Dumper(
-            pg_service=self.pg_service,
+            pg_connection=self.pg_service,
             dump_path=self.dump_file.name,
         )
         dumper.pg_dump(dbname=self.test_db, format=DumpFormat.CUSTOM)
@@ -66,7 +66,7 @@ class TestDumper(unittest.TestCase):
         with open(self.dump_file.name, "w") as f:
             f.write("INVALID SQL;")
         dumper = Dumper(
-            pg_service=self.pg_service,
+            pg_connection=self.pg_service,
             dump_path=self.dump_file.name,
         )
         with self.assertRaises(PgRestoreFailed):
