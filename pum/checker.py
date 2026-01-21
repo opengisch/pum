@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import re
 
 import psycopg
 
@@ -339,9 +340,23 @@ class Checker:
                     ORDER BY n.nspname, cl.relname, c.conname
                     """
 
+        # Normalization function for constraint records
+        def normalize_constraint_record(record_dict, col_names):
+            """Normalize constraint definitions in a record."""
+            normalized = record_dict.copy()
+            if "constraint_definition" in normalized and normalized["constraint_definition"]:
+                normalized["constraint_definition"] = self.__normalize_constraint_definition(
+                    normalized["constraint_definition"]
+                )
+            return normalized
+
         # Execute both queries and combine results
-        passed_keys, diffs_keys = self.__check_equals(key_query)
-        passed_checks, diffs_checks = self.__check_equals(check_query)
+        passed_keys, diffs_keys = self.__check_equals(
+            key_query, normalize_func=normalize_constraint_record
+        )
+        passed_checks, diffs_checks = self.__check_equals(
+            check_query, normalize_func=normalize_constraint_record
+        )
 
         return (passed_keys and passed_checks, diffs_keys + diffs_checks)
 
@@ -527,11 +542,57 @@ class Checker:
 
         return self.__check_equals(query)
 
-    def __check_equals(self, query) -> tuple[bool, list[DifferenceItem]]:
+    @staticmethod
+    def __normalize_constraint_definition(definition: str) -> str:
+        """Normalize a constraint definition for comparison.
+
+        PostgreSQL may represent functionally equivalent constraints differently,
+        especially after dump/restore operations. This function normalizes common
+        variations to enable accurate comparison.
+
+        Args:
+            definition: The constraint definition string from pg_get_constraintdef()
+
+        Returns:
+            Normalized constraint definition
+        """
+        if not definition:
+            return definition
+
+        # Normalize different ARRAY representations:
+        # Before: (ARRAY['a'::type, 'b'::type])::type[] OR ARRAY[('a'::type)::text, ...]
+        # After: Canonical form based on sorted elements
+
+        # Strategy: Extract the constraint type and key values, ignoring formatting details
+        # For ANY/ALL with arrays, extract just the operator and the array values
+
+        # Remove extra parentheses around ARRAY expressions
+        # (ARRAY[...])::type[] -> ARRAY[...]::type[]
+        definition = re.sub(r"\(\(ARRAY\[(.*?)\]\)::(.*?)\[\]\)", r"ARRAY[\1]::\2[]", definition)
+
+        # Also remove parentheses without cast: (ARRAY[...]) -> ARRAY[...]
+        definition = re.sub(r"\(ARRAY\[([^\]]+)\]\)", r"ARRAY[\1]", definition)
+
+        # Normalize array element casts: ('value'::type1)::type2 -> 'value'::type1
+        # This handles the case where elements are double-cast
+        definition = re.sub(r"\('([^']+)'::([^)]+)\)::(\w+)", r"'\1'::\2", definition)
+
+        # Remove trailing array cast that may be present or absent: ::text[] or ::character varying[]
+        # This is safe because the type information is already in each array element
+        definition = re.sub(r"::(?:text|character varying)\[\]", "", definition)
+
+        # Remove extra whitespace and normalize spacing
+        definition = re.sub(r"\s+", " ", definition).strip()
+
+        return definition
+
+    def __check_equals(self, query, normalize_func=None) -> tuple[bool, list[DifferenceItem]]:
         """Check if the query results on the two databases are equals.
 
         Args:
             query: The SQL query to execute on both databases.
+            normalize_func: Optional function to normalize specific fields in records.
+                Should accept (dict, col_names) and return normalized dict.
 
         Returns:
             tuple: A tuple containing:
@@ -553,6 +614,14 @@ class Checker:
         # Create structured records
         structured1 = [dict(zip(col_names, record)) for record in records1]
         structured2 = [dict(zip(col_names, record)) for record in records2]
+
+        # Apply normalization if provided
+        if normalize_func:
+            structured1 = [normalize_func(r, col_names) for r in structured1]
+            structured2 = [normalize_func(r, col_names) for r in structured2]
+            # Recreate records from normalized structured data
+            records1 = [tuple(r[col] for col in col_names) for r in structured1]
+            records2 = [tuple(r[col] for col in col_names) for r in structured2]
 
         # Create sets for comparison
         set1 = {str(tuple(r)) for r in records1}
