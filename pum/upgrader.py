@@ -193,6 +193,7 @@ class Upgrader:
         parameters: dict | None = None,
         max_version: str | packaging.version.Version | None = None,
         beta_testing: bool = False,
+        force: bool = False,
         skip_drop_app: bool = False,
         skip_create_app: bool = False,
         grant: bool = True,
@@ -211,6 +212,8 @@ class Upgrader:
                 If True, the module is upgraded in beta testing mode.
                 This means that the module will not be allowed to receive any future updates.
                 We strongly discourage using this for production.
+            force:
+                If True, allow upgrading a module that is installed in beta testing mode.
             skip_drop_app:
                 If True, drop app handlers will be skipped.
             skip_create_app:
@@ -224,6 +227,17 @@ class Upgrader:
                 "This means that the module is not installed yet. Use install() to install the module."
             )
             raise PumException(msg)
+
+        migration_details = self.schema_migrations.migration_details(connection)
+        installed_beta_testing = bool(migration_details.get("beta_testing", False))
+        if installed_beta_testing and not force:
+            msg = (
+                "This module is installed in beta testing mode, upgrades are disabled. "
+                "Re-run with force=True (or --force in the CLI) if you really want to upgrade anyway."
+            )
+            raise PumException(msg)
+
+        effective_beta_testing = beta_testing or installed_beta_testing
 
         logger.info("Starting upgrade process...")
 
@@ -251,7 +265,7 @@ class Upgrader:
                 commit=False,
                 parameters=parameters,
                 schema_migrations=self.schema_migrations,
-                beta_testing=beta_testing,
+                beta_testing=effective_beta_testing,
             )
 
         if not skip_create_app:

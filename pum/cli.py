@@ -211,6 +211,11 @@ def create_parser(
         "--beta-testing", help="Install in beta testing mode.", action="store_true"
     )
     parser_upgrade.add_argument(
+        "--force",
+        help="Allow upgrading a module installed in beta testing mode.",
+        action="store_true",
+    )
+    parser_upgrade.add_argument(
         "--skip-drop-app",
         help="Skip drop app handlers during upgrade.",
         action="store_true",
@@ -466,6 +471,7 @@ def cli() -> int:  # noqa: PLR0912
                 max_version=args.max_version,
                 grant=not args.skip_grant,
                 beta_testing=args.beta_testing,
+                force=args.force,
                 skip_drop_app=args.skip_drop_app,
                 skip_create_app=args.skip_create_app,
             )

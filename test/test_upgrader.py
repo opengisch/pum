@@ -473,6 +473,28 @@ class TestUpgrader(unittest.TestCase):
             upgrader.upgrade(connection=conn)
             self.assertEqual(sm.baseline(conn), Version("2.0.0"))
 
+    def test_upgrade_blocked_when_installed_beta_testing_unless_forced(self) -> None:
+        """Upgrading a beta-testing installation should be blocked unless forced."""
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig(test_dir)
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.2.3", beta_testing=True)
+            self.assertEqual(sm.baseline(conn), Version("1.2.3"))
+            self.assertTrue(sm.migration_details(conn)["beta_testing"])
+
+            with self.assertRaises(PumException):
+                upgrader.upgrade(connection=conn, max_version="1.2.4")
+
+            upgrader.upgrade(connection=conn, max_version="1.2.4", force=True)
+            self.assertEqual(sm.baseline(conn), Version("1.2.4"))
+            self.assertTrue(sm.migration_details(conn)["beta_testing"])
+
+            with self.assertRaises(PumException):
+                upgrader.upgrade(connection=conn, force=False)
+
     def test_upgrade_with_grant(self) -> None:
         """Test that permissions are granted correctly after upgrade."""
         test_dir = Path("test") / "data" / "roles"
