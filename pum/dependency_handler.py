@@ -91,4 +91,12 @@ class DependencyHandler:
     def python_command(self):
         # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
         # https://github.com/qgis/QGIS/issues/45646
-        return "python" if os.name == "nt" else sys.executable
+        if os.name == "nt":
+            return "python"
+
+        # On macOS, sys.executable points to QGIS app itself, not the Python interpreter
+        # Check if we're running inside QGIS and use python3 instead
+        if sys.executable and ("QGIS" in sys.executable or sys.executable.endswith("QGIS")):
+            return "python3"
+
+        return sys.executable
