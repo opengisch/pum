@@ -80,7 +80,9 @@ nav:
       - RoleModel: configuration/role_model.md
 
   - Roles: roles.md
-  - Checker: checker.md
+  - Tools:
+      - Checker: tools/checker.md
+      - Dumper: tools/dumper.md
   - CLI:
       - Overview: cli.md
       - info: cli/info.md
