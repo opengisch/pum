@@ -37,6 +37,9 @@ class SchemaMigrations:
                 psycopg.sql.Identifier(MIGRATION_TABLE_NAME),
             ]
         )
+        self.migration_table_identifier_str = (
+            f"{self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME}"
+        )
 
     def exists(self, connection: psycopg.Connection) -> bool:
         """Check if the schema_migrations information table exists.
@@ -150,7 +153,7 @@ class SchemaMigrations:
         SqlContent(create_table_query).execute(connection, parameters=parameters)
         SqlContent(comment_query).execute(connection, parameters=parameters)
 
-        logger.info(f"Created {parameters['schema']}.{parameters['table']} table")
+        logger.info(f"Created migration table: {self.migration_table_identifier_str}")
 
         if commit:
             connection.commit()
@@ -220,7 +223,7 @@ INSERT INTO {table} (
         }
 
         logger.info(
-            f"Setting baseline version {version} in {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table"
+            f"Setting baseline version {version} in {self.migration_table_identifier_str} table"
         )
         SqlContent(code).execute(connection, parameters=query_parameters, commit=commit)
 
@@ -255,7 +258,7 @@ INSERT INTO {table} (
 
         if not self.exists(connection=connection):
             raise PumSchemaMigrationError(
-                f"{self.config.config.pum.migration_table_schema}.pum_migrations table does not exist."
+                f"{self.migration_table_identifier_str} table does not exist."
             )
 
         query = psycopg.sql.SQL(
@@ -279,7 +282,7 @@ INSERT INTO {table} (
         row = cursor.fetchone()
         if row is None:
             raise PumSchemaMigrationNoBaselineError(
-                "Baseline version not found in the migration table."
+                f"Baseline version not found in the {self.migration_table_identifier_str} table."
             )
         return packaging.version.parse(row[0])
 
@@ -335,7 +338,9 @@ INSERT INTO {table} (
         cursor = SqlContent(query).execute(connection, parameters=parameters)
         row = cursor.fetchone()
         if row is None:
-            raise PumSchemaMigrationError(f"Migration details not found for version {version}.")
+            raise PumSchemaMigrationError(
+                f"Migration details not found for version {version} in the {self.migration_table_identifier_str} table."
+            )
         return dict(zip([desc[0] for desc in cursor.description], row, strict=False))
 
     def compare(self, connection: psycopg.Connection) -> int:
