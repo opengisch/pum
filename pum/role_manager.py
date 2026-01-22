@@ -54,6 +54,19 @@ class Permission:
             raise ValueError("Schemas must be defined for the permission.")
 
         for schema in self.schemas:
+            # Detect if schema exists; if not, warn and continue
+            cursor = SqlContent("SELECT 1 FROM pg_namespace WHERE nspname = {schema}").execute(
+                connection=connection,
+                commit=False,
+                parameters={"schema": psycopg.sql.Literal(schema)},
+            )
+            if cursor.fetchone() is None:
+                logger.warning(
+                    f"Schema {schema} does not exist; skipping grant of {self.type.value} "
+                    f"permission to role {role}."
+                )
+                continue
+
             logger.debug(
                 f"Granting {self.type.value} permission on schema {schema} to role {role}."
             )
