@@ -18,17 +18,23 @@ from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
+from . import SQL
 
 
 def setup_logging(verbosity: int = 0):
     """Configure logging for the CLI.
 
     Args:
-        verbosity: Verbosity level (-1=quiet/WARNING, 0=INFO (default), 1+=DEBUG).
+        verbosity: Verbosity level (-1=quiet/WARNING, 0=INFO, 1=DEBUG, 2+=SQL).
 
     """
+    # Register custom SQL log level
+    logging.addLevelName(SQL, "SQL")
+
     if verbosity < 0:
         level = logging.WARNING  # quiet mode
+    elif verbosity >= 2:
+        level = SQL  # Most verbose - shows all SQL statements
     elif verbosity >= 1:
         level = logging.DEBUG
     else:
@@ -40,6 +46,7 @@ def setup_logging(verbosity: int = 0):
             logging.WARNING: "\033[33m",  # Yellow
             logging.INFO: "\033[36m",  # Cyan
             logging.DEBUG: "\033[35m",  # Magenta
+            SQL: "\033[90m",  # Gray for SQL statements
         }
         RESET = "\033[0m"
 
@@ -119,8 +126,9 @@ def create_parser(
     parser.add_argument(
         "-v",
         "--verbose",
-        action="store_true",
-        help="Show debug messages",
+        action="count",
+        default=0,
+        help="Increase verbosity (-v for DEBUG, -vv for SQL statements)",
     )
 
     parser.add_argument(
@@ -327,13 +335,11 @@ def cli() -> int:  # noqa: PLR0912
     if args.quiet and args.verbose:
         parser.error("--quiet and --verbose are mutually exclusive")
 
-    # Set verbosity level (-1 for quiet, 0 for normal, 1 for verbose)
+    # Set verbosity level (-1 for quiet, 0 for normal, 1+ for verbose)
     if args.quiet:
         verbosity = -1
-    elif args.verbose:
-        verbosity = 1
     else:
-        verbosity = 0
+        verbosity = args.verbose
 
     setup_logging(verbosity)
     logger = logging.getLogger(__name__)

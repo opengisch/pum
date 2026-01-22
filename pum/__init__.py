@@ -2,6 +2,10 @@ import importlib
 import logging
 from typing import Any, TYPE_CHECKING
 
+# Custom SQL logging level (more verbose than DEBUG)
+# Register with: logging.addLevelName(SQL, 'SQL')
+SQL = 5
+
 # Configure default logging for API usage (not CLI)
 # CLI will override this with its own configuration
 if not logging.getLogger().handlers:
@@ -39,6 +43,7 @@ __all__ = [
     "Role",
     "RoleManager",
     "SchemaMigrations",
+    "SQL",
     "SqlContent",
     "Upgrader",
 ]
