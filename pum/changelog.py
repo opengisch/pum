@@ -1,3 +1,4 @@
+import logging
 from os import listdir
 from os.path import basename
 from pathlib import Path
@@ -8,6 +9,8 @@ import psycopg
 from .schema_migrations import SchemaMigrations
 from .exceptions import PumInvalidChangelog, PumSqlError
 from .sql_content import SqlContent
+
+logger = logging.getLogger(__name__)
 
 
 class Changelog:
@@ -108,6 +111,8 @@ class Changelog:
                 The list of changelogs that were executed
 
         """
+        logger.info(f"Applying changelog version {self.version} from {self.dir}")
+
         parameters_literals = SqlContent.prepare_parameters(parameters)
         files = self.files()
         for file in files:

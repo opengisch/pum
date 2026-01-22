@@ -92,6 +92,8 @@ class Upgrader:
             raise PumException(msg)
         self.schema_migrations.create(connection, commit=False)
 
+        logger.info("Installing module...")
+
         if roles or grant:
             self.config.role_manager().create_roles(
                 connection=connection, grant=False, commit=False
@@ -222,6 +224,8 @@ class Upgrader:
                 "This means that the module is not installed yet. Use install() to install the module."
             )
             raise PumException(msg)
+
+        logger.info("Starting upgrade process...")
 
         if not skip_drop_app:
             for drop_app_hook in self.config.drop_app_handlers():
