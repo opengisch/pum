@@ -13,8 +13,17 @@ from .pum_config import PumConfig
 
 logger = logging.getLogger(__name__)
 
-MIGRATION_TABLE_VERSION = "2025.0"
+MIGRATION_TABLE_VERSION = 2  # Current schema version
 MIGRATION_TABLE_NAME = "pum_migrations"
+
+# TABLE VERSION HISTORY
+#
+# Version 1:
+#    Initial version with columns id, date_installed, module, version,
+#    beta_testing, changelog_files, parameters, migration_table_version
+#
+# Version 2:
+#   Changed migration_table_version type to integer and set module NOT NULL (version 2025.1 => 1, module 'tww')
 
 
 class SchemaMigrations:
@@ -134,19 +143,17 @@ class SchemaMigrations:
             (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             date_installed timestamp without time zone NOT NULL DEFAULT now(),
-            module character varying(50), -- TODO: NOT NULL,
+            module character varying(50) NOT NULL,
             version character varying(50) NOT NULL,
             beta_testing boolean NOT NULL DEFAULT false,
             changelog_files text[],
             parameters jsonb,
-            migration_table_version character varying(50) NOT NULL DEFAULT {version}
+            migration_table_version integer NOT NULL DEFAULT {version}
             );
         """
         )
 
-        comment_query = psycopg.sql.SQL(
-            "COMMENT ON TABLE {table} IS 'version: 1 --  schema_migration table version';"
-        )
+        comment_query = psycopg.sql.SQL("COMMENT ON TABLE {table} IS 'migration_table_version: 2';")
 
         if create_schema_query:
             SqlContent(create_schema_query).execute(connection, parameters=parameters)
@@ -157,6 +164,59 @@ class SchemaMigrations:
 
         if commit:
             connection.commit()
+
+    def migration_table_version(self, connection: psycopg.Connection) -> int:
+        """Return the migration table version.
+
+        Args:
+            connection: The database connection to get the migration table version.
+
+        Returns:
+            int | None: The migration table version, or None if the table does not exist.
+
+        """
+        query = psycopg.sql.SQL(
+            """
+            SELECT migration_table_version
+            FROM {table}
+            ORDER BY migration_table_version DESC
+            LIMIT 1;
+        """
+        )
+
+        parameters = {
+            "table": self.migration_table_identifier,
+        }
+
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        row = cursor.fetchone()
+        if row is None:
+            raise PumSchemaMigrationError(
+                f"Migration table {self.migration_table_identifier_str} does not exist."
+            )
+        return row[0]
+
+    def update_migration_table_schema(self, connection: psycopg.Connection) -> None:
+        """Update the migration table schema to the latest version.
+
+        Args:
+            connection: The database connection to update the table.
+
+        """
+        table_version = self.migration_table_version(connection)
+        logger.info(
+            f"Updating migration table {self.migration_table_identifier_str} from version {table_version} to {MIGRATION_TABLE_VERSION}."
+        )
+        if table_version == 1:
+            alter_query = psycopg.sql.SQL("""
+                                          ALTER TABLE {table} ALTER COLUMN migration_table_version ALTER TYPE integer SET DEFAULT {version} USING 1;
+                                          ALTER TABLE {table} ALTER COLUMN module SET NOT NULL USING 'tww';
+                                          """)
+            parameters = {
+                "table": self.migration_table_identifier,
+                "version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
+            }
+            SqlContent(alter_query).execute(connection, parameters=parameters)
 
     def set_baseline(
         self,
@@ -193,6 +253,8 @@ class SchemaMigrations:
             current = self.baseline(connection=connection)
         except PumSchemaMigrationNoBaselineError:
             current = None
+        if current:
+            self.update_migration_table_schema(connection)
         if current and current >= version_packaging:
             raise PumSchemaMigrationError(
                 f"Cannot set baseline {version_str} as it is already set at {current}."
@@ -200,12 +262,14 @@ class SchemaMigrations:
 
         code = psycopg.sql.SQL("""
 INSERT INTO {table} (
+    module,
     version,
     beta_testing,
     migration_table_version,
     changelog_files,
     parameters
 ) VALUES (
+    {module},
     {version},
     {beta_testing},
     {migration_table_version},
@@ -215,6 +279,7 @@ INSERT INTO {table} (
 
         query_parameters = {
             "table": self.migration_table_identifier,
+            "module": psycopg.sql.Literal(self.config.config.pum.module),
             "version": psycopg.sql.Literal(version_str),
             "beta_testing": psycopg.sql.Literal(beta_testing),
             "migration_table_version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),

@@ -196,7 +196,8 @@ class Upgrader:
         force: bool = False,
         skip_drop_app: bool = False,
         skip_create_app: bool = False,
-        grant: bool = True,
+        roles: bool = False,
+        grant: bool = False,
     ) -> None:
         """Upgrades the given module
         The changelogs are applied in the order they are found in the directory.
@@ -218,6 +219,8 @@ class Upgrader:
                 If True, drop app handlers will be skipped.
             skip_create_app:
                 If True, create app handlers will be skipped.
+            roles:
+                If True, roles will be created.
             grant:
                 If True, permissions will be granted to the roles.
         """
@@ -272,8 +275,12 @@ class Upgrader:
             for create_app_hook in self.config.create_app_handlers():
                 create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
-        if grant:
-            self.config.role_manager().grant_permissions(connection=connection, commit=False)
+        if roles or grant:
+            self.config.role_manager().create_roles(
+                connection=connection, grant=False, commit=False
+            )
+            if grant:
+                self.config.role_manager().grant_permissions(connection=connection, commit=False)
 
         connection.commit()
         logger.info("Upgrade completed and changes committed to the database.")

@@ -82,11 +82,13 @@ class PumModel(PumCustomBaseModel):
     PumModel holds some PUM specifics.
 
     Attributes:
+        module: Name of the module being managed.
         migration_table_schema: Name of schema for the migration table. The table will always be named `pum_migrations`.
         minimum_version: Minimum required version of PUM.
     """
 
     model_config = {"arbitrary_types_allowed": True}
+    module: str = Field(..., description="Name of the module being managed")
     migration_table_schema: Optional[str] = Field(
         default="public", description="Name of schema for the migration table"
     )

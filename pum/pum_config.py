@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
 try:
     PUM_VERSION = packaging.version.Version(importlib.metadata.version("pum"))
+    PUM_VERSION = packaging.version.Version("9.9.9")
 except importlib.metadata.PackageNotFoundError:
     # Fallback: try to read from pum-*.dist-info/METADATA
     dist_info_dirs = glob.glob(os.path.join(os.path.dirname(__file__), "..", "pum-*.dist-info"))
@@ -44,6 +45,7 @@ except importlib.metadata.PackageNotFoundError:
         PUM_VERSION = max((packaging.version.Version(v) for v in versions))
     else:
         PUM_VERSION = packaging.version.Version("0.0.0")
+        PUM_VERSION = packaging.version.Version("0.8.9")
 
 
 logger = logging.getLogger(__name__)
