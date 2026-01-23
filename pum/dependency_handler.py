@@ -5,6 +5,7 @@ import os
 import sys
 import importlib.metadata
 import subprocess
+from pathlib import Path
 
 from .exceptions import PumDependencyError
 
@@ -59,6 +60,11 @@ class DependencyHandler:
                     f"Dependency `{self.name}` is not installed. You can activate the installation."
                 ) from e
             else:
+                if install_path is None:
+                    raise PumDependencyError(
+                        f"Dependency `{self.name}` is not installed and no install path was provided."
+                    )
+                logger.debug(f"Dependency {self.name} is not installed, proceeding to install.")
                 logger.warning(f"Dependency {self.name} is not installed, trying to install {e}")
                 self.pip_install(install_path=install_path)
                 logger.warning(f"Dependency {self.name} is now installed in {install_path}")
@@ -77,10 +83,52 @@ class DependencyHandler:
         elif self.maximum_version:
             req += f"<={self.maximum_version}"
 
-        command = [self.python_command(), "-m", "pip", "install", req, "--target", install_path]
+        python_cmd = self.python_command()
+
+        # First, ensure pip is installed in the target directory and upgrade it if needed
+        try:
+            pip_version_output = subprocess.run(
+                [python_cmd, "-m", "pip", "--version"], capture_output=True, text=True, check=False
+            )
+            if pip_version_output.returncode == 0:
+                # Extract pip version (format: "pip X.Y.Z from ...")
+                pip_version_str = pip_version_output.stdout.split()[1]
+                pip_version = packaging.version.Version(pip_version_str)
+                if pip_version < packaging.version.Version("22.0"):
+                    logger.warning(
+                        f"pip version {pip_version} is outdated, installing newer pip to target directory..."
+                    )
+                    # Install a newer pip to the target directory first
+                    # This will be used by subsequent installations
+                    upgrade_cmd = [
+                        python_cmd,
+                        "-m",
+                        "pip",
+                        "install",
+                        "--upgrade",
+                        "pip>=22.0",
+                        "--target",
+                        install_path,
+                    ]
+                    upgrade_result = subprocess.run(
+                        upgrade_cmd, capture_output=True, text=True, check=False
+                    )
+                    if upgrade_result.returncode == 0:
+                        logger.info(f"Successfully upgraded pip in {install_path}")
+        except Exception as e:
+            logger.debug(f"Could not check/upgrade pip version: {e}")
+
+        # Set PYTHONPATH to include install_path so pip can find itself and other packages
+        env = os.environ.copy()
+        if "PYTHONPATH" in env:
+            env["PYTHONPATH"] = f"{install_path}{os.pathsep}{env['PYTHONPATH']}"
+        else:
+            env["PYTHONPATH"] = install_path
+
+        command = [python_cmd, "-m", "pip", "install", req, "--target", install_path]
 
         try:
-            output = subprocess.run(command, capture_output=True, text=True, check=False)
+            output = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
             if output.returncode != 0:
                 logger.error("pip installed failed: %s", output.stderr)
                 raise PumDependencyError(output.stderr)
@@ -94,9 +142,16 @@ class DependencyHandler:
         if os.name == "nt":
             return "python"
 
-        # On macOS, sys.executable points to QGIS app itself, not the Python interpreter
-        # Check if we're running inside QGIS and use python3 instead
-        if sys.executable and ("QGIS" in sys.executable or sys.executable.endswith("QGIS")):
-            return "python3"
+        # On macOS and Linux, if we're running inside QGIS, sys.executable points to the QGIS app
+        # Look for the python executable in the same directory as sys.executable
+        if sys.executable and "QGIS" in sys.executable:
+            python_dir = Path(sys.executable).parent
+            python_executable = python_dir / "python"
+            if python_executable.exists():
+                return str(python_executable)
+            # Try python3 as fallback
+            python3_executable = python_dir / "python3"
+            if python3_executable.exists():
+                return str(python3_executable)
 
         return sys.executable
