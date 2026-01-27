@@ -120,12 +120,14 @@ class DependencyHandler:
 
         # Set PYTHONPATH to include install_path so pip can find itself and other packages
         env = os.environ.copy()
+        # Ensure install_path is a string for environment variables (Windows compatibility)
+        install_path_str = str(install_path)
         if "PYTHONPATH" in env:
-            env["PYTHONPATH"] = f"{install_path}{os.pathsep}{env['PYTHONPATH']}"
+            env["PYTHONPATH"] = f"{install_path_str}{os.pathsep}{env['PYTHONPATH']}"
         else:
-            env["PYTHONPATH"] = install_path
+            env["PYTHONPATH"] = install_path_str
 
-        command = [python_cmd, "-m", "pip", "install", req, "--target", install_path]
+        command = [python_cmd, "-m", "pip", "install", req, "--target", install_path_str]
 
         try:
             output = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
