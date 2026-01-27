@@ -1,2 +1,5 @@
 ---
+pum:
+  module: constraint_definition_change_test
+
 changelog_table: pum_sys.changelog

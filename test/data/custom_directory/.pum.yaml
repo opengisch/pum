@@ -1,1 +1,4 @@
+pum:
+  module: custom_directory_test
+
 changelogs_directory: my_delta_directory

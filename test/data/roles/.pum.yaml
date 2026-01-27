@@ -1,4 +1,7 @@
 
+pum:
+  module: roles_test
+
 roles:
   - name: pum_test_viewer
     description: Role for users who can view the TWW data.

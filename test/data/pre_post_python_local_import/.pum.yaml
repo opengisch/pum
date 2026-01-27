@@ -1,4 +1,7 @@
 
+pum:
+  module: pre_post_python_local_import_test
+
 application:
   drop:
     - file: drop_app/drop_view.sql

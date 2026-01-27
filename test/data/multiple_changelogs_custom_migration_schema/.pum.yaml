@@ -1,3 +1,4 @@
 
 pum:
+  module: multiple_changelogs_custom_migration_schema_test
   migration_table_schema: pum_custom_migrations_schema

@@ -60,7 +60,7 @@ class TestUpgrader(unittest.TestCase):
         """Test the installation of a single changelog."""
         test_dir = Path("test") / "data" / "single_changelog"
         changelog_file = test_dir / "changelogs" / "1.2.3" / "single_changelog.sql"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_single_changelog"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -81,7 +81,7 @@ class TestUpgrader(unittest.TestCase):
     def test_install_beta_testing(self) -> None:
         """Test the installation as beta testing."""
         test_dir = Path("test") / "data" / "single_changelog"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_single_changelog"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -224,7 +224,7 @@ class TestUpgrader(unittest.TestCase):
     def test_install_complex_files_content(self) -> None:
         """Test the installation of complex files content."""
         complex_dir = Path("test") / "data" / "complex_files_content"
-        cfg = PumConfig(complex_dir)
+        cfg = PumConfig(complex_dir, pum={"module": "test_complex_files_content"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -239,7 +239,7 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "multiple_changelogs"
         changelog_file_1 = test_dir / "changelogs" / "2.0.0" / "create_second_table.sql"
         changelog_file_2 = test_dir / "changelogs" / "2.0.0" / "create_third_table.sql"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_multiple_changelogs"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -262,7 +262,7 @@ class TestUpgrader(unittest.TestCase):
     def test_install_multiple_changelogs_max_version(self) -> None:
         """Test the installation of multiple changelogs with max_version."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_multiple_changelogs"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -274,7 +274,9 @@ class TestUpgrader(unittest.TestCase):
     def test_invalid_changelog_commit(self) -> None:
         """Test the invalid changelog."""
         test_dir = Path("test") / "data" / "invalid_changelog_commit"
-        cfg = PumConfig(base_path=test_dir, validate=False)
+        cfg = PumConfig(
+            base_path=test_dir, validate=False, pum={"module": "test_invalid_changelog_commit"}
+        )
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -288,7 +290,9 @@ class TestUpgrader(unittest.TestCase):
     def test_invalid_changelog_search_path(self) -> None:
         """Test the invalid changelog."""
         test_dir = Path("test") / "data" / "invalid_changelog_search_path"
-        cfg = PumConfig(base_path=test_dir, validate=False)
+        cfg = PumConfig(
+            base_path=test_dir, validate=False, pum={"module": "test_invalid_changelog_search_path"}
+        )
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -450,7 +454,7 @@ class TestUpgrader(unittest.TestCase):
     def test_upgrade(self) -> None:
         """Test the upgrade method."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_multiple_changelogs"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -476,7 +480,7 @@ class TestUpgrader(unittest.TestCase):
     def test_upgrade_blocked_when_installed_beta_testing_unless_forced(self) -> None:
         """Upgrading a beta-testing installation should be blocked unless forced."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_multiple_changelogs"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))

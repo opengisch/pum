@@ -1,4 +1,7 @@
 
+pum:
+  module: parameters_test
+
 parameters:
   - name: SRID
     type: integer

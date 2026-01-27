@@ -1,3 +1,6 @@
+pum:
+  module: legacy_migration_hooks_legacy_test
+
 changelogs_directory: changelogs
 
 migration_hooks:

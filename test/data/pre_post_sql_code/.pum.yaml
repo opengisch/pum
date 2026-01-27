@@ -1,4 +1,7 @@
 
+pum:
+  module: pre_post_sql_code_test
+
 application:
   drop:
     - code: DROP VIEW IF EXISTS pum_test_app.some_view;

@@ -1,4 +1,6 @@
 
+pum:
+  module: demo_data_test
 
 demo_data:
   - name: some cool demo dataset

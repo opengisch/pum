@@ -1,2 +1,5 @@
 # Test configuration for checker tests
+pum:
+  module: checker_test
+
 changelogs_directory: changelogs

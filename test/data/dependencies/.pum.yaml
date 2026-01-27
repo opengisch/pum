@@ -1,4 +1,7 @@
 
+pum:
+  module: dependencies_test
+
 parameters:
   - name: my_comment
     type: text

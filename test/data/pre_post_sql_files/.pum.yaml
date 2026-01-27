@@ -1,4 +1,7 @@
 
+pum:
+  module: pre_post_sql_files_test
+
 application:
   drop:
     - file: drop_app/drop_view.sql

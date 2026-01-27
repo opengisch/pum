@@ -55,7 +55,7 @@ class TestChecker(unittest.TestCase):
                 cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
 
         # Install version 1.0.0 on first database using Upgrader
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.install(connection=conn, max_version="1.0.0")
@@ -66,7 +66,7 @@ class TestChecker(unittest.TestCase):
         Args:
             version: Target version to install/upgrade to.
         """
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service2}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.install(connection=conn, max_version=version)
@@ -92,7 +92,7 @@ class TestChecker(unittest.TestCase):
     def test_check_tables(self):
         """Test table comparison between databases."""
         # DB1 has 1.0.0, upgrade DB1 to 1.1.0 which adds a new table
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -133,7 +133,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds a column to products table
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -168,7 +168,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds foreign key constraint
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -214,7 +214,7 @@ class TestChecker(unittest.TestCase):
 
         # Use the constraint definition change test data
         test_dir = Path("test") / "data" / "constraint_definition_change"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_constraint_definition_change"})
 
         # Install version 1.0.0 on both databases with old constraint definition (year > 1800)
         with psycopg.connect(f"service={self.pg_service1}") as conn:
@@ -298,7 +298,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds a new view
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -333,7 +333,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds invoice_sequence
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -368,7 +368,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds idx_orders_user_id index
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -403,7 +403,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds orders_update_trigger
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -438,7 +438,7 @@ class TestChecker(unittest.TestCase):
         self._install_version_on_db2()
 
         # Upgrade DB1 to 1.1.0 which adds get_order_count() function
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)
@@ -512,7 +512,7 @@ class TestChecker(unittest.TestCase):
         import json
 
         # DB1 has 1.0.0, upgrade to 1.1.0 which adds differences
-        cfg = PumConfig(self.test_dir)
+        cfg = PumConfig(self.test_dir, pum={"module": "test_checker"})
         with psycopg.connect(f"service={self.pg_service1}") as conn:
             upgrader = Upgrader(config=cfg)
             upgrader.upgrade(connection=conn)

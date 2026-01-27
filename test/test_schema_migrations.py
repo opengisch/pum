@@ -49,7 +49,7 @@ class TestSchemaMigrations(unittest.TestCase):
         """Test the installation of a single changelog."""
         test_dir = Path("test") / "data" / "single_changelog"
         changelog_file = test_dir / "changelogs" / "1.2.3" / "single_changelog.sql"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_single_changelog"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
@@ -69,7 +69,7 @@ class TestSchemaMigrations(unittest.TestCase):
     def test_baseline(self) -> None:
         """Test the baselie"""
         test_dir = Path("test") / "data" / "single_changelog"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_single_changelog"})
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.has_baseline(connection=conn))
@@ -86,7 +86,7 @@ class TestSchemaMigrations(unittest.TestCase):
     def test_compare(self) -> None:
         """Test the compare method."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_multiple_changelogs"})
         sm = SchemaMigrations(cfg)
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
@@ -115,7 +115,7 @@ class TestSchemaMigrations(unittest.TestCase):
     def test_compare_error_version_not_in_changelog(self) -> None:
         """Test the compare method raises error when migration version is not in changelogs."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
-        cfg = PumConfig(test_dir)
+        cfg = PumConfig(test_dir, pum={"module": "test_multiple_changelogs"})
         sm = SchemaMigrations(cfg)
 
         with psycopg.connect(f"service={self.pg_service}") as conn:

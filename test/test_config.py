@@ -15,12 +15,18 @@ class TestConfig(unittest.TestCase):
 
     def test_version(self) -> None:
         """Test version."""
-        cfg = PumConfig(base_path=Path("test") / "data" / "single_changelog")
+        cfg = PumConfig(
+            base_path=Path("test") / "data" / "single_changelog",
+            pum={"module": "test_single_changelog"},
+        )
         changelogs = cfg.changelogs()
         self.assertEqual(len(changelogs), 1)
         self.assertEqual(changelogs[0].version, parse_version("1.2.3"))
 
-        cfg = PumConfig(base_path=Path("test") / "data" / "multiple_changelogs")
+        cfg = PumConfig(
+            base_path=Path("test") / "data" / "multiple_changelogs",
+            pum={"module": "test_multiple_changelogs"},
+        )
         changelogs = cfg.changelogs()
         self.assertEqual(len(changelogs), 4)
         self.assertEqual(changelogs[0].version, parse_version("1.2.3"))
@@ -90,14 +96,26 @@ class TestConfig(unittest.TestCase):
     def test_invalid_changelog(self) -> None:
         """Test invalid changelog."""
         with self.assertRaises(PumConfigError):
-            PumConfig(base_path=Path("test") / "data" / "invalid_changelog_commit", validate=True)
-        PumConfig(base_path=Path("test") / "data" / "invalid_changelog_commit", validate=False)
+            PumConfig(
+                base_path=Path("test") / "data" / "invalid_changelog_commit",
+                validate=True,
+                pum={"module": "test_invalid_changelog_commit"},
+            )
+        PumConfig(
+            base_path=Path("test") / "data" / "invalid_changelog_commit",
+            validate=False,
+            pum={"module": "test_invalid_changelog_commit"},
+        )
 
     def test_invalid_changelog_parameters(self) -> None:
         """Test invalid changelog parameters."""
         PumConfig.from_yaml(Path("test") / "data" / "parameters" / ".pum.yaml", validate=True)
         with self.assertRaises(PumConfigError):
-            PumConfig(base_path=Path("test") / "data" / "parameters", validate=True)
+            PumConfig(
+                base_path=Path("test") / "data" / "parameters",
+                validate=True,
+                pum={"module": "test_parameters"},
+            )
 
     def test_minimum_version(self) -> None:
         if os.environ.get("CI") and platform.system().lower().startswith("win"):
@@ -106,18 +124,19 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(PumConfigError):
             PumConfig(
                 base_path=Path("test") / "data" / "single_changelog",
-                pum={"minimum_version": "9.9.9"},
+                pum={"minimum_version": "9.9.9", "module": "test_single_changelog"},
                 validate=True,
             )
         PumConfig(
             base_path=Path("test") / "data" / "single_changelog",
-            pum={"minimum_version": "0.1"},
+            pum={"minimum_version": "0.1", "module": "test_single_changelog"},
         )
 
     def test_roles(self) -> None:
         """Test roles."""
         cfg = PumConfig(
             base_path=Path("test") / "data" / "single_changelog",
+            pum={"module": "test_single_changelog"},
             roles=[
                 {
                     "name": "viewer",
@@ -146,10 +165,14 @@ class TestConfig(unittest.TestCase):
     def test_invalid_config(self) -> None:
         """Test invalid configuration."""
         base_path = Path("test") / "data" / "single_changelog"
-        PumConfig(base_path=base_path)
+        PumConfig(base_path=base_path, pum={"module": "test_single_changelog"})
 
         with self.assertRaises(PumConfigError):
-            PumConfig(base_path=base_path, invalid_key="You shall not pass!")
+            PumConfig(
+                base_path=base_path,
+                invalid_key="You shall not pass!",
+                pum={"module": "test_single_changelog"},
+            )
 
     def test_legacy_config_format(self) -> None:
         """Test backward compatibility with legacy migration_hooks/pre/post format."""

@@ -1,4 +1,7 @@
 
+pum:
+  module: pre_post_python_parameters_test
+
 parameters:
   - name: my_comment
     type: text
