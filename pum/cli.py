@@ -559,9 +559,6 @@ def cli() -> int:  # noqa: PLR0912
             upg.uninstall(connection=conn, parameters=parameters)
             logger.info("Uninstall completed successfully.")
 
-        elif args.command == "upgrade":
-            # TODO
-            logger.error("Upgrade is not implemented yet")
         else:
             logger.error(f"Unknown command: {args.command}")
             logger.error("Use -h or --help for help.")
