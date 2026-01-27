@@ -106,19 +106,31 @@ class HookHandler:
                 raise PumHookError(f"Hook file {self.file} is not a file.")
 
         if self.file and self.file.suffix == ".py":
-            # Support local imports in hook files by adding parent dir to sys.path
+            # Support local imports in hook files by adding parent dir and base_path to sys.path
             parent_dir = str(self.file.parent.resolve())
-            sys_path_modified = False
+            sys_path_modified = []
+
+            # Add parent directory of the hook file
             if parent_dir not in sys.path:
                 sys.path.insert(0, parent_dir)
-                sys_path_modified = True
+                sys_path_modified.append(parent_dir)
+
+            # Also add base_path if provided, to support imports from sibling directories
+            if base_path is not None:
+                base_path_str = str(base_path.resolve())
+                if base_path_str not in sys.path and base_path_str != parent_dir:
+                    sys.path.insert(0, base_path_str)
+                    sys_path_modified.append(base_path_str)
+
             try:
                 spec = importlib.util.spec_from_file_location(self.file.stem, self.file)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
             finally:
-                if sys_path_modified:
-                    sys.path.remove(parent_dir)
+                # Remove all paths that were added
+                for path in sys_path_modified:
+                    if path in sys.path:
+                        sys.path.remove(path)
             # Check that the module contains a class named Hook inheriting from HookBase
             hook_class = getattr(module, "Hook", None)
             if not hook_class or not inspect.isclass(hook_class):
