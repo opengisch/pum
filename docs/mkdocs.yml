@@ -70,14 +70,15 @@ nav:
   - Application: application.md
   - Configuration:
       - Overview: configuration/configuration.md
-      - ConfigModel: configuration/config_model.md
-      - DependencyModel: configuration/dependency_model.md
-      - HookModel: configuration/hook_model.md
-      - ApplicationModel: configuration/application_model.md
-      - ParameterDefinitionModel: configuration/parameter_definition_model.md
-      - PermissionModel: configuration/permission_model.md
-      - PumModel: configuration/pum_model.md
-      - RoleModel: configuration/role_model.md
+      - Models:
+        - ConfigModel: configuration/models/config_model.md
+        - DependencyModel: configuration/models/dependency_model.md
+        - HookModel: configuration/models/hook_model.md
+        - ApplicationModel: configuration/models/application_model.md
+        - ParameterDefinitionModel: configuration/models/parameter_definition_model.md
+        - PermissionModel: configuration/models/permission_model.md
+        - PumModel: configuration/models/pum_model.md
+        - RoleModel: configuration/models/role_model.md
 
   - Roles: roles.md
   - Tools:

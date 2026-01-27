@@ -308,6 +308,17 @@ class PumConfig:
             else []
         )
 
+    def uninstall_handlers(self) -> list[HookHandler]:
+        """Return the list of uninstall hook handlers."""
+        return (
+            [
+                HookHandler(base_path=self._base_path, **hook.model_dump())
+                for hook in self.config.uninstall
+            ]
+            if self.config.uninstall
+            else []
+        )
+
     def demo_data(self) -> dict[str, list[str]]:
         """Return a dictionary of demo data files defined in the configuration."""
         demo_data_files = {}

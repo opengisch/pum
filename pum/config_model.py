@@ -213,6 +213,7 @@ class ConfigModel(PumCustomBaseModel):
     roles: Optional[List[RoleModel]] = []
     demo_data: Optional[List[DemoDataModel]] = []
     dependencies: Optional[List[DependencyModel]] = []
+    uninstall: Optional[List[HookModel]] = []
 
     @model_validator(mode="before")
     def handle_legacy_field_names(cls, values):

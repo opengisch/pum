@@ -27,6 +27,8 @@ class TestUpgrader(unittest.TestCase):
             cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_schema_1 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_schema_2 CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
@@ -49,6 +51,8 @@ class TestUpgrader(unittest.TestCase):
             cur.execute("DROP SCHEMA IF EXISTS pum_test_app CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_schema_1 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_schema_2 CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
@@ -527,6 +531,58 @@ class TestUpgrader(unittest.TestCase):
                 "SELECT has_table_privilege('pum_test_user', 'pum_test_data_schema_2.some_table_2', 'INSERT');"
             )
             self.assertTrue(cur.fetchone()[0])
+
+    def test_uninstall(self) -> None:
+        """Test the uninstall functionality."""
+        test_dir = Path("test") / "data" / "uninstall_test"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Verify schemas don't exist initially
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name IN ('pum_test_schema_1', 'pum_test_schema_2');"
+            )
+            self.assertEqual(cursor.fetchone()[0], 0)
+
+            # Install the schemas
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
+            self.assertTrue(sm.exists(conn))
+
+            # Verify schemas were created
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name IN ('pum_test_schema_1', 'pum_test_schema_2');"
+            )
+            self.assertEqual(cursor.fetchone()[0], 2)
+
+            # Run uninstall
+            upgrader.uninstall(connection=conn)
+
+            # Verify schemas were dropped
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name IN ('pum_test_schema_1', 'pum_test_schema_2');"
+            )
+            self.assertEqual(cursor.fetchone()[0], 0)
+
+    def test_uninstall_no_hooks(self) -> None:
+        """Test the uninstall functionality when no uninstall hooks are defined."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_single_changelog"})
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Install the module
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
+
+            # Run uninstall with no hooks defined - should raise an exception
+            with self.assertRaises(PumException) as context:
+                upgrader.uninstall(connection=conn)
+
+            # Verify the error message is helpful
+            self.assertIn("No uninstall hooks defined", str(context.exception))
 
 
 if __name__ == "__main__":

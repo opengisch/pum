@@ -323,6 +323,27 @@ def create_parser(
         help="Create the pum_migrations table if it does not exist",
         action="store_true",
     )
+
+    # Parser for the "uninstall" command
+    parser_uninstall = subparsers.add_parser(
+        "uninstall",
+        help="Uninstall the module by executing uninstall hooks",
+        formatter_class=formatter_class,
+    )
+    parser_uninstall.add_argument(
+        "-p",
+        "--parameter",
+        nargs=2,
+        help="Assign variable for running SQL hooks. Format is name value.",
+        action="append",
+    )
+    parser_uninstall.add_argument(
+        "--force",
+        help="Skip confirmation prompt and proceed with uninstall",
+        action="store_true",
+        dest="force",
+    )
+
     return parser
 
 
@@ -419,7 +440,7 @@ def cli() -> int:  # noqa: PLR0912
 
         # Build parameters dict for install and upgrade commands
         parameters = {}
-        if args.command in ("install", "upgrade"):
+        if args.command in ("install", "upgrade", "uninstall"):
             for p in args.parameter or ():
                 param = config.parameter(p[0])
                 if not param:
@@ -522,6 +543,21 @@ def cli() -> int:  # noqa: PLR0912
                     exit_code = 1
                     return exit_code
             SchemaMigrations(config=config).set_baseline(connection=conn, version=args.baseline)
+
+        elif args.command == "uninstall":
+            # Confirmation prompt unless --force is used
+            if not args.force:
+                logger.warning(
+                    "⚠️  WARNING: This will execute uninstall hooks which may drop schemas and data!"
+                )
+                response = input("Are you sure you want to proceed? (yes/no): ").strip().lower()
+                if response not in ("yes", "y"):
+                    logger.info("Uninstall cancelled.")
+                    return 0
+
+            upg = Upgrader(config=config)
+            upg.uninstall(connection=conn, parameters=parameters)
+            logger.info("Uninstall completed successfully.")
 
         elif args.command == "upgrade":
             # TODO
