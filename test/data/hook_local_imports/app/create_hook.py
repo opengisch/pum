@@ -9,12 +9,11 @@ from local_helper import local_function
 class Hook(HookBase):
     """Test hook that imports from the same directory."""
 
-    def run_hook(self, connection: psycopg.Connection, parameters: dict | None = None) -> str:
+    def run_hook(self, connection: psycopg.Connection) -> str:
         """Run the hook and return the value from local import.
 
         Args:
             connection: The database connection.
-            parameters: Parameters to bind to the SQL statement. Defaults to None.
 
         Returns:
             The value from the local module.

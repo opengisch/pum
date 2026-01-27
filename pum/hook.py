@@ -92,6 +92,7 @@ class HookHandler:
         self.file = file
         self.code = code
         self.hook_instance = None
+        self.sys_path_additions = []  # Store paths to add during execution
 
         if file:
             if isinstance(file, str):
@@ -108,19 +109,21 @@ class HookHandler:
         if self.file and self.file.suffix == ".py":
             # Support local imports in hook files by adding parent dir and base_path to sys.path
             parent_dir = str(self.file.parent.resolve())
-            sys_path_modified = []
 
+            # Store paths that need to be added for hook execution
             # Add parent directory of the hook file
             if parent_dir not in sys.path:
-                sys.path.insert(0, parent_dir)
-                sys_path_modified.append(parent_dir)
+                self.sys_path_additions.append(parent_dir)
 
             # Also add base_path if provided, to support imports from sibling directories
             if base_path is not None:
                 base_path_str = str(base_path.resolve())
                 if base_path_str not in sys.path and base_path_str != parent_dir:
-                    sys.path.insert(0, base_path_str)
-                    sys_path_modified.append(base_path_str)
+                    self.sys_path_additions.append(base_path_str)
+
+            # Temporarily add paths for module loading
+            for path in self.sys_path_additions:
+                sys.path.insert(0, path)
 
             try:
                 spec = importlib.util.spec_from_file_location(self.file.stem, self.file)
@@ -128,7 +131,7 @@ class HookHandler:
                 spec.loader.exec_module(module)
             finally:
                 # Remove all paths that were added
-                for path in sys_path_modified:
+                for path in self.sys_path_additions:
                     if path in sys.path:
                         sys.path.remove(path)
             # Check that the module contains a class named Hook inheriting from HookBase
@@ -228,6 +231,13 @@ class HookHandler:
                         if key in self.parameter_args:
                             _hook_parameters[key] = value
                 self.hook_instance._prepare(connection=connection, parameters=parameters)
+
+                # Temporarily add sys.path entries for hook execution
+                # This allows dynamic imports inside run_hook to work
+                for path in self.sys_path_additions:
+                    if path not in sys.path:
+                        sys.path.insert(0, path)
+
                 try:
                     if _hook_parameters:
                         self.hook_instance.run_hook(connection=connection, **_hook_parameters)
@@ -235,6 +245,11 @@ class HookHandler:
                         self.hook_instance.run_hook(connection=connection)
                 except PumSqlError as e:
                     raise PumHookError(f"Error executing Python hook from {self.file}: {e}") from e
+                finally:
+                    # Remove the paths after execution
+                    for path in self.sys_path_additions:
+                        if path in sys.path:
+                            sys.path.remove(path)
 
             else:
                 raise PumHookError(
