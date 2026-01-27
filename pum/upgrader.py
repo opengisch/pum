@@ -284,3 +284,37 @@ class Upgrader:
 
         connection.commit()
         logger.info("Upgrade completed and changes committed to the database.")
+
+    def uninstall(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        commit: bool = True,
+    ) -> None:
+        """Uninstall the module by executing uninstall hooks.
+
+        Args:
+            connection: The database connection to use for the uninstall.
+            parameters: The parameters to pass to the uninstall hooks.
+            commit: If True, the changes will be committed to the database. Default is True.
+
+        Raises:
+            PumException: If no uninstall hooks are defined in the configuration.
+        """
+        uninstall_hooks = self.config.uninstall_handlers()
+
+        if not uninstall_hooks:
+            raise PumException(
+                "No uninstall hooks defined in the configuration. "
+                "Add 'uninstall' section to your .pum.yaml file to define uninstall hooks."
+            )
+
+        logger.info("Uninstalling module...")
+
+        for uninstall_hook in uninstall_hooks:
+            uninstall_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        if commit:
+            connection.commit()
+            logger.info("Uninstall completed and changes committed to the database.")

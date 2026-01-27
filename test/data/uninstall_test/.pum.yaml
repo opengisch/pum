@@ -1,0 +1,7 @@
+
+pum:
+  module: uninstall_test
+
+uninstall:
+  - code: DROP SCHEMA IF EXISTS pum_test_schema_1 CASCADE;
+  - code: DROP SCHEMA IF EXISTS pum_test_schema_2 CASCADE;
