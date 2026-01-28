@@ -192,3 +192,81 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(len(cfg_new.drop_app_handlers()), 1)
         self.assertEqual(len(cfg_new.create_app_handlers()), 1)
+
+    def test_cleanup_hook_imports_version_switch(self) -> None:
+        """Test that cleanup_hook_imports prevents conflicts when switching module versions.
+
+        This test simulates the QGIS plugin scenario where a user switches from one
+        module version to another, which can cause import conflicts if old modules
+        are still cached in sys.modules.
+        """
+        import sys
+        from unittest.mock import Mock
+
+        # Clear any view modules from sys.modules
+        modules_to_remove = [
+            key for key in list(sys.modules.keys()) if "view" in key or "helper_v" in key
+        ]
+        for module in modules_to_remove:
+            del sys.modules[module]
+
+        # Load version 1
+        v1_path = Path("test") / "data" / "hook_version_switch" / "v1"
+        cfg_v1 = PumConfig(
+            base_path=v1_path,
+            pum={"module": "test_version_switch_v1"},
+            application={"create": [{"file": "app/create_hook.py"}]},
+            validate=False,  # Skip validation to focus on hook loading
+        )
+
+        # Get handlers for v1
+        handlers_v1 = cfg_v1.create_app_handlers()
+        self.assertEqual(len(handlers_v1), 1)
+
+        # Execute v1 hook to ensure it works
+        mock_conn = Mock()
+        handlers_v1[0].execute(connection=mock_conn, parameters={})
+
+        # Verify v1 modules are in sys.modules
+        self.assertTrue(
+            any("helper_v1" in mod for mod in sys.modules), "helper_v1 should be in sys.modules"
+        )
+
+        # Clean up v1
+        cfg_v1.cleanup_hook_imports()
+
+        # Verify v1 modules are removed
+        self.assertFalse(
+            any("helper_v1" in mod for mod in sys.modules),
+            "helper_v1 should be removed from sys.modules after cleanup",
+        )
+
+        # Load version 2 - this should work without conflicts
+        v2_path = Path("test") / "data" / "hook_version_switch" / "v2"
+        cfg_v2 = PumConfig(
+            base_path=v2_path,
+            pum={"module": "test_version_switch_v2"},
+            application={"create": [{"file": "app/create_hook.py"}]},
+            validate=False,
+        )
+
+        # Get handlers for v2
+        handlers_v2 = cfg_v2.create_app_handlers()
+        self.assertEqual(len(handlers_v2), 1)
+
+        # Execute v2 hook - should work without import conflicts
+        handlers_v2[0].execute(connection=mock_conn, parameters={})
+
+        # Verify v2 modules are in sys.modules
+        self.assertTrue(
+            any("helper_v2" in mod for mod in sys.modules), "helper_v2 should be in sys.modules"
+        )
+
+        # Clean up v2
+        cfg_v2.cleanup_hook_imports()
+
+        # Verify v2 modules are removed
+        self.assertFalse(
+            any("helper_v2" in mod for mod in sys.modules),
+            "helper_v2 should be removed from sys.modules after cleanup",
+        )

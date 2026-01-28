@@ -93,6 +93,110 @@ class TestHooks(unittest.TestCase):
         mock_conn = Mock()
         handler.execute(connection=mock_conn, parameters={})
 
+    def test_hook_cleanup_imports(self) -> None:
+        """Test that hook imports can be cleaned up to prevent conflicts when switching versions.
 
-if __name__ == "__main__":
-    unittest.main()
+        This test verifies that when hooks are cleaned up, their imported modules
+        are removed from sys.modules cache, allowing fresh imports when switching
+        to a different module version.
+        """
+        import sys
+
+        test_dir = Path("test") / "data" / "hook_sibling_imports"
+        hook_file = test_dir / "app" / "create_hook.py"
+
+        # Clear any previously imported modules to ensure fresh import
+        modules_to_remove = [key for key in sys.modules if "view" in key]
+        for module in modules_to_remove:
+            del sys.modules[module]
+
+        # Load the hook - this will import view.helper
+        handler = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
+
+        # Verify that view.helper was imported and tracked
+        self.assertGreater(
+            len(handler._imported_modules), 0, "Should have tracked imported modules"
+        )
+        self.assertTrue(
+            any("view" in mod for mod in handler._imported_modules),
+            "Should have tracked view module",
+        )
+
+        # Verify view.helper is in sys.modules
+        view_module_found = any("view" in mod for mod in sys.modules)
+        self.assertTrue(
+            view_module_found, "view module should be in sys.modules after loading hook"
+        )
+
+        # Execute the hook to make sure it works before cleanup
+        mock_conn = Mock()
+        handler.execute(connection=mock_conn, parameters={})
+
+        # Clean up imports
+        handler.cleanup_imports()
+
+        # Verify that tracked modules were cleared
+        self.assertEqual(
+            len(handler._imported_modules), 0, "Should have cleared tracked modules list"
+        )
+
+        # Verify that view modules were removed from sys.modules
+        view_modules_after = [mod for mod in sys.modules if "view.helper" in mod or mod == "view"]
+        self.assertEqual(
+            len(view_modules_after),
+            0,
+            f"view modules should be removed from sys.modules after cleanup, but found: {view_modules_after}",
+        )
+
+    def test_hook_cleanup_and_reload(self) -> None:
+        """Test that hooks can be reloaded after cleanup without conflicts.
+
+        This test simulates switching between module versions by loading a hook,
+        cleaning it up, and loading it again.
+        """
+        import sys
+
+        test_dir = Path("test") / "data" / "hook_sibling_imports"
+        hook_file = test_dir / "app" / "create_hook.py"
+
+        # Clear any previously imported modules
+        modules_to_remove = [key for key in sys.modules if "view" in key]
+        for module in modules_to_remove:
+            del sys.modules[module]
+
+        # First load
+        handler1 = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
+        mock_conn = Mock()
+        handler1.execute(connection=mock_conn, parameters={})
+
+        # Get the module object for comparison
+        view_module_id_1 = None
+        for mod_name in sys.modules:
+            if mod_name == "view" or mod_name.startswith("view."):
+                view_module_id_1 = id(sys.modules[mod_name])
+                break
+
+        # Clean up
+        handler1.cleanup_imports()
+
+        # Verify cleanup worked
+        view_modules = [mod for mod in sys.modules if "view.helper" in mod or mod == "view"]
+        self.assertEqual(len(view_modules), 0, "Modules should be cleaned up")
+
+        # Second load - should work without conflicts
+        handler2 = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
+        handler2.execute(connection=mock_conn, parameters={})
+
+        # Verify it's a fresh import (different module object)
+        view_module_id_2 = None
+        for mod_name in sys.modules:
+            if mod_name == "view" or mod_name.startswith("view."):
+                view_module_id_2 = id(sys.modules[mod_name])
+                break
+
+        # Both should have found view modules
+        self.assertIsNotNone(view_module_id_1, "First load should have imported view")
+        self.assertIsNotNone(view_module_id_2, "Second load should have imported view")
+
+        # Clean up after test
+        handler2.cleanup_imports()

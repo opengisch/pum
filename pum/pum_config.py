@@ -121,6 +121,7 @@ class PumConfig:
         self._base_path = base_path
 
         self.dependency_path = None
+        self._cached_handlers = []  # Cache handlers for cleanup
 
         try:
             self.config = ConfigModel(**kwargs)
@@ -181,6 +182,18 @@ class PumConfig:
     def base_path(self) -> Path:
         """Return the base path used for configuration and changelogs."""
         return self._base_path
+
+    def cleanup_hook_imports(self) -> None:
+        """Clean up imported modules from hooks to prevent conflicts when switching versions.
+
+        This should be called when switching to a different module version to ensure
+        that cached imports from the previous version don't cause conflicts.
+        """
+        for handler in self._cached_handlers:
+            if hasattr(handler, "cleanup_imports"):
+                handler.cleanup_imports()
+        # Clear the cache after cleanup
+        self._cached_handlers.clear()
 
     def parameters(self) -> list[ParameterDefinition]:
         """Return a list of migration parameters.
@@ -288,7 +301,7 @@ class PumConfig:
 
     def drop_app_handlers(self) -> list[HookHandler]:
         """Return the list of drop app hook handlers."""
-        return (
+        handlers = (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
                 for hook in self.config.application.drop
@@ -296,10 +309,13 @@ class PumConfig:
             if self.config.application.drop
             else []
         )
+        # Cache handlers for cleanup
+        self._cached_handlers.extend(handlers)
+        return handlers
 
     def create_app_handlers(self) -> list[HookHandler]:
         """Return the list of create app hook handlers."""
-        return (
+        handlers = (
             [
                 HookHandler(base_path=self._base_path, **hook.model_dump())
                 for hook in self.config.application.create
@@ -307,6 +323,9 @@ class PumConfig:
             if self.config.application.create
             else []
         )
+        # Cache handlers for cleanup
+        self._cached_handlers.extend(handlers)
+        return handlers
 
     def uninstall_handlers(self) -> list[HookHandler]:
         """Return the list of uninstall hook handlers."""
