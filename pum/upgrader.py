@@ -105,6 +105,24 @@ class Upgrader:
         logger.info("Installing module...")
         feedback.report_progress("Installing module...")
 
+        # Calculate total steps: drop handlers + all SQL files in changelogs + create handlers + role operations
+        drop_handlers = self.config.drop_app_handlers() if not skip_drop_app else []
+        changelogs = list(self.config.changelogs(max_version=max_version))
+        create_handlers = self.config.create_app_handlers() if not skip_create_app else []
+
+        total_changelog_files = sum(len(changelog.files()) for changelog in changelogs)
+
+        # Count role operations
+        role_steps = 0
+        if roles or grant:
+            role_manager = self.config.role_manager()
+            role_steps += len(role_manager.roles)  # create roles
+            if grant:
+                role_steps += len(role_manager.roles)  # grant permissions
+
+        total_steps = len(drop_handlers) + total_changelog_files + len(create_handlers) + role_steps
+        feedback.set_total_steps(total_steps)
+
         if roles or grant:
             feedback.report_progress("Creating roles...")
             self.config.role_manager().create_roles(
@@ -112,27 +130,19 @@ class Upgrader:
             )
 
         if not skip_drop_app:
-            drop_handlers = self.config.drop_app_handlers()
-            for idx, drop_app_hook in enumerate(drop_handlers, 1):
+            for drop_app_hook in drop_handlers:
                 if feedback.is_cancelled():
                     raise PumException("Installation cancelled by user")
+                feedback.increment_step()
                 feedback.report_progress(
-                    f"Executing drop app handler: {drop_app_hook.file or 'SQL code'}",
-                    current=idx,
-                    total=len(drop_handlers),
+                    f"Executing drop app handler: {drop_app_hook.file or 'SQL code'}"
                 )
                 drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
-        changelogs = list(self.config.changelogs(max_version=max_version))
         last_changelog = None
-        for idx, changelog in enumerate(changelogs, 1):
+        for changelog in changelogs:
             if feedback.is_cancelled():
                 raise PumException("Installation cancelled by user")
-            feedback.report_progress(
-                f"Applying changelog version {changelog.version}",
-                current=idx,
-                total=len(changelogs),
-            )
             last_changelog = changelog
             changelog.apply(
                 connection,
@@ -140,17 +150,16 @@ class Upgrader:
                 parameters=parameters,
                 schema_migrations=self.schema_migrations,
                 beta_testing=beta_testing,
+                feedback=feedback,
             )
 
         if not skip_create_app:
-            create_handlers = self.config.create_app_handlers()
-            for idx, create_app_hook in enumerate(create_handlers, 1):
+            for create_app_hook in create_handlers:
                 if feedback.is_cancelled():
                     raise PumException("Installation cancelled by user")
+                feedback.increment_step()
                 feedback.report_progress(
-                    f"Executing create app handler: {create_app_hook.file or 'SQL code'}",
-                    current=idx,
-                    total=len(create_handlers),
+                    f"Executing create app handler: {create_app_hook.file or 'SQL code'}"
                 )
                 create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
@@ -292,19 +301,12 @@ class Upgrader:
         logger.info("Starting upgrade process...")
         feedback.report_progress("Starting upgrade...")
 
-        if not skip_drop_app:
-            drop_handlers = self.config.drop_app_handlers()
-            for idx, drop_app_hook in enumerate(drop_handlers, 1):
-                if feedback.is_cancelled():
-                    raise PumException("Upgrade cancelled by user")
-                feedback.report_progress(
-                    f"Executing drop app handler: {drop_app_hook.file or 'SQL code'}",
-                    current=idx,
-                    total=len(drop_handlers),
-                )
-                drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
-
+        # Calculate total steps: drop handlers + applicable changelog files + create handlers
+        drop_handlers = self.config.drop_app_handlers() if not skip_drop_app else []
         changelogs = list(self.config.changelogs(max_version=max_version))
+        create_handlers = self.config.create_app_handlers() if not skip_create_app else []
+
+        # First pass: determine applicable changelogs
         applicable_changelogs = []
         for changelog in changelogs:
             if changelog.version <= self.schema_migrations.baseline(connection):
@@ -322,31 +324,48 @@ class Upgrader:
                 continue
             applicable_changelogs.append(changelog)
 
-        for idx, changelog in enumerate(applicable_changelogs, 1):
+        total_changelog_files = sum(len(changelog.files()) for changelog in applicable_changelogs)
+
+        # Count role operations
+        role_steps = 0
+        if roles or grant:
+            role_manager = self.config.role_manager()
+            role_steps += len(role_manager.roles)  # create roles
+            if grant:
+                role_steps += len(role_manager.roles)  # grant permissions
+
+        total_steps = len(drop_handlers) + total_changelog_files + len(create_handlers) + role_steps
+        feedback.set_total_steps(total_steps)
+
+        if not skip_drop_app:
+            for drop_app_hook in drop_handlers:
+                if feedback.is_cancelled():
+                    raise PumException("Upgrade cancelled by user")
+                feedback.increment_step()
+                feedback.report_progress(
+                    f"Executing drop app handler: {drop_app_hook.file or 'SQL code'}"
+                )
+                drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        for changelog in applicable_changelogs:
             if feedback.is_cancelled():
                 raise PumException("Upgrade cancelled by user")
-            feedback.report_progress(
-                f"Applying changelog version {changelog.version}",
-                current=idx,
-                total=len(applicable_changelogs),
-            )
             changelog.apply(
                 connection,
                 commit=False,
                 parameters=parameters,
                 schema_migrations=self.schema_migrations,
                 beta_testing=effective_beta_testing,
+                feedback=feedback,
             )
 
         if not skip_create_app:
-            create_handlers = self.config.create_app_handlers()
-            for idx, create_app_hook in enumerate(create_handlers, 1):
+            for create_app_hook in create_handlers:
                 if feedback.is_cancelled():
                     raise PumException("Upgrade cancelled by user")
+                feedback.increment_step()
                 feedback.report_progress(
-                    f"Executing create app handler: {create_app_hook.file or 'SQL code'}",
-                    current=idx,
-                    total=len(create_handlers),
+                    f"Executing create app handler: {create_app_hook.file or 'SQL code'}"
                 )
                 create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 

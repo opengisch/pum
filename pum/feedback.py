@@ -16,6 +16,29 @@ class Feedback(abc.ABC):
     def __init__(self) -> None:
         """Initialize the feedback instance."""
         self._is_cancelled = False
+        self._current_step = 0
+        self._total_steps = 0
+
+    def set_total_steps(self, total: int) -> None:
+        """Set the total number of steps for the operation.
+
+        Args:
+            total: The total number of steps.
+        """
+        self._total_steps = total
+        self._current_step = 0
+
+    def increment_step(self) -> None:
+        """Increment the current step counter."""
+        self._current_step += 1
+
+    def get_progress(self) -> tuple[int, int]:
+        """Get the current progress.
+
+        Returns:
+            A tuple of (current_step, total_steps).
+        """
+        return (self._current_step, self._total_steps)
 
     @abc.abstractmethod
     def report_progress(self, message: str, current: int = 0, total: int = 0) -> None:
@@ -57,11 +80,11 @@ class LogFeedback(Feedback):
 
         Args:
             message: A message describing the current operation.
-            current: The current progress value.
-            total: The total number of steps.
+            current: The current progress value (ignored, uses internal counter).
+            total: The total number of steps (ignored, uses internal counter).
         """
-        if total > 0:
-            logger.info(f"[{current}/{total}] {message}")
+        if self._total_steps > 0:
+            logger.info(f"[{self._current_step}/{self._total_steps}] {message}")
         else:
             logger.info(message)
 

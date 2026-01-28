@@ -323,13 +323,10 @@ class RoleManager:
             feedback: Optional feedback object for progress reporting.
         """
         roles_list = list(self.roles.values())
-        for idx, role in enumerate(roles_list, 1):
+        for role in roles_list:
             if feedback:
-                feedback.report_progress(
-                    f"Creating role: {role.name}",
-                    current=idx,
-                    total=len(roles_list),
-                )
+                feedback.increment_step()
+                feedback.report_progress(f"Creating role: {role.name}")
             role.create(connection=connection, commit=False, grant=grant)
         if commit:
             connection.commit()
@@ -347,13 +344,10 @@ class RoleManager:
             feedback: Optional feedback object for progress reporting.
         """
         roles_list = list(self.roles.values())
-        for idx, role in enumerate(roles_list, 1):
+        for role in roles_list:
             if feedback:
-                feedback.report_progress(
-                    f"Granting permissions to role: {role.name}",
-                    current=idx,
-                    total=len(roles_list),
-                )
+                feedback.increment_step()
+                feedback.report_progress(f"Granting permissions to role: {role.name}")
             for permission in role.permissions():
                 permission.grant(role=role.name, connection=connection, commit=False)
         logger.info("All permissions granted to roles.")
