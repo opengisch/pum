@@ -93,6 +93,7 @@ class HookHandler:
         self.code = code
         self.hook_instance = None
         self.sys_path_additions = []  # Store paths to add during execution
+        self._imported_modules = []  # Track modules imported by this hook
 
         if file:
             if isinstance(file, str):
@@ -125,10 +126,17 @@ class HookHandler:
             for path in self.sys_path_additions:
                 sys.path.insert(0, path)
 
+            # Track modules before loading to detect new imports
+            modules_before = set(sys.modules.keys())
+
             try:
                 spec = importlib.util.spec_from_file_location(self.file.stem, self.file)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
+
+                # Track modules that were imported by this hook
+                modules_after = set(sys.modules.keys())
+                self._imported_modules = list(modules_after - modules_before)
             finally:
                 # Remove all paths that were added
                 for path in self.sys_path_additions:
@@ -152,6 +160,16 @@ class HookHandler:
                     f"Hook function 'run_hook' in {self.file} must accept 'connection' as an argument."
                 )
             self.parameter_args = [arg for arg in arg_names if arg not in ("self", "connection")]
+
+    def cleanup_imports(self):
+        """Remove imported modules from sys.modules cache.
+        This should be called when switching to a different module version
+        to prevent import conflicts.
+        """
+        for module_name in self._imported_modules:
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+        self._imported_modules.clear()
 
     def __repr__(self) -> str:
         """Return a string representation of the Hook instance."""
