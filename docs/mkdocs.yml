@@ -112,8 +112,6 @@ nav:
       - SqlContent: api/sql_content.md
       - Upgrader: api/upgrader.md
       - Exceptions: api/exceptions.md
-  - Advanced:
-      - Feedback: advanced/feedback.md
 
 extra:
   # Remove "Made with Material for MkDocs" from footer
