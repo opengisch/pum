@@ -1,6 +1,7 @@
 import logging
 import re
 from pathlib import Path
+from typing import Any, Optional
 
 import psycopg
 
@@ -8,6 +9,18 @@ from .exceptions import PumSqlError
 from . import SQL
 
 logger = logging.getLogger(__name__)
+
+
+class CursorResult:
+    """A simple wrapper to hold cursor results after the cursor is closed."""
+
+    def __init__(
+        self, results: Optional[list] = None, description: Optional[Any] = None, rowcount: int = 0
+    ):
+        self._pum_results = results
+        self._pum_description = description
+        self._pum_rowcount = rowcount
+        self._pum_index = 0
 
 
 def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
@@ -190,7 +203,7 @@ class SqlContent:
         *,
         parameters: dict | None = None,
         commit: bool = False,
-    ) -> psycopg.Cursor:
+    ) -> CursorResult:
         """Execute a SQL statement with optional parameters.
 
         Args:
@@ -198,27 +211,41 @@ class SqlContent:
             parameters: Parameters to bind to the SQL statement. Defaults to ().
             commit: Whether to commit the transaction. Defaults to False.
 
+        Returns:
+            CursorResult: Object containing results, description and other cursor info.
+
         """
-        cursor = connection.cursor()
+        with connection.cursor() as cursor:
+            for sql_code in self._prepare_sql(parameters):
+                try:
+                    statement = sql_code.as_string(connection)
+                except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
+                    raise PumSqlError(
+                        f"SQL preparation failed for the following code: {statement} {e}"
+                    ) from e
+                try:
+                    logger.log(SQL, f"Executing SQL: {statement}")
+                    cursor.execute(statement)
+                except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
+                    raise PumSqlError(
+                        f"SQL execution failed for the following code: {statement} {e}"
+                    ) from e
+            if commit:
+                connection.commit()
 
-        for sql_code in self._prepare_sql(parameters):
+            # Store results before cursor closes
             try:
-                statement = sql_code.as_string(connection)
-            except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
-                raise PumSqlError(
-                    f"SQL preparation failed for the following code: {statement} {e}"
-                ) from e
-            try:
-                logger.log(SQL, f"Executing SQL: {statement}")
-                cursor.execute(statement)
-            except (psycopg.errors.SyntaxError, psycopg.errors.ProgrammingError) as e:
-                raise PumSqlError(
-                    f"SQL execution failed for the following code: {statement} {e}"
-                ) from e
-        if commit:
-            connection.commit()
+                results = cursor.fetchall()
+                description = cursor.description
+                rowcount = cursor.rowcount
+            except psycopg.ProgrammingError:
+                # No results to fetch (e.g., DDL statements)
+                results = None
+                description = None
+                rowcount = 0
 
-        return cursor
+            # Return a CursorResult object with the fetched data
+            return CursorResult(results, description, rowcount)
 
     def _prepare_sql(self, parameters: dict | None) -> list[psycopg.sql.SQL]:
         """Prepare SQL for execution.

@@ -167,5 +167,5 @@ class Changelog:
             "table": schema_migrations.migration_table_identifier,
         }
         cursor = SqlContent(query).execute(connection, parameters=parameters)
-        result = cursor.fetchone()
+        result = cursor._pum_results[0] if cursor._pum_results else None
         return result[0] if result else False

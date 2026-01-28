@@ -223,7 +223,7 @@ class TestUpgrader(unittest.TestCase):
             cur = SqlContent(
                 "SELECT table_schema FROM information_schema.tables WHERE table_name = 'pum_migrations';"
             ).execute(connection=conn)
-            self.assertEqual(cur.fetchone()[0], "pum_custom_migrations_schema")
+            self.assertEqual(cur._pum_results[0][0], "pum_custom_migrations_schema")
 
     def test_install_complex_files_content(self) -> None:
         """Test the installation of complex files content."""

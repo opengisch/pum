@@ -63,7 +63,7 @@ class Permission:
                 commit=False,
                 parameters={"schema": psycopg.sql.Literal(schema)},
             )
-            if cursor.fetchone() is None:
+            if not cursor._pum_results or not cursor._pum_results[0]:
                 logger.warning(
                     f"Schema {schema} does not exist; skipping grant of {self.type.value} "
                     f"permission to role {role}."
@@ -215,16 +215,12 @@ class Role:
         Returns:
             bool: True if the role exists, False otherwise.
         """
-        return (
-            SqlContent("SELECT 1 FROM pg_roles WHERE rolname = {name}")
-            .execute(
-                connection=connection,
-                commit=False,
-                parameters={"name": psycopg.sql.Literal(self.name)},
-            )
-            .fetchone()
-            is not None
+        cursor = SqlContent("SELECT 1 FROM pg_roles WHERE rolname = {name}").execute(
+            connection=connection,
+            commit=False,
+            parameters={"name": psycopg.sql.Literal(self.name)},
         )
+        return bool(cursor._pum_results)
 
     def create(
         self, connection: psycopg.Connection, grant: bool = False, commit: bool = False
