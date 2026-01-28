@@ -390,6 +390,7 @@ class Upgrader:
         *,
         parameters: dict | None = None,
         commit: bool = True,
+        feedback: Feedback | None = None,
     ) -> None:
         """Uninstall the module by executing uninstall hooks.
 
@@ -397,10 +398,15 @@ class Upgrader:
             connection: The database connection to use for the uninstall.
             parameters: The parameters to pass to the uninstall hooks.
             commit: If True, the changes will be committed to the database. Default is True.
+            feedback: A Feedback instance to report progress and check for cancellation.
+                If None, a LogFeedback instance will be used.
 
         Raises:
             PumException: If no uninstall hooks are defined in the configuration.
         """
+        if feedback is None:
+            feedback = LogFeedback()
+
         uninstall_hooks = self.config.uninstall_handlers()
 
         if not uninstall_hooks:
@@ -410,10 +416,22 @@ class Upgrader:
             )
 
         logger.info("Uninstalling module...")
+        feedback.report_progress("Starting uninstall...")
+
+        # Set total steps for progress tracking
+        total_steps = len(uninstall_hooks)
+        feedback.set_total_steps(total_steps)
 
         for uninstall_hook in uninstall_hooks:
+            if feedback.is_cancelled():
+                raise PumException("Uninstall cancelled by user")
+            feedback.increment_step()
+            feedback.report_progress(
+                f"Executing uninstall handler: {uninstall_hook.file or 'SQL code'}"
+            )
             uninstall_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         if commit:
+            feedback.report_progress("Committing changes...")
             connection.commit()
             logger.info("Uninstall completed and changes committed to the database.")
