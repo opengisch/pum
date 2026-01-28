@@ -83,10 +83,7 @@ class LogFeedback(Feedback):
             current: The current progress value (ignored, uses internal counter).
             total: The total number of steps (ignored, uses internal counter).
         """
-        if self._total_steps > 0:
-            logger.info(f"[{self._current_step}/{self._total_steps}] {message}")
-        else:
-            logger.info(message)
+        logger.info(message)
 
 
 class SilentFeedback(Feedback):

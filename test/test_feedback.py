@@ -21,12 +21,7 @@ class CustomFeedback(Feedback):
 
     def report_progress(self, message: str, current: int = 0, total: int = 0) -> None:
         """Track progress calls."""
-        # Format message like LogFeedback does
-        if self._total_steps > 0:
-            formatted_msg = f"[{self._current_step}/{self._total_steps}] {message}"
-        else:
-            formatted_msg = message
-        self.messages.append(formatted_msg)
+        self.messages.append(message)
         self.progress_calls.append((message, self._current_step, self._total_steps))
 
 
@@ -110,10 +105,10 @@ class TestFeedback(unittest.TestCase):
         feedback.report_progress("Done")
 
         self.assertEqual(len(feedback.messages), 4)
-        self.assertEqual(feedback.messages[0], "[0/3] Starting")
-        self.assertEqual(feedback.messages[1], "[1/3] Processing item 1")
-        self.assertEqual(feedback.messages[2], "[2/3] Processing item 2")
-        self.assertEqual(feedback.messages[3], "[3/3] Done")
+        self.assertEqual(feedback.messages[0], "Starting")
+        self.assertEqual(feedback.messages[1], "Processing item 1")
+        self.assertEqual(feedback.messages[2], "Processing item 2")
+        self.assertEqual(feedback.messages[3], "Done")
 
         # Verify internal tracking
         self.assertEqual(feedback.progress_calls[1], ("Processing item 1", 1, 3))
@@ -265,17 +260,6 @@ class TestFeedback(unittest.TestCase):
             self.assertTrue(any("multiple_changelogs.sql" in msg for msg in feedback.messages))
             self.assertTrue(any("create_second_table.sql" in msg for msg in feedback.messages))
             self.assertTrue(any("create_third_table.sql" in msg for msg in feedback.messages))
-
-            # Verify progress indicators are in the format [x/y]
-            progress_messages = [
-                msg
-                for msg in feedback.messages
-                if msg.startswith("[") and "/" in msg.split("]")[0]
-                if "]" in msg
-            ]
-            self.assertGreater(
-                len(progress_messages), 0, "Should have progress indicators in [x/y] format"
-            )
 
 
 if __name__ == "__main__":
