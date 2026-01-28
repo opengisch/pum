@@ -108,7 +108,7 @@ class Upgrader:
         if roles or grant:
             feedback.report_progress("Creating roles...")
             self.config.role_manager().create_roles(
-                connection=connection, grant=False, commit=False
+                connection=connection, grant=False, commit=False, feedback=feedback
             )
 
         if not skip_drop_app:
@@ -162,7 +162,9 @@ class Upgrader:
 
         if grant:
             feedback.report_progress("Granting permissions...")
-            self.config.role_manager().grant_permissions(connection=connection, commit=False)
+            self.config.role_manager().grant_permissions(
+                connection=connection, commit=False, feedback=feedback
+            )
 
         if commit:
             feedback.report_progress("Committing changes...")
@@ -351,11 +353,13 @@ class Upgrader:
         if roles or grant:
             feedback.report_progress("Creating roles...")
             self.config.role_manager().create_roles(
-                connection=connection, grant=False, commit=False
+                connection=connection, grant=False, commit=False, feedback=feedback
             )
             if grant:
                 feedback.report_progress("Granting permissions...")
-                self.config.role_manager().grant_permissions(connection=connection, commit=False)
+                self.config.role_manager().grant_permissions(
+                    connection=connection, commit=False, feedback=feedback
+                )
 
         feedback.report_progress("Committing changes...")
         connection.commit()
