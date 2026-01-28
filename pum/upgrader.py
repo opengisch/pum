@@ -9,6 +9,7 @@ from .pum_config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
 from .sql_content import SqlContent
+from .feedback import Feedback, LogFeedback
 
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class Upgrader:
 
         """
         self.config = config
-        self.max_version = packaging.parse(max_version) if max_version else None
+        self.max_version = packaging.version.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
 
     def install(
@@ -55,6 +56,7 @@ class Upgrader:
         skip_drop_app: bool = False,
         skip_create_app: bool = False,
         commit: bool = False,
+        feedback: Feedback | None = None,
     ) -> None:
         """Installs the given module
         This will create the schema_migrations table if it does not exist.
@@ -82,7 +84,13 @@ class Upgrader:
                 If True, create app handlers will be skipped.
             commit:
                 If True, the changes will be committed to the database.
+            feedback:
+                A Feedback instance to report progress and check for cancellation.
+                If None, a LogFeedback instance will be used.
         """
+        if feedback is None:
+            feedback = LogFeedback()
+
         if self.schema_migrations.exists(connection):
             msg = (
                 f"Schema migrations table {self.config.config.pum.migration_table_schema}.pum_migrations already exists. "
@@ -90,21 +98,41 @@ class Upgrader:
                 "Use upgrade() to upgrade the db or start with a clean db."
             )
             raise PumException(msg)
+
+        feedback.report_progress("Creating migrations table...")
         self.schema_migrations.create(connection, commit=False)
 
         logger.info("Installing module...")
+        feedback.report_progress("Installing module...")
 
         if roles or grant:
+            feedback.report_progress("Creating roles...")
             self.config.role_manager().create_roles(
                 connection=connection, grant=False, commit=False
             )
 
         if not skip_drop_app:
-            for drop_app_hook in self.config.drop_app_handlers():
+            drop_handlers = self.config.drop_app_handlers()
+            for idx, drop_app_hook in enumerate(drop_handlers, 1):
+                if feedback.is_cancelled():
+                    raise PumException("Installation cancelled by user")
+                feedback.report_progress(
+                    f"Executing drop app handler: {drop_app_hook.file or 'SQL code'}",
+                    current=idx,
+                    total=len(drop_handlers),
+                )
                 drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
+        changelogs = list(self.config.changelogs(max_version=max_version))
         last_changelog = None
-        for changelog in self.config.changelogs(max_version=max_version):
+        for idx, changelog in enumerate(changelogs, 1):
+            if feedback.is_cancelled():
+                raise PumException("Installation cancelled by user")
+            feedback.report_progress(
+                f"Applying changelog version {changelog.version}",
+                current=idx,
+                total=len(changelogs),
+            )
             last_changelog = changelog
             changelog.apply(
                 connection,
@@ -115,7 +143,15 @@ class Upgrader:
             )
 
         if not skip_create_app:
-            for create_app_hook in self.config.create_app_handlers():
+            create_handlers = self.config.create_app_handlers()
+            for idx, create_app_hook in enumerate(create_handlers, 1):
+                if feedback.is_cancelled():
+                    raise PumException("Installation cancelled by user")
+                feedback.report_progress(
+                    f"Executing create app handler: {create_app_hook.file or 'SQL code'}",
+                    current=idx,
+                    total=len(create_handlers),
+                )
                 create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         logger.info(
@@ -125,9 +161,11 @@ class Upgrader:
         )
 
         if grant:
+            feedback.report_progress("Granting permissions...")
             self.config.role_manager().grant_permissions(connection=connection, commit=False)
 
         if commit:
+            feedback.report_progress("Committing changes...")
             connection.commit()
             logger.info("Changes committed to the database.")
 
@@ -198,6 +236,7 @@ class Upgrader:
         skip_create_app: bool = False,
         roles: bool = False,
         grant: bool = False,
+        feedback: Feedback | None = None,
     ) -> None:
         """Upgrades the given module
         The changelogs are applied in the order they are found in the directory.
@@ -223,7 +262,13 @@ class Upgrader:
                 If True, roles will be created.
             grant:
                 If True, permissions will be granted to the roles.
+            feedback:
+                A Feedback instance to report progress and check for cancellation.
+                If None, a LogFeedback instance will be used.
         """
+        if feedback is None:
+            feedback = LogFeedback()
+
         if not self.schema_migrations.exists(connection):
             msg = (
                 f"Schema migrations table {self.config.config.pum.migration_table_schema}.pum_migrations does not exist. "
@@ -243,12 +288,23 @@ class Upgrader:
         effective_beta_testing = beta_testing or installed_beta_testing
 
         logger.info("Starting upgrade process...")
+        feedback.report_progress("Starting upgrade...")
 
         if not skip_drop_app:
-            for drop_app_hook in self.config.drop_app_handlers():
+            drop_handlers = self.config.drop_app_handlers()
+            for idx, drop_app_hook in enumerate(drop_handlers, 1):
+                if feedback.is_cancelled():
+                    raise PumException("Upgrade cancelled by user")
+                feedback.report_progress(
+                    f"Executing drop app handler: {drop_app_hook.file or 'SQL code'}",
+                    current=idx,
+                    total=len(drop_handlers),
+                )
                 drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
-        for changelog in self.config.changelogs(max_version=max_version):
+        changelogs = list(self.config.changelogs(max_version=max_version))
+        applicable_changelogs = []
+        for changelog in changelogs:
             if changelog.version <= self.schema_migrations.baseline(connection):
                 if not changelog.is_applied(
                     connection=connection, schema_migrations=self.schema_migrations
@@ -262,7 +318,16 @@ class Upgrader:
                     raise PumException(msg)
                 logger.debug("Changelog version %s already applied, skipping.", changelog.version)
                 continue
+            applicable_changelogs.append(changelog)
 
+        for idx, changelog in enumerate(applicable_changelogs, 1):
+            if feedback.is_cancelled():
+                raise PumException("Upgrade cancelled by user")
+            feedback.report_progress(
+                f"Applying changelog version {changelog.version}",
+                current=idx,
+                total=len(applicable_changelogs),
+            )
             changelog.apply(
                 connection,
                 commit=False,
@@ -272,16 +337,27 @@ class Upgrader:
             )
 
         if not skip_create_app:
-            for create_app_hook in self.config.create_app_handlers():
+            create_handlers = self.config.create_app_handlers()
+            for idx, create_app_hook in enumerate(create_handlers, 1):
+                if feedback.is_cancelled():
+                    raise PumException("Upgrade cancelled by user")
+                feedback.report_progress(
+                    f"Executing create app handler: {create_app_hook.file or 'SQL code'}",
+                    current=idx,
+                    total=len(create_handlers),
+                )
                 create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         if roles or grant:
+            feedback.report_progress("Creating roles...")
             self.config.role_manager().create_roles(
                 connection=connection, grant=False, commit=False
             )
             if grant:
+                feedback.report_progress("Granting permissions...")
                 self.config.role_manager().grant_permissions(connection=connection, commit=False)
 
+        feedback.report_progress("Committing changes...")
         connection.commit()
         logger.info("Upgrade completed and changes committed to the database.")
 
