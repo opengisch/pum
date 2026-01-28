@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class CursorResult:
-    """A simple wrapper to hold cursor results after the cursor is closed."""
+    """A simple wrapper to hold cursor results after the cursor is closed.
+
+    This class provides a cursor-compatible interface for accessing query results
+    after the actual database cursor has been closed.
+    """
 
     def __init__(
         self, results: Optional[list] = None, description: Optional[Any] = None, rowcount: int = 0
@@ -21,6 +25,36 @@ class CursorResult:
         self._pum_description = description
         self._pum_rowcount = rowcount
         self._pum_index = 0
+
+    @property
+    def description(self):
+        """Return the column description (compatible with cursor.description)."""
+        return self._pum_description
+
+    @property
+    def rowcount(self):
+        """Return the number of rows (compatible with cursor.rowcount)."""
+        return self._pum_rowcount
+
+    def fetchall(self):
+        """Return all results (compatible with cursor.fetchall())."""
+        return self._pum_results if self._pum_results is not None else []
+
+    def fetchone(self):
+        """Return the next result (compatible with cursor.fetchone())."""
+        if self._pum_results is None or self._pum_index >= len(self._pum_results):
+            return None
+        result = self._pum_results[self._pum_index]
+        self._pum_index += 1
+        return result
+
+    def fetchmany(self, size: int = 1):
+        """Return the next `size` results (compatible with cursor.fetchmany())."""
+        if self._pum_results is None:
+            return []
+        results = self._pum_results[self._pum_index : self._pum_index + size]
+        self._pum_index += len(results)
+        return results
 
 
 def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
