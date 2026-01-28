@@ -21,8 +21,13 @@ class CustomFeedback(Feedback):
 
     def report_progress(self, message: str, current: int = 0, total: int = 0) -> None:
         """Track progress calls."""
-        self.messages.append(message)
-        self.progress_calls.append((message, current, total))
+        # Format message like LogFeedback does
+        if self._total_steps > 0:
+            formatted_msg = f"[{self._current_step}/{self._total_steps}] {message}"
+        else:
+            formatted_msg = message
+        self.messages.append(formatted_msg)
+        self.progress_calls.append((message, self._current_step, self._total_steps))
 
 
 class TestFeedback(unittest.TestCase):
@@ -94,13 +99,23 @@ class TestFeedback(unittest.TestCase):
         """Test that custom feedback can track progress calls."""
         feedback = CustomFeedback()
 
+        # Test with internal step tracking
+        feedback.set_total_steps(3)
         feedback.report_progress("Starting")
-        feedback.report_progress("Processing item 1", current=1, total=3)
-        feedback.report_progress("Processing item 2", current=2, total=3)
+        feedback.increment_step()
+        feedback.report_progress("Processing item 1")
+        feedback.increment_step()
+        feedback.report_progress("Processing item 2")
+        feedback.increment_step()
         feedback.report_progress("Done")
 
         self.assertEqual(len(feedback.messages), 4)
-        self.assertIn("Starting", feedback.messages)
+        self.assertEqual(feedback.messages[0], "[0/3] Starting")
+        self.assertEqual(feedback.messages[1], "[1/3] Processing item 1")
+        self.assertEqual(feedback.messages[2], "[2/3] Processing item 2")
+        self.assertEqual(feedback.messages[3], "[3/3] Done")
+
+        # Verify internal tracking
         self.assertEqual(feedback.progress_calls[1], ("Processing item 1", 1, 3))
         self.assertEqual(feedback.progress_calls[2], ("Processing item 2", 2, 3))
 
@@ -118,7 +133,8 @@ class TestFeedback(unittest.TestCase):
             # Verify progress was reported
             self.assertGreater(len(feedback.messages), 0)
             self.assertTrue(any("Installing module" in msg for msg in feedback.messages))
-            self.assertTrue(any("Applying changelog" in msg for msg in feedback.messages))
+            # Now we report individual file execution instead of changelog level
+            self.assertTrue(any("Executing" in msg for msg in feedback.messages))
 
     def test_upgrade_with_feedback(self) -> None:
         """Test that upgrade reports progress through feedback."""
@@ -210,6 +226,56 @@ class TestFeedback(unittest.TestCase):
             except PumException as e:
                 # If exception was raised, verify it's about cancellation
                 self.assertIn("cancelled", str(e).lower())
+
+    def test_feedback_progression(self) -> None:
+        """Test that feedback tracks progression through all steps."""
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig(test_dir, pum={"module": "test_feedback_progression"})
+
+        feedback = CustomFeedback()
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, feedback=feedback, commit=True)
+
+            # Verify we got progress messages for:
+            # 1. Creating migrations table
+            # 2. Installing module
+            # 3. Each SQL file execution
+            # 4. Committing changes
+
+            self.assertGreater(len(feedback.messages), 0)
+
+            # Check for key progress messages
+            self.assertTrue(any("Creating migrations table" in msg for msg in feedback.messages))
+            self.assertTrue(any("Installing module" in msg for msg in feedback.messages))
+            self.assertTrue(any("Committing changes" in msg for msg in feedback.messages))
+
+            # Check that we got messages for executing SQL files with progress indicators
+            executing_messages = [msg for msg in feedback.messages if "Executing" in msg]
+            self.assertGreater(
+                len(executing_messages), 0, "Should have messages for executing SQL files"
+            )
+
+            # Verify messages for specific files in the test data
+            # Version 1.2.3: multiple_changelogs.sql
+            # Version 1.2.4: rename_created_date.sql
+            # Version 1.3.0: add_created_by_column.sql
+            # Version 2.0.0: create_second_table.sql, create_third_table.sql
+            self.assertTrue(any("multiple_changelogs.sql" in msg for msg in feedback.messages))
+            self.assertTrue(any("create_second_table.sql" in msg for msg in feedback.messages))
+            self.assertTrue(any("create_third_table.sql" in msg for msg in feedback.messages))
+
+            # Verify progress indicators are in the format [x/y]
+            progress_messages = [
+                msg
+                for msg in feedback.messages
+                if msg.startswith("[") and "/" in msg.split("]")[0]
+                if "]" in msg
+            ]
+            self.assertGreater(
+                len(progress_messages), 0, "Should have progress indicators in [x/y] format"
+            )
 
 
 if __name__ == "__main__":

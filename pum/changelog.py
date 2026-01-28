@@ -2,6 +2,7 @@ import logging
 from os import listdir
 from os.path import basename
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from packaging.version import parse as parse_version
 import psycopg
@@ -9,6 +10,9 @@ import psycopg
 from .schema_migrations import SchemaMigrations
 from .exceptions import PumInvalidChangelog, PumSqlError
 from .sql_content import SqlContent
+
+if TYPE_CHECKING:
+    from .feedback import Feedback
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +92,7 @@ class Changelog:
         commit: bool = True,
         schema_migrations: SchemaMigrations | None = None,
         beta_testing: bool = False,
+        feedback: "Feedback | None" = None,
     ) -> list[Path]:
         """Apply a changelog
         This will execute all the files in the changelog directory.
@@ -105,6 +110,8 @@ class Changelog:
                 If None, the changelog will not be recorded.
             beta_testing: bool
                 If true, the changelog will be recorded as a beta testing version.
+            feedback: Feedback | None
+                Optional feedback object for progress reporting.
 
         Returns:
             list[Path]
@@ -116,6 +123,9 @@ class Changelog:
         parameters_literals = SqlContent.prepare_parameters(parameters)
         files = self.files()
         for file in files:
+            if feedback:
+                feedback.increment_step()
+                feedback.report_progress(f"Executing {file.name}")
             try:
                 SqlContent(file).execute(
                     connection=connection, commit=commit, parameters=parameters_literals
