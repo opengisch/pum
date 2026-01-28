@@ -137,29 +137,50 @@ class HookHandler:
                 # Track modules that were imported by this hook
                 modules_after = set(sys.modules.keys())
                 self._imported_modules = list(modules_after - modules_before)
+
+                # Check that the module contains a class named Hook inheriting from HookBase
+                # Do this BEFORE removing paths from sys.path
+                hook_class = getattr(module, "Hook", None)
+                if not hook_class or not inspect.isclass(hook_class):
+                    raise PumHookError(
+                        f"Python hook file {self.file} must define a class named 'Hook'."
+                    )
+
+                # Check inheritance by class name to handle multiple pum installations
+                # (e.g., installed pum vs. libs/pum in QGIS plugin)
+                base_classes = [base.__name__ for base in inspect.getmro(hook_class)]
+                if "HookBase" not in base_classes:
+                    # Get more info for debugging
+                    hook_bases = [
+                        f"{base.__module__}.{base.__name__}" for base in inspect.getmro(hook_class)
+                    ]
+                    logger.error(f"Hook class MRO: {hook_bases}")
+                    logger.error(
+                        f"Expected HookBase from: {HookBase.__module__}.{HookBase.__name__}"
+                    )
+                    raise PumHookError(
+                        f"Class 'Hook' in {self.file} must inherit from HookBase. "
+                        f"Found bases: {', '.join(base_classes)}"
+                    )
+
+                if not hasattr(hook_class, "run_hook"):
+                    raise PumHookError(f"Hook function 'run_hook' not found in {self.file}.")
+
+                self.hook_instance = hook_class()
+                arg_names = list(inspect.signature(hook_class.run_hook).parameters.keys())
+                if "connection" not in arg_names:
+                    raise PumHookError(
+                        f"Hook function 'run_hook' in {self.file} must accept 'connection' as an argument."
+                    )
+                self.parameter_args = [
+                    arg for arg in arg_names if arg not in ("self", "connection")
+                ]
+
             finally:
                 # Remove all paths that were added
                 for path in self.sys_path_additions:
                     if path in sys.path:
                         sys.path.remove(path)
-            # Check that the module contains a class named Hook inheriting from HookBase
-            hook_class = getattr(module, "Hook", None)
-            if not hook_class or not inspect.isclass(hook_class):
-                raise PumHookError(
-                    f"Python hook file {self.file} must define a class named 'Hook'."
-                )
-            if not issubclass(hook_class, HookBase):
-                raise PumHookError(f"Class 'Hook' in {self.file} must inherit from HookBase.")
-            if not hasattr(hook_class, "run_hook"):
-                raise PumHookError(f"Hook function 'run_hook' not found in {self.file}.")
-
-            self.hook_instance = hook_class()
-            arg_names = list(inspect.signature(hook_class.run_hook).parameters.keys())
-            if "connection" not in arg_names:
-                raise PumHookError(
-                    f"Hook function 'run_hook' in {self.file} must accept 'connection' as an argument."
-                )
-            self.parameter_args = [arg for arg in arg_names if arg not in ("self", "connection")]
 
     def cleanup_imports(self):
         """Remove imported modules from sys.modules cache.

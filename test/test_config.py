@@ -270,3 +270,29 @@ class TestConfig(unittest.TestCase):
             any("helper_v2" in mod for mod in sys.modules),
             "helper_v2 should be removed from sys.modules after cleanup",
         )
+
+    def test_parameter_type_string_conversion(self) -> None:
+        """Test that ParameterType enums convert to string values correctly.
+
+        This is important for external tools (like QGIS plugins) that need to
+        check parameter types as strings.
+        """
+        cfg = PumConfig.from_yaml(
+            Path("test") / "data" / "parameters" / ".pum.yaml",
+            validate=False,
+        )
+        params = cfg.parameters()
+
+        # Verify parameters are loaded
+        self.assertEqual(len(params), 3)
+
+        # Test that str() returns the value, not the enum representation
+        param_int = next(p for p in params if p.name == "SRID")
+        self.assertEqual(str(param_int.type), "integer")
+        self.assertEqual(f"{param_int.type}", "integer")
+
+        param_int2 = next(p for p in params if p.name == "default_integer_value")
+        self.assertEqual(str(param_int2.type), "integer")
+
+        param_text = next(p for p in params if p.name == "default_text_value")
+        self.assertEqual(str(param_text.type), "text")

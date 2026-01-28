@@ -203,7 +203,8 @@ class PumConfig:
 
         """
         return [
-            ParameterDefinition(**parameter.model_dump()) for parameter in self.config.parameters
+            ParameterDefinition(**parameter.model_dump(mode="python"))
+            for parameter in self.config.parameters
         ]
 
     def parameter(self, name: str) -> ParameterDefinition:
@@ -221,7 +222,7 @@ class PumConfig:
         """
         for parameter in self.config.parameters:
             if parameter.name == name:
-                return ParameterDefinition(**parameter.model_dump())
+                return ParameterDefinition(**parameter.model_dump(mode="python"))
         raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
 
     def last_version(

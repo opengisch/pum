@@ -20,6 +20,10 @@ class ParameterType(Enum):
     DECIMAL = "decimal"
     PATH = "path"
 
+    def __str__(self) -> str:
+        """Return the string value of the enum (e.g., 'integer' instead of 'ParameterType.INTEGER')."""
+        return self.value
+
 
 class ParameterDefinition:
     """A class to define a migration parameter."""

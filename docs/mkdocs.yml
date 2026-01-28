@@ -98,6 +98,7 @@ nav:
       - Changelog: api/changelog.md
       - Dumper: api/dumper.md
       - DumpFormat: api/dump_format.md
+      - Feedback: api/feedback.md
       - HookBase: api/hook_base.md
       - HookHandler: api/hook_handler.md
       - ParameterDefinition: api/parameter_definition.md
@@ -111,6 +112,8 @@ nav:
       - SqlContent: api/sql_content.md
       - Upgrader: api/upgrader.md
       - Exceptions: api/exceptions.md
+  - Advanced:
+      - Feedback: advanced/feedback.md
 
 extra:
   # Remove "Made with Material for MkDocs" from footer

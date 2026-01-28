@@ -1,6 +1,10 @@
 import importlib
 import logging
+import sys
 from typing import Any, TYPE_CHECKING
+
+# Prevent Python from writing bytecode files (.pyc)
+sys.dont_write_bytecode = True
 
 # Custom SQL logging level (more verbose than DEBUG)
 # Register with: logging.addLevelName(SQL, 'SQL')
@@ -19,6 +23,7 @@ if TYPE_CHECKING:
     from .checker import Checker
     from .dependency_handler import DependencyHandler
     from .dumper import Dumper, DumpFormat
+    from .feedback import Feedback, LogFeedback, SilentFeedback
     from .hook import HookBase, HookHandler
     from .parameter import ParameterDefinition, ParameterType
     from .pum_config import PumConfig
@@ -33,8 +38,10 @@ __all__ = [
     "DependencyHandler",
     "Dumper",
     "DumpFormat",
+    "Feedback",
     "HookBase",
     "HookHandler",
+    "LogFeedback",
     "ParameterDefinition",
     "ParameterType",
     "Permission",
@@ -43,6 +50,7 @@ __all__ = [
     "Role",
     "RoleManager",
     "SchemaMigrations",
+    "SilentFeedback",
     "SQL",
     "SqlContent",
     "Upgrader",

@@ -1,10 +1,13 @@
 import enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import copy
 import psycopg
 import logging
 
 from .sql_content import SqlContent
+
+if TYPE_CHECKING:
+    from .feedback import Feedback
 
 logger = logging.getLogger(__name__)
 
@@ -306,26 +309,51 @@ class RoleManager:
                 )
 
     def create_roles(
-        self, connection: psycopg.Connection, grant: bool = False, commit: bool = False
+        self,
+        connection: psycopg.Connection,
+        grant: bool = False,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
     ) -> None:
         """Create roles in the database.
         Args:
             connection: The database connection to execute the SQL statements.
             grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
         """
-        for role in self.roles.values():
+        roles_list = list(self.roles.values())
+        for idx, role in enumerate(roles_list, 1):
+            if feedback:
+                feedback.report_progress(
+                    f"Creating role: {role.name}",
+                    current=idx,
+                    total=len(roles_list),
+                )
             role.create(connection=connection, commit=False, grant=grant)
         if commit:
             connection.commit()
 
-    def grant_permissions(self, connection: psycopg.Connection, commit: bool = False) -> None:
+    def grant_permissions(
+        self,
+        connection: psycopg.Connection,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
+    ) -> None:
         """Grant permissions to the roles in the database.
         Args:
             connection: The database connection to execute the SQL statements.
             commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
         """
-        for role in self.roles.values():
+        roles_list = list(self.roles.values())
+        for idx, role in enumerate(roles_list, 1):
+            if feedback:
+                feedback.report_progress(
+                    f"Granting permissions to role: {role.name}",
+                    current=idx,
+                    total=len(roles_list),
+                )
             for permission in role.permissions():
                 permission.grant(role=role.name, connection=connection, commit=False)
         logger.info("All permissions granted to roles.")
