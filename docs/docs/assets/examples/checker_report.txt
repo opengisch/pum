@@ -4,19 +4,19 @@ Tables
 Columns
 - {'table_schema': 'pum_test_checker', 'table_name': 'products', 'column_name': 'description', 'column_default': None, 'is_nullable': 'YES', 'data_type': 'text', 'character_maximum_length': None, 'numeric_precision': None, 'numeric_precision_radix': None, 'datetime_precision': None}
 - {'table_schema': 'pum_test_checker', 'table_name': 'products', 'column_name': 'weight', 'column_default': None, 'is_nullable': 'YES', 'data_type': 'numeric', 'character_maximum_length': None, 'numeric_precision': '10', 'numeric_precision_radix': '10', 'datetime_precision': None}
-- {'table_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': 'status', 'column_default': "'active'::character varying", 'is_nullable': 'YES', 'data_type': 'character varying', 'character_maximum_length': '20', 'numeric_precision': None, 'numeric_precision_radix': None, 'datetime_precision': None}
 - {'table_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': 'phone', 'column_default': None, 'is_nullable': 'YES', 'data_type': 'character varying', 'character_maximum_length': '20', 'numeric_precision': None, 'numeric_precision_radix': None, 'datetime_precision': None}
+- {'table_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': 'status', 'column_default': "'active'::character varying", 'is_nullable': 'YES', 'data_type': 'character varying', 'character_maximum_length': '20', 'numeric_precision': None, 'numeric_precision_radix': None, 'datetime_precision': None}
 + {'table_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': 'email', 'column_default': None, 'is_nullable': 'NO', 'data_type': 'character varying', 'character_maximum_length': '255', 'numeric_precision': None, 'numeric_precision_radix': None, 'datetime_precision': None}
 Constraints
-- {'constraint_name': 'users_status_check', 'physical_full_name': 'pum_test_checker.users', 'constraint_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': '', 'foreign_table_name': '', 'foreign_column_name': '', 'constraint_type': 'CHECK', 'constraint_definition': "CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying, 'pending'::character varying])::text[])))"}
+- {'constraint_name': 'users_status_check', 'physical_full_name': 'pum_test_checker.users', 'constraint_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': '', 'foreign_table_name': '', 'foreign_column_name': '', 'constraint_type': 'CHECK', 'constraint_definition': "CHECK (((status)::text = ANY ARRAY['active'::character varying, 'inactive'::character varying, 'pending'::character varying]))"}
 - {'constraint_name': 'products_weight_positive', 'physical_full_name': 'pum_test_checker.products', 'constraint_schema': 'pum_test_checker', 'table_name': 'products', 'column_name': '', 'foreign_table_name': '', 'foreign_column_name': '', 'constraint_type': 'CHECK', 'constraint_definition': 'CHECK (((weight IS NULL) OR (weight > (0)::numeric)))'}
 + {'constraint_name': 'check_email', 'physical_full_name': 'pum_test_checker.users', 'constraint_schema': 'pum_test_checker', 'table_name': 'users', 'column_name': '', 'foreign_table_name': '', 'foreign_column_name': '', 'constraint_type': 'CHECK', 'constraint_definition': "CHECK (((email)::text ~~ '%@%'::text))"}
 + {'constraint_name': 'products_in_stock_check', 'physical_full_name': 'pum_test_checker.products', 'constraint_schema': 'pum_test_checker', 'table_name': 'products', 'column_name': '', 'foreign_table_name': '', 'foreign_column_name': '', 'constraint_type': 'CHECK', 'constraint_definition': 'CHECK ((in_stock IS NOT NULL))'}
 Views
 - {'table_schema': 'pum_test_checker', 'table_name': 'user_orders', 'replace': ' SELECT u.id,\n    u.username,\n    count(o.id) AS order_count\n   FROM (pum_test_checker.users u\n     LEFT JOIN pum_test_checker.orders o ON ((u.id = o.user_id)))\n  GROUP BY u.id, u.username;'}
 Sequences
-- {'relname': 'invoice_sequence', 'schema_name': 'pum_test_checker'}
 - {'relname': 'orders_id_seq', 'schema_name': 'pum_test_checker'}
+- {'relname': 'invoice_sequence', 'schema_name': 'pum_test_checker'}
 + {'relname': 'inventory_id_seq', 'schema_name': 'pum_test_checker'}
 Indexes
 - {'schema_name': 'pum_test_checker', 'table_name': 'products', 'index_name': 'idx_products_name_desc', 'column_name': 'name', 'index_definition': 'CREATE INDEX idx_products_name_desc ON pum_test_checker.products USING btree (name, description)'}
@@ -24,7 +24,7 @@ Indexes
 Triggers
 - {'schema_name': 'pum_test_checker', 'relname': 'orders', 'tgname': 'orders_update_trigger', 'prosrc': '\nBEGIN\n    NEW.order_date = CURRENT_TIMESTAMP;\n    RETURN NEW;\nEND;\n'}
 Functions
-- {'routine_schema': 'pum_test_checker', 'routine_name': 'get_order_count', 'data_type': 'integer', 'routine_definition': '\nBEGIN\n    RETURN (SELECT COUNT(*) FROM pum_test_checker.orders WHERE user_id = p_user_id);\nEND;\n'}
 - {'routine_schema': 'pum_test_checker', 'routine_name': 'update_order_timestamp', 'data_type': None, 'routine_definition': '\nBEGIN\n    NEW.order_date = CURRENT_TIMESTAMP;\n    RETURN NEW;\nEND;\n'}
+- {'routine_schema': 'pum_test_checker', 'routine_name': 'get_order_count', 'data_type': 'integer', 'routine_definition': '\nBEGIN\n    RETURN (SELECT COUNT(*) FROM pum_test_checker.orders WHERE user_id = p_user_id);\nEND;\n'}
 Rules
 - {'rule_schema': 'pum_test_checker', 'rule_table': 'user_orders', 'rule_name': '_RETURN', 'rule_event': 'SELECT'}

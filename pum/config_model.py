@@ -1,6 +1,6 @@
-import packaging
+from packaging.version import Version
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing import Optional, Any, Literal
+from typing import Any, Literal
 
 
 from .exceptions import PumConfigError
@@ -93,7 +93,7 @@ class PumModel(PumCustomBaseModel):
         default="public", description="Name of schema for the migration table"
     )
 
-    minimum_version: packaging.version.Version | None = Field(
+    minimum_version: Version | None = Field(
         default=None,
         description="Minimum required version of pum.",
     )
@@ -102,7 +102,7 @@ class PumModel(PumCustomBaseModel):
     def parse_minimum_version(cls, values):
         min_ver = values.get("minimum_version")
         if isinstance(min_ver, str):
-            values["minimum_version"] = packaging.version.Version(min_ver)
+            values["minimum_version"] = Version(min_ver)
         return values
 
 
@@ -174,11 +174,11 @@ class DependencyModel(PumCustomBaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     name: str = Field(..., description="Name of the Python dependency.")
-    minimum_version: packaging.version.Version | None = Field(
+    minimum_version: Version | None = Field(
         default=None,
         description="Specific minimum required version of the package.",
     )
-    maximum_version: packaging.version.Version | None = Field(
+    maximum_version: Version | None = Field(
         default=None,
         description="Specific maximum required version of the package.",
     )
@@ -188,7 +188,7 @@ class DependencyModel(PumCustomBaseModel):
         for value in ("minimum_version", "maximum_version"):
             ver = values.get(value)
             if isinstance(ver, str):
-                values[value] = packaging.version.Version(ver)
+                values[value] = Version(ver)
             return values
 
 

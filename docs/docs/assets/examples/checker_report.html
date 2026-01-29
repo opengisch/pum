@@ -488,7 +488,7 @@
             <div class="meta">
                 <div>Database 1: <strong>pum_test</strong></div>
                 <div>Database 2: <strong>pum_test_2</strong></div>
-                <div>Generated: 2026-01-21 16:11:56</div>
+                <div>Generated: 2026-01-29 21:10:54</div>
             </div>
         </div>
 
@@ -609,6 +609,62 @@
 
                         <div style="margin-bottom: 20px;">
                             <div style="margin-bottom: 10px; cursor: pointer;" onclick="toggleCollapsible(this)">
+                                <span class="schema-object">▼ pum_test_checker.products</span>
+                            </div>
+                            <div class="collapsible-content">
+                                <ul class="diff-list">
+
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                                    Only exists in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">description</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: text | Nullable: YES</div>
+                                        </div>
+
+                                    </li>
+
+                                    <li class="diff-item removed">
+                                        <div class="diff-content">
+                                            <span class="diff-marker">-</span>
+                                            <span class="db-label tooltip">
+                                                DB1
+                                                <span class="tooltiptext">
+                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
+                                                    Only exists in pum_test
+                                                </span>
+                                            </span>
+                                            <span class="object-detail">weight</span>
+
+                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
+
+                                        </div>
+
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Type: numeric | Nullable: YES | Precision: 10</div>
+                                        </div>
+
+                                    </li>
+
+
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="margin-bottom: 10px; cursor: pointer;" onclick="toggleCollapsible(this)">
                                 <span class="schema-object">▼ pum_test_checker.users</span>
                             </div>
                             <div class="collapsible-content">
@@ -685,62 +741,6 @@
                             </div>
                         </div>
 
-                        <div style="margin-bottom: 20px;">
-                            <div style="margin-bottom: 10px; cursor: pointer;" onclick="toggleCollapsible(this)">
-                                <span class="schema-object">▼ pum_test_checker.products</span>
-                            </div>
-                            <div class="collapsible-content">
-                                <ul class="diff-list">
-
-                                    <li class="diff-item removed">
-                                        <div class="diff-content">
-                                            <span class="diff-marker">-</span>
-                                            <span class="db-label tooltip">
-                                                DB1
-                                                <span class="tooltiptext">
-                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
-                                                    Only exists in pum_test
-                                                </span>
-                                            </span>
-                                            <span class="object-detail">weight</span>
-
-                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
-
-                                        </div>
-
-                                        <div class="collapsible-content collapsed">
-                                            <div class="object-extra">Type: numeric | Nullable: YES | Precision: 10</div>
-                                        </div>
-
-                                    </li>
-
-                                    <li class="diff-item removed">
-                                        <div class="diff-content">
-                                            <span class="diff-marker">-</span>
-                                            <span class="db-label tooltip">
-                                                DB1
-                                                <span class="tooltiptext">
-                                                    ⚠️ Missing in <strong>pum_test_2</strong><br>
-                                                    Only exists in pum_test
-                                                </span>
-                                            </span>
-                                            <span class="object-detail">description</span>
-
-                                                <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this); event.stopPropagation();">Details</button>
-
-                                        </div>
-
-                                        <div class="collapsible-content collapsed">
-                                            <div class="object-extra">Type: text | Nullable: YES</div>
-                                        </div>
-
-                                    </li>
-
-
-                                </ul>
-                            </div>
-                        </div>
-
 
 
                 </div>
@@ -777,9 +777,9 @@
                                     </span>
                                 </span>
 
-                                    <span class="schema-object">pum_test_checker.products</span>
+                                    <span class="schema-object">pum_test_checker.users</span>
 
-                                        <span class="object-detail">products_weight_positive</span>
+                                        <span class="object-detail">users_status_check</span>
 
 
                                         <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
@@ -794,7 +794,7 @@
 
 
                                         <div class="collapsible-content collapsed">
-                                            <div class="sql-widget">CHECK (((weight IS NULL) OR (weight &gt; (0)::numeric)))</div>
+                                            <div class="sql-widget">CHECK (((status)::text = ANY ARRAY[&#39;active&#39;::character varying, &#39;inactive&#39;::character varying, &#39;pending&#39;::character varying]))</div>
                                         </div>
 
 
@@ -815,9 +815,9 @@
                                     </span>
                                 </span>
 
-                                    <span class="schema-object">pum_test_checker.users</span>
+                                    <span class="schema-object">pum_test_checker.products</span>
 
-                                        <span class="object-detail">users_status_check</span>
+                                        <span class="object-detail">products_weight_positive</span>
 
 
                                         <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
@@ -832,7 +832,7 @@
 
 
                                         <div class="collapsible-content collapsed">
-                                            <div class="sql-widget">CHECK (((status)::text = ANY ((ARRAY[&#39;active&#39;::character varying, &#39;inactive&#39;::character varying, &#39;pending&#39;::character varying])::text[])))</div>
+                                            <div class="sql-widget">CHECK (((weight IS NULL) OR (weight &gt; (0)::numeric)))</div>
                                         </div>
 
 
@@ -1010,7 +1010,7 @@
                                     </span>
                                 </span>
 
-                                    <span class="schema-object">pum_test_checker.orders_id_seq</span>
+                                    <span class="schema-object">pum_test_checker.invoice_sequence</span>
 
 
 
@@ -1034,7 +1034,7 @@
                                     </span>
                                 </span>
 
-                                    <span class="schema-object">pum_test_checker.invoice_sequence</span>
+                                    <span class="schema-object">pum_test_checker.orders_id_seq</span>
 
 
 
@@ -1117,7 +1117,7 @@
 
 
                                         <div class="collapsible-content collapsed">
-                                            <div class="object-extra">Column: name</div>
+                                            <div class="object-extra">Column: description</div>
                                         </div>
 
 
@@ -1155,7 +1155,7 @@
 
 
                                         <div class="collapsible-content collapsed">
-                                            <div class="object-extra">Column: description</div>
+                                            <div class="object-extra">Column: name</div>
                                         </div>
 
 
@@ -1264,24 +1264,19 @@ END;
                                     </span>
                                 </span>
 
-                                    <span class="schema-object">pum_test_checker.get_order_count</span>
+                                    <span class="schema-object">pum_test_checker.update_order_timestamp</span>
 
-
-                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
 
 
                                         <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
 
 
-                                        <div class="collapsible-content collapsed">
-                                            <div class="object-extra">Parameter type: integer</div>
-                                        </div>
-
 
                                         <div class="collapsible-content collapsed">
                                             <div class="sql-widget">
 BEGIN
-    RETURN (SELECT COUNT(*) FROM pum_test_checker.orders WHERE user_id = p_user_id);
+    NEW.order_date = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
 </div>
                                         </div>
@@ -1304,19 +1299,24 @@ END;
                                     </span>
                                 </span>
 
-                                    <span class="schema-object">pum_test_checker.update_order_timestamp</span>
+                                    <span class="schema-object">pum_test_checker.get_order_count</span>
 
+
+                                        <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Details</button>
 
 
                                         <button class="collapsible-toggle collapsed" onclick="toggleCollapsible(this)">Definition</button>
 
 
+                                        <div class="collapsible-content collapsed">
+                                            <div class="object-extra">Parameter type: integer</div>
+                                        </div>
+
 
                                         <div class="collapsible-content collapsed">
                                             <div class="sql-widget">
 BEGIN
-    NEW.order_date = CURRENT_TIMESTAMP;
-    RETURN NEW;
+    RETURN (SELECT COUNT(*) FROM pum_test_checker.orders WHERE user_id = p_user_id);
 END;
 </div>
                                         </div>

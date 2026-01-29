@@ -26,12 +26,12 @@ psql service=$PG_SERVICE2 -c "DROP SCHEMA IF EXISTS pum_test_checker CASCADE; DR
 
 # Install version 1.0.0 on both databases
 echo "📦 Installing version 1.0.0 on both databases..."
-pum -s $PG_SERVICE1 -d $TEST_DIR install --max-version 1.0.0
-pum -s $PG_SERVICE2 -d $TEST_DIR install --max-version 1.0.0
+pum -p $PG_SERVICE1 -d $TEST_DIR install --max-version 1.0.0
+pum -p $PG_SERVICE2 -d $TEST_DIR install --max-version 1.0.0
 
 # Upgrade first database to 1.1.0 to create differences (second stays at 1.0.0)
 echo "⬆️  Upgrading $PG_SERVICE1 to version 1.1.0..."
-pum -s $PG_SERVICE1 -d $TEST_DIR upgrade
+pum -p $PG_SERVICE1 -d $TEST_DIR upgrade
 
 # Run checker and generate reports in all formats
 echo "🔍 Running checker and generating reports in all formats..."
@@ -39,7 +39,7 @@ set +e  # Don't exit on error for this command
 
 # Text format
 echo "  📝 Generating text report..."
-pum -s $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
+pum -p $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
     -N public \
     -f text \
     -o $OUTPUT_TEXT
@@ -47,14 +47,14 @@ CHECKER_EXIT=$?
 
 # JSON format
 echo "  📊 Generating JSON report..."
-pum -s $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
+pum -p $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
     -N public \
     -f json \
     -o $OUTPUT_JSON
 
 # HTML format
 echo "  🌐 Generating HTML report..."
-pum -s $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
+pum -p $PG_SERVICE1 -d $TEST_DIR check $PG_SERVICE2 \
     -N public \
     -f html \
     -o $OUTPUT_HTML
