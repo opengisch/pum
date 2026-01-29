@@ -111,6 +111,83 @@ class TestSqlContent(unittest.TestCase):
             self.assertIsNotNone(result._pum_description)
             self.assertEqual(result._pum_description[0][0], "a")
 
+    def test_transaction_prevents_idle_in_transaction(self) -> None:
+        """Test that using transaction blocks prevents 'idle in transaction' state."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Execute a query within a transaction block
+            with conn.transaction():
+                result = SqlContent("SELECT 1 AS test_value").execute(conn)
+                value = result.fetchone()[0]
+                self.assertEqual(value, 1)
+
+            # After the transaction block exits, check the connection state
+            # The connection should be idle (not "idle in transaction")
+            info = conn.info
+            self.assertEqual(info.transaction_status.name, "IDLE")
+
+            # Execute another query in a new transaction
+            with conn.transaction():
+                result = SqlContent("SELECT 2 AS test_value").execute(conn)
+                value = result.fetchone()[0]
+                self.assertEqual(value, 2)
+
+            # Again, verify connection is idle (not "idle in transaction")
+            self.assertEqual(conn.info.transaction_status.name, "IDLE")
+
+    def test_transaction_rollback_on_error(self) -> None:
+        """Test that transactions properly rollback on errors."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Create a temp table
+            with conn.transaction():
+                SqlContent("CREATE TEMP TABLE test_rollback (id INT PRIMARY KEY)").execute(conn)
+                SqlContent("INSERT INTO test_rollback VALUES (1)").execute(conn)
+
+            # Try to insert duplicate key in a transaction (should fail and rollback)
+            try:
+                with conn.transaction():
+                    SqlContent("INSERT INTO test_rollback VALUES (2)").execute(conn)
+                    # This should fail due to duplicate key
+                    SqlContent("INSERT INTO test_rollback VALUES (1)").execute(conn)
+            except psycopg.errors.UniqueViolation:
+                pass  # Expected error
+
+            # Verify connection is idle after failed transaction
+            self.assertEqual(conn.info.transaction_status.name, "IDLE")
+
+            # Verify only the first insert succeeded (second transaction rolled back)
+            with conn.transaction():
+                result = SqlContent("SELECT COUNT(*) FROM test_rollback").execute(conn)
+                count = result.fetchone()[0]
+                # Should only have 1 row (the initial insert), not 2
+                self.assertEqual(count, 1)
+
+    def test_nested_savepoints_with_transaction(self) -> None:
+        """Test that transaction blocks work with savepoints."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            with conn.transaction():
+                SqlContent("CREATE TEMP TABLE test_savepoint (id INT)").execute(conn)
+                SqlContent("INSERT INTO test_savepoint VALUES (1)").execute(conn)
+
+                # Create a savepoint
+                try:
+                    with conn.transaction():
+                        SqlContent("INSERT INTO test_savepoint VALUES (2)").execute(conn)
+                        # Force an error to test rollback to savepoint
+                        raise ValueError("Intentional error")
+                except ValueError:
+                    pass  # Savepoint should rollback
+
+                # Insert after savepoint rollback
+                SqlContent("INSERT INTO test_savepoint VALUES (3)").execute(conn)
+
+            # Verify the results: should have 1 and 3, but not 2
+            with conn.transaction():
+                result = SqlContent("SELECT id FROM test_savepoint ORDER BY id").execute(conn)
+                rows = result.fetchall()
+                self.assertEqual(len(rows), 2)
+                self.assertEqual(rows[0][0], 1)
+                self.assertEqual(rows[1][0], 3)
+
 
 if __name__ == "__main__":
     unittest.main()
