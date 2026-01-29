@@ -5,6 +5,7 @@ import psycopg
 import logging
 
 from .sql_content import SqlContent
+from .exceptions import PumException
 
 if TYPE_CHECKING:
     from .feedback import Feedback
@@ -43,12 +44,14 @@ class Permission:
         role: str,
         connection: psycopg.Connection,
         commit: bool = False,
+        feedback: Optional["Feedback"] = None,
     ) -> None:
         """Grant the permission to the specified role.
         Args:
             role: The name of the role to grant the permission to.
             connection: The database connection to execute the SQL statements.
             commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
         """
         if not isinstance(role, str):
             raise TypeError("Role must be a string.")
@@ -57,6 +60,9 @@ class Permission:
             raise ValueError("Schemas must be defined for the permission.")
 
         for schema in self.schemas:
+            if feedback and feedback.is_cancelled():
+                raise PumException("Permission grant cancelled by user")
+
             # Detect if schema exists; if not, warn and continue
             cursor = SqlContent("SELECT 1 FROM pg_namespace WHERE nspname = {schema}").execute(
                 connection=connection,
@@ -121,6 +127,8 @@ class Permission:
                 raise ValueError(f"Unknown permission type: {self.type}")
 
         if commit:
+            if feedback:
+                feedback.lock_cancellation()
             connection.commit()
 
     def _grant_existing_types(
@@ -223,14 +231,24 @@ class Role:
         return bool(cursor._pum_results)
 
     def create(
-        self, connection: psycopg.Connection, grant: bool = False, commit: bool = False
+        self,
+        connection: psycopg.Connection,
+        grant: bool = False,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
     ) -> None:
         """Create the role in the database.
         Args:
             connection: The database connection to execute the SQL statements.
             grant: Whether to grant permissions to the role. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
         """
+        if feedback and feedback.is_cancelled():
+            from .exceptions import PumException
+
+            raise PumException("Role creation cancelled by user")
+
         if self.exists(connection):
             logger.debug(f"Role {self.name} already exists, skipping creation.")
         else:
@@ -262,9 +280,13 @@ class Role:
                 )
         if grant:
             for permission in self.permissions():
-                permission.grant(role=self.name, connection=connection, commit=commit)
+                permission.grant(
+                    role=self.name, connection=connection, commit=False, feedback=feedback
+                )
 
         if commit:
+            if feedback:
+                feedback.lock_cancellation()
             connection.commit()
 
 
@@ -320,11 +342,17 @@ class RoleManager:
         """
         roles_list = list(self.roles.values())
         for role in roles_list:
+            if feedback and feedback.is_cancelled():
+                from .exceptions import PumException
+
+                raise PumException("Role creation cancelled by user")
             if feedback:
                 feedback.increment_step()
                 feedback.report_progress(f"Creating role: {role.name}")
-            role.create(connection=connection, commit=False, grant=grant)
+            role.create(connection=connection, commit=False, grant=grant, feedback=feedback)
         if commit:
+            if feedback:
+                feedback.lock_cancellation()
             connection.commit()
 
     def grant_permissions(
@@ -341,11 +369,19 @@ class RoleManager:
         """
         roles_list = list(self.roles.values())
         for role in roles_list:
+            if feedback and feedback.is_cancelled():
+                from .exceptions import PumException
+
+                raise PumException("Permission grant cancelled by user")
             if feedback:
                 feedback.increment_step()
                 feedback.report_progress(f"Granting permissions to role: {role.name}")
             for permission in role.permissions():
-                permission.grant(role=role.name, connection=connection, commit=False)
+                permission.grant(
+                    role=role.name, connection=connection, commit=False, feedback=feedback
+                )
         logger.info("All permissions granted to roles.")
         if commit:
+            if feedback:
+                feedback.lock_cancellation()
             connection.commit()

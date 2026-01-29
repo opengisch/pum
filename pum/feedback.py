@@ -16,6 +16,7 @@ class Feedback(abc.ABC):
     def __init__(self) -> None:
         """Initialize the feedback instance."""
         self._is_cancelled = False
+        self._cancellation_locked = False
         self._current_step = 0
         self._total_steps = 0
 
@@ -56,16 +57,31 @@ class Feedback(abc.ABC):
 
         Returns:
             True if the operation should be cancelled, False otherwise.
+            Always returns False if cancellation has been locked (after commit).
         """
+        if self._cancellation_locked:
+            return False
         return self._is_cancelled
 
     def cancel(self) -> None:
-        """Cancel the operation."""
-        self._is_cancelled = True
+        """Cancel the operation.
+
+        Note: This will have no effect if cancellation has been locked (after commit).
+        """
+        if not self._cancellation_locked:
+            self._is_cancelled = True
 
     def reset(self) -> None:
         """Reset the cancellation status."""
         self._is_cancelled = False
+
+    def lock_cancellation(self) -> None:
+        """Lock cancellation to prevent it after a commit.
+
+        Once locked, is_cancelled() will always return False and cancel() will have no effect.
+        This should be called immediately before committing database changes.
+        """
+        self._cancellation_locked = True
 
 
 class LogFeedback(Feedback):

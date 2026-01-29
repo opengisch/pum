@@ -176,6 +176,7 @@ class Upgrader:
             )
 
         if commit:
+            feedback.lock_cancellation()
             feedback.report_progress("Committing changes...")
             connection.commit()
             logger.info("Changes committed to the database.")
@@ -380,6 +381,7 @@ class Upgrader:
                     connection=connection, commit=False, feedback=feedback
                 )
 
+        feedback.lock_cancellation()
         feedback.report_progress("Committing changes...")
         connection.commit()
         logger.info("Upgrade completed and changes committed to the database.")
@@ -432,6 +434,8 @@ class Upgrader:
             uninstall_hook.execute(connection=connection, commit=False, parameters=parameters)
 
         if commit:
+            feedback.lock_cancellation()
             feedback.report_progress("Committing changes...")
             connection.commit()
+            logger.info("Uninstall completed and changes committed to the database.")
             logger.info("Uninstall completed and changes committed to the database.")

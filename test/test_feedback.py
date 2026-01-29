@@ -261,6 +261,57 @@ class TestFeedback(unittest.TestCase):
             self.assertTrue(any("create_second_table.sql" in msg for msg in feedback.messages))
             self.assertTrue(any("create_third_table.sql" in msg for msg in feedback.messages))
 
+    def test_cancellation_locked_after_commit(self) -> None:
+        """Test that cancellation is locked after commit and cannot be triggered."""
+        feedback = LogFeedback()
+
+        # Initially, cancellation should work
+        self.assertFalse(feedback.is_cancelled())
+        feedback.cancel()
+        self.assertTrue(feedback.is_cancelled())
+
+        # Reset for next test
+        feedback.reset()
+        self.assertFalse(feedback.is_cancelled())
+
+        # Lock cancellation (simulating what happens before commit)
+        feedback.lock_cancellation()
+
+        # Try to cancel - should have no effect
+        feedback.cancel()
+        self.assertFalse(
+            feedback.is_cancelled(), "Cancellation should be locked after lock_cancellation()"
+        )
+
+        # is_cancelled should always return False when locked
+        feedback._is_cancelled = True  # Force internal flag
+        self.assertFalse(feedback.is_cancelled(), "is_cancelled() should return False when locked")
+
+    def test_install_cancellation_not_possible_after_commit(self) -> None:
+        """Test that cancellation during install doesn't work after commit starts."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_cancellation_lock"})
+
+        # Custom feedback that tries to cancel during "Committing changes"
+        class CancelOnCommitFeedback(CustomFeedback):
+            def report_progress(self, message: str, current: int = 0, total: int = 0) -> None:
+                super().report_progress(message, current, total)
+                if "Committing changes" in message:
+                    # Try to cancel during commit - should have no effect
+                    self.cancel()
+
+        feedback = CancelOnCommitFeedback()
+        upgrader = Upgrader(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Should complete successfully despite cancel attempt during commit
+            upgrader.install(connection=conn, feedback=feedback, commit=True)
+
+            # Verify cancellation was attempted but had no effect
+            self.assertTrue(any("Committing changes" in msg for msg in feedback.messages))
+            # Even though cancel() was called, is_cancelled() should return False
+            self.assertFalse(feedback.is_cancelled())
+
 
 if __name__ == "__main__":
     unittest.main()
