@@ -1,10 +1,6 @@
 import importlib
 import logging
-import sys
 from typing import Any, TYPE_CHECKING
-
-# Prevent Python from writing bytecode files (.pyc)
-sys.dont_write_bytecode = True
 
 # Custom SQL logging level (more verbose than DEBUG)
 # Register with: logging.addLevelName(SQL, 'SQL')
@@ -29,12 +25,13 @@ if TYPE_CHECKING:
     from .pum_config import PumConfig
     from .role_manager import Permission, PermissionType, Role, RoleManager
     from .schema_migrations import SchemaMigrations
-    from .sql_content import SqlContent
+    from .sql_content import SqlContent, CursorResult
     from .upgrader import Upgrader
 
 __all__ = [
     "Checker",
     "Changelog",
+    "CursorResult",
     "DependencyHandler",
     "Dumper",
     "DumpFormat",
@@ -60,6 +57,7 @@ __all__ = [
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Checker": ("pum.checker", "Checker"),
     "Changelog": ("pum.changelog", "Changelog"),
+    "CursorResult": ("pum.sql_content", "CursorResult"),
     "DependencyHandler": ("pum.dependency_handler", "DependencyHandler"),
     "Dumper": ("pum.dumper", "Dumper"),
     "DumpFormat": ("pum.dumper", "DumpFormat"),
