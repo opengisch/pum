@@ -22,6 +22,7 @@ repos:
       - id: ruff
         args:
           - --fix
+          - --select=UP
           - --target-version=py310
         types_or:
           - python

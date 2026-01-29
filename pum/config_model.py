@@ -1,6 +1,6 @@
 import packaging
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing import List, Optional, Any, Literal
+from typing import Optional, Any, Literal
 
 
 from .exceptions import PumConfigError
@@ -23,8 +23,8 @@ class ParameterDefinitionModel(PumCustomBaseModel):
 
     name: str
     type: ParameterType = Field(default=ParameterType.TEXT, description="Type of the parameter")
-    default: Optional[Any] = None
-    description: Optional[str] = None
+    default: Any | None = None
+    description: str | None = None
 
     @model_validator(mode="before")
     def validate_default(cls, values):
@@ -43,8 +43,8 @@ class HookModel(PumCustomBaseModel):
         code: Optional SQL code to execute as a hook.
     """
 
-    file: Optional[str] = None
-    code: Optional[str] = None
+    file: str | None = None
+    code: str | None = None
 
     @model_validator(mode="after")
     def validate_args(self):
@@ -63,8 +63,8 @@ class ApplicationModel(PumCustomBaseModel):
         create: Hooks to create the application after applying migrations.
     """
 
-    drop: Optional[List[HookModel]] = Field(default=[], alias="pre")
-    create: Optional[List[HookModel]] = Field(default=[], alias="post")
+    drop: list[HookModel] | None = Field(default=[], alias="pre")
+    create: list[HookModel] | None = Field(default=[], alias="post")
 
     @model_validator(mode="before")
     def handle_legacy_names(cls, values):
@@ -89,11 +89,11 @@ class PumModel(PumCustomBaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
     module: str = Field(..., description="Name of the module being managed")
-    migration_table_schema: Optional[str] = Field(
+    migration_table_schema: str | None = Field(
         default="public", description="Name of schema for the migration table"
     )
 
-    minimum_version: Optional[packaging.version.Version] = Field(
+    minimum_version: packaging.version.Version | None = Field(
         default=None,
         description="Minimum required version of pum.",
     )
@@ -116,7 +116,7 @@ class PermissionModel(PumCustomBaseModel):
     """
 
     type: Literal["read", "write"] = Field(..., description="Permission type ('read' or 'write').")
-    schemas: List[str] = Field(
+    schemas: list[str] = Field(
         default_factory=list, description="List of schemas this permission applies to."
     )
 
@@ -132,11 +132,11 @@ class RoleModel(PumCustomBaseModel):
     """
 
     name: str = Field(..., description="Name of the role.")
-    permissions: List[PermissionModel] = Field(
+    permissions: list[PermissionModel] = Field(
         default_factory=list, description="List of permissions for the role."
     )
-    inherit: Optional[str] = Field(None, description="Name of the role to inherit from.")
-    description: Optional[str] = Field(None, description="Description of the role.")
+    inherit: str | None = Field(None, description="Name of the role to inherit from.")
+    description: str | None = Field(None, description="Description of the role.")
 
 
 class DemoDataModel(PumCustomBaseModel):
@@ -151,8 +151,8 @@ class DemoDataModel(PumCustomBaseModel):
 
     name: str = Field(..., description="Name of the demo data.")
 
-    file: Optional[str] = None
-    files: Optional[List[str]] = None
+    file: str | None = None
+    files: list[str] | None = None
 
     @model_validator(mode="after")
     def validate_args(self):
@@ -174,11 +174,11 @@ class DependencyModel(PumCustomBaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     name: str = Field(..., description="Name of the Python dependency.")
-    minimum_version: Optional[packaging.version.Version] = Field(
+    minimum_version: packaging.version.Version | None = Field(
         default=None,
         description="Specific minimum required version of the package.",
     )
-    maximum_version: Optional[packaging.version.Version] = Field(
+    maximum_version: packaging.version.Version | None = Field(
         default=None,
         description="Specific maximum required version of the package.",
     )
@@ -204,16 +204,16 @@ class ConfigModel(PumCustomBaseModel):
         roles: List of role definitions. Defaults to None.
     """
 
-    pum: Optional[PumModel] = Field(default_factory=PumModel)
-    parameters: Optional[List[ParameterDefinitionModel]] = []
-    application: Optional[ApplicationModel] = Field(
+    pum: PumModel | None = Field(default_factory=PumModel)
+    parameters: list[ParameterDefinitionModel] | None = []
+    application: ApplicationModel | None = Field(
         default_factory=ApplicationModel, alias="migration_hooks"
     )
-    changelogs_directory: Optional[str] = "changelogs"
-    roles: Optional[List[RoleModel]] = []
-    demo_data: Optional[List[DemoDataModel]] = []
-    dependencies: Optional[List[DependencyModel]] = []
-    uninstall: Optional[List[HookModel]] = []
+    changelogs_directory: str | None = "changelogs"
+    roles: list[RoleModel] | None = []
+    demo_data: list[DemoDataModel] | None = []
+    dependencies: list[DependencyModel] | None = []
+    uninstall: list[HookModel] | None = []
 
     @model_validator(mode="before")
     def handle_legacy_field_names(cls, values):

@@ -42,7 +42,7 @@ except importlib.metadata.PackageNotFoundError:
                         break
     if versions:
         # Pick the highest version
-        PUM_VERSION = max((packaging.version.Version(v) for v in versions))
+        PUM_VERSION = max(packaging.version.Version(v) for v in versions)
     else:
         # Fallback: try to get version from git (for development from source)
         try:

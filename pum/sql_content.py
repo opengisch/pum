@@ -19,7 +19,7 @@ class CursorResult:
     """
 
     def __init__(
-        self, results: Optional[list] = None, description: Optional[Any] = None, rowcount: int = 0
+        self, results: list | None = None, description: Any | None = None, rowcount: int = 0
     ):
         self._pum_results = results
         self._pum_description = description
@@ -209,7 +209,7 @@ class SqlContent:
             sql: The SQL statement to execute or a path to a SQL file.
 
         """
-        if not isinstance(sql, (str, psycopg.sql.SQL, Path)):
+        if not isinstance(sql, str | psycopg.sql.SQL | Path):
             raise PumSqlError(
                 f"SQL must be a string, psycopg.sql.SQL object or a Path object, not {type(sql)}."
             )
