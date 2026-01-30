@@ -200,3 +200,54 @@ class TestHooks(unittest.TestCase):
 
         # Clean up after test
         handler2.cleanup_imports()
+
+    def test_hook_submodule_cleanup_on_version_switch(self) -> None:
+        """Test that submodules are properly cleaned up when switching between module versions.
+
+        This test simulates the real-world scenario where a user switches between
+        different versions of a module that imports from nested submodules (e.g., view.submodule.helper).
+        Without proper submodule cleanup, the cached view module from v1 would prevent
+        v2 view.submodule.helper from being imported correctly.
+        """
+        import sys
+
+        v1_dir = Path("test") / "data" / "hook_submodule_cleanup" / "v1"
+        v2_dir = Path("test") / "data" / "hook_submodule_cleanup" / "v2"
+        hook_file = Path("app") / "create_hook.py"
+
+        # Clear any previously imported view modules
+        modules_to_remove = [key for key in sys.modules if key == "view" or key.startswith("view.")]
+        for module in modules_to_remove:
+            del sys.modules[module]
+
+        # Load v1 hook - imports view.submodule.helper which returns value_from_submodule_v1
+        handler_v1 = HookHandler(base_path=v1_dir, file=str(hook_file))
+        mock_conn = Mock()
+        # Execute v1 hook - the assertion inside run_hook will fail if wrong module is imported
+        handler_v1.execute(connection=mock_conn, parameters={})
+
+        # Verify submodules were imported and tracked
+        view_submodules = [mod for mod in sys.modules if mod.startswith("view.submodule")]
+        self.assertGreater(len(view_submodules), 0, "Should have imported view.submodule modules")
+
+        # Clean up v1 imports
+        handler_v1.cleanup_imports()
+
+        # Verify ALL view modules (including submodules) were cleaned up
+        remaining_view_modules = [
+            mod for mod in sys.modules if mod == "view" or mod.startswith("view.")
+        ]
+        self.assertEqual(
+            len(remaining_view_modules),
+            0,
+            f"All view modules should be cleaned up, but found: {remaining_view_modules}",
+        )
+
+        # Load v2 hook - should import fresh view.submodule.helper which returns value_from_submodule_v2
+        # This is the critical part - without submodule cleanup, Python would use the cached
+        # view.submodule.helper from v1 and the assertion inside run_hook would fail
+        handler_v2 = HookHandler(base_path=v2_dir, file=str(hook_file))
+        handler_v2.execute(connection=mock_conn, parameters={})
+
+        # Clean up
+        handler_v2.cleanup_imports()
