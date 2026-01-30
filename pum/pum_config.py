@@ -189,10 +189,22 @@ class PumConfig:
         This should be called when switching to a different module version to ensure
         that cached imports from the previous version don't cause conflicts.
         """
-        for handler in self._cached_handlers:
-            if hasattr(handler, "cleanup_imports"):
-                handler.cleanup_imports()
-        # Clear the cache after cleanup
+        # Clear all modules that were loaded from this base_path
+        base_path_str = str(self._base_path.resolve())
+        modules_to_remove = []
+
+        for module_name, module in list(sys.modules.items()):
+            if module is None:
+                continue
+            module_file = getattr(module, "__file__", None)
+            if module_file and module_file.startswith(base_path_str):
+                modules_to_remove.append(module_name)
+
+        for module_name in modules_to_remove:
+            if module_name in sys.modules:
+                logger.debug(f"Removing cached module: {module_name}")
+                del sys.modules[module_name]
+
         self._cached_handlers.clear()
 
     def parameters(self) -> list[ParameterDefinition]:

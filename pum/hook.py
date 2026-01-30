@@ -93,7 +93,6 @@ class HookHandler:
         self.code = code
         self.hook_instance = None
         self.sys_path_additions = []  # Store paths to add during execution
-        self._imported_modules = []  # Track modules imported by this hook
 
         if file:
             if isinstance(file, str):
@@ -122,21 +121,24 @@ class HookHandler:
                 if base_path_str not in sys.path and base_path_str != parent_dir:
                     self.sys_path_additions.append(base_path_str)
 
-            # Temporarily add paths for module loading
-            for path in self.sys_path_additions:
+            # Temporarily add paths for module loading - insert at position 0 for priority
+            for path in reversed(self.sys_path_additions):
                 sys.path.insert(0, path)
 
-            # Track modules before loading to detect new imports
-            modules_before = set(sys.modules.keys())
-
             try:
-                spec = importlib.util.spec_from_file_location(self.file.stem, self.file)
+                logger.debug(f"Loading hook from: {self.file}")
+                logger.debug(f"sys.path additions: {self.sys_path_additions}")
+                spec = importlib.util.spec_from_file_location(
+                    self.file.stem,
+                    self.file,
+                    submodule_search_locations=[parent_dir],
+                )
                 module = importlib.util.module_from_spec(spec)
+                # Set __path__ to enable package-like imports from the hook's directory
+                module.__path__ = [parent_dir]
+                # Add to sys.modules before executing so imports can find it
+                sys.modules[self.file.stem] = module
                 spec.loader.exec_module(module)
-
-                # Track modules that were imported by this hook
-                modules_after = set(sys.modules.keys())
-                self._imported_modules = list(modules_after - modules_before)
 
                 # Check that the module contains a class named Hook inheriting from HookBase
                 # Do this BEFORE removing paths from sys.path
@@ -181,16 +183,6 @@ class HookHandler:
                 for path in self.sys_path_additions:
                     if path in sys.path:
                         sys.path.remove(path)
-
-    def cleanup_imports(self):
-        """Remove imported modules from sys.modules cache.
-        This should be called when switching to a different module version
-        to prevent import conflicts.
-        """
-        for module_name in self._imported_modules:
-            if module_name in sys.modules:
-                del sys.modules[module_name]
-        self._imported_modules.clear()
 
     def __repr__(self) -> str:
         """Return a string representation of the Hook instance."""
