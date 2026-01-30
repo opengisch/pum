@@ -74,10 +74,9 @@ class SchemaMigrations:
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
         }
 
-        with connection.transaction():
-            cursor = SqlContent(query).execute(connection, parameters=parameters)
-            result = cursor._pum_results[0] if cursor._pum_results else None
-            return result[0] if result else False
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        result = cursor._pum_results[0] if cursor._pum_results else None
+        return result[0] if result else False
 
     def exists_in_other_schemas(self, connection: psycopg.Connection) -> list[str]:
         """Check if the schema_migrations information table exists in other schemas.
@@ -100,9 +99,8 @@ class SchemaMigrations:
         parameters = {
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
         }
-        with connection.transaction():
-            cursor = SqlContent(query).execute(connection, parameters=parameters)
-            return [row[0] for row in (cursor._pum_results or [])]
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        return [row[0] for row in (cursor._pum_results or [])]
 
     def create(
         self,
@@ -346,14 +344,13 @@ INSERT INTO {table} (
             "table": self.migration_table_identifier,
         }
 
-        with connection.transaction():
-            cursor = SqlContent(query).execute(connection, parameters=parameters)
-            row = cursor._pum_results[0] if cursor._pum_results else None
-            if row is None:
-                raise PumSchemaMigrationNoBaselineError(
-                    f"Baseline version not found in the {self.migration_table_identifier_str} table."
-                )
-            return packaging.version.parse(row[0])
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        row = cursor._pum_results[0] if cursor._pum_results else None
+        if row is None:
+            raise PumSchemaMigrationNoBaselineError(
+                f"Baseline version not found in the {self.migration_table_identifier_str} table."
+            )
+        return packaging.version.parse(row[0])
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
         """Return the migration details from the migration table.
@@ -404,14 +401,13 @@ INSERT INTO {table} (
                 "version": psycopg.sql.Literal(version),
             }
 
-        with connection.transaction():
-            cursor = SqlContent(query).execute(connection, parameters=parameters)
-            row = cursor._pum_results[0] if cursor._pum_results else None
-            if row is None:
-                raise PumSchemaMigrationError(
-                    f"Migration details not found for version {version} in the {self.migration_table_identifier_str} table."
-                )
-            return dict(zip([desc[0] for desc in cursor._pum_description], row, strict=False))
+        cursor = SqlContent(query).execute(connection, parameters=parameters)
+        row = cursor._pum_results[0] if cursor._pum_results else None
+        if row is None:
+            raise PumSchemaMigrationError(
+                f"Migration details not found for version {version} in the {self.migration_table_identifier_str} table."
+            )
+        return dict(zip([desc[0] for desc in cursor._pum_description], row, strict=False))
 
     def compare(self, connection: psycopg.Connection) -> int:
         """Compare the migrations details in the database to the changelogs in the source.
