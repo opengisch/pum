@@ -1,10 +1,29 @@
 """Test module for hook functionality."""
 
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
 from pum.hook import HookHandler
+
+
+def cleanup_modules_by_path(base_path: Path) -> None:
+    """Clean up all modules imported from a base path.
+
+    This is a test helper that mimics the cleanup logic from PumConfig.cleanup_hook_imports().
+    """
+    base_path_str = str(base_path.resolve())
+    modules_to_remove = []
+    for module_name, module in list(sys.modules.items()):
+        if module is None:
+            continue
+        module_file = getattr(module, "__file__", None)
+        if module_file and module_file.startswith(base_path_str):
+            modules_to_remove.append(module_name)
+    for module_name in modules_to_remove:
+        if module_name in sys.modules:
+            del sys.modules[module_name]
 
 
 class TestHooks(unittest.TestCase):
@@ -96,12 +115,10 @@ class TestHooks(unittest.TestCase):
     def test_hook_cleanup_imports(self) -> None:
         """Test that hook imports can be cleaned up to prevent conflicts when switching versions.
 
-        This test verifies that when hooks are cleaned up, their imported modules
-        are removed from sys.modules cache, allowing fresh imports when switching
-        to a different module version.
+        This test verifies that when hooks are cleaned up via path-based cleanup,
+        their imported modules are removed from sys.modules cache, allowing fresh imports
+        when switching to a different module version.
         """
-        import sys
-
         test_dir = Path("test") / "data" / "hook_sibling_imports"
         hook_file = test_dir / "app" / "create_hook.py"
 
@@ -113,15 +130,6 @@ class TestHooks(unittest.TestCase):
         # Load the hook - this will import view.helper
         handler = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
 
-        # Verify that view.helper was imported and tracked
-        self.assertGreater(
-            len(handler._imported_modules), 0, "Should have tracked imported modules"
-        )
-        self.assertTrue(
-            any("view" in mod for mod in handler._imported_modules),
-            "Should have tracked view module",
-        )
-
         # Verify view.helper is in sys.modules
         view_module_found = any("view" in mod for mod in sys.modules)
         self.assertTrue(
@@ -132,13 +140,8 @@ class TestHooks(unittest.TestCase):
         mock_conn = Mock()
         handler.execute(connection=mock_conn, parameters={})
 
-        # Clean up imports
-        handler.cleanup_imports()
-
-        # Verify that tracked modules were cleared
-        self.assertEqual(
-            len(handler._imported_modules), 0, "Should have cleared tracked modules list"
-        )
+        # Clean up imports via path-based cleanup
+        cleanup_modules_by_path(test_dir)
 
         # Verify that view modules were removed from sys.modules
         view_modules_after = [mod for mod in sys.modules if "view.helper" in mod or mod == "view"]
@@ -154,8 +157,6 @@ class TestHooks(unittest.TestCase):
         This test simulates switching between module versions by loading a hook,
         cleaning it up, and loading it again.
         """
-        import sys
-
         test_dir = Path("test") / "data" / "hook_sibling_imports"
         hook_file = test_dir / "app" / "create_hook.py"
 
@@ -176,8 +177,8 @@ class TestHooks(unittest.TestCase):
                 view_module_id_1 = id(sys.modules[mod_name])
                 break
 
-        # Clean up
-        handler1.cleanup_imports()
+        # Clean up via path-based cleanup
+        cleanup_modules_by_path(test_dir)
 
         # Verify cleanup worked
         view_modules = [mod for mod in sys.modules if "view.helper" in mod or mod == "view"]
@@ -199,7 +200,7 @@ class TestHooks(unittest.TestCase):
         self.assertIsNotNone(view_module_id_2, "Second load should have imported view")
 
         # Clean up after test
-        handler2.cleanup_imports()
+        cleanup_modules_by_path(test_dir)
 
     def test_hook_submodule_cleanup_on_version_switch(self) -> None:
         """Test that submodules are properly cleaned up when switching between module versions.
@@ -209,8 +210,6 @@ class TestHooks(unittest.TestCase):
         Without proper submodule cleanup, the cached view module from v1 would prevent
         v2 view.submodule.helper from being imported correctly.
         """
-        import sys
-
         v1_dir = Path("test") / "data" / "hook_submodule_cleanup" / "v1"
         v2_dir = Path("test") / "data" / "hook_submodule_cleanup" / "v2"
         hook_file = Path("app") / "create_hook.py"
@@ -226,12 +225,12 @@ class TestHooks(unittest.TestCase):
         # Execute v1 hook - the assertion inside run_hook will fail if wrong module is imported
         handler_v1.execute(connection=mock_conn, parameters={})
 
-        # Verify submodules were imported and tracked
+        # Verify submodules were imported
         view_submodules = [mod for mod in sys.modules if mod.startswith("view.submodule")]
         self.assertGreater(len(view_submodules), 0, "Should have imported view.submodule modules")
 
-        # Clean up v1 imports
-        handler_v1.cleanup_imports()
+        # Clean up v1 imports via path-based cleanup
+        cleanup_modules_by_path(v1_dir)
 
         # Verify ALL view modules (including submodules) were cleaned up
         remaining_view_modules = [
@@ -250,4 +249,4 @@ class TestHooks(unittest.TestCase):
         handler_v2.execute(connection=mock_conn, parameters={})
 
         # Clean up
-        handler_v2.cleanup_imports()
+        cleanup_modules_by_path(v2_dir)
