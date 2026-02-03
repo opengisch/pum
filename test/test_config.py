@@ -198,7 +198,8 @@ class TestConfig(unittest.TestCase):
 
         This test simulates the QGIS plugin scenario where a user switches from one
         module version to another, which can cause import conflicts if old modules
-        are still cached in sys.modules.
+        are still cached in sys.modules. Tests both simple module imports and nested
+        submodule imports (e.g., view.submodule.helper) to ensure comprehensive cleanup.
         """
         import sys
         from unittest.mock import Mock
@@ -210,6 +211,7 @@ class TestConfig(unittest.TestCase):
         for module in modules_to_remove:
             del sys.modules[module]
 
+        # Test 1: Simple module imports
         # Load version 1
         v1_path = Path("test") / "data" / "hook_version_switch" / "v1"
         cfg_v1 = PumConfig(
@@ -270,6 +272,70 @@ class TestConfig(unittest.TestCase):
             any("helper_v2" in mod for mod in sys.modules),
             "helper_v2 should be removed from sys.modules after cleanup",
         )
+
+        # Test 2: Nested submodule imports (view.submodule.helper)
+        # This tests the critical case where parent modules cache can prevent
+        # submodule reloading if not properly cleaned up
+
+        # Clear any remaining view modules
+        modules_to_remove = [
+            key for key in list(sys.modules.keys()) if key == "view" or key.startswith("view.")
+        ]
+        for module in modules_to_remove:
+            del sys.modules[module]
+
+        # Load submodule cleanup v1
+        submodule_v1_path = Path("test") / "data" / "hook_submodule_cleanup" / "v1"
+        cfg_submodule_v1 = PumConfig(
+            base_path=submodule_v1_path,
+            pum={"module": "test_submodule_v1"},
+            application={"create": [{"file": "app/create_hook.py"}]},
+            validate=False,
+        )
+
+        handlers_submodule_v1 = cfg_submodule_v1.create_app_handlers()
+        self.assertEqual(len(handlers_submodule_v1), 1)
+
+        # Execute v1 hook - imports view.submodule.helper which returns value_from_submodule_v1
+        # The hook has an assertion that will fail if wrong version is imported
+        handlers_submodule_v1[0].execute(connection=mock_conn, parameters={})
+
+        # Verify submodules were imported
+        view_submodules = [mod for mod in sys.modules if mod.startswith("view.submodule")]
+        self.assertGreater(len(view_submodules), 0, "Should have imported view.submodule modules")
+
+        # Clean up v1 submodule imports
+        cfg_submodule_v1.cleanup_hook_imports()
+
+        # Verify ALL view modules (including submodules) were cleaned up
+        remaining_view_modules = [
+            mod for mod in sys.modules if mod == "view" or mod.startswith("view.")
+        ]
+        self.assertEqual(
+            len(remaining_view_modules),
+            0,
+            f"All view modules should be cleaned up, but found: {remaining_view_modules}",
+        )
+
+        # Load submodule cleanup v2 - critical test for proper submodule cleanup
+        # Without proper cleanup, Python would use cached view.submodule.helper from v1
+        submodule_v2_path = Path("test") / "data" / "hook_submodule_cleanup" / "v2"
+        cfg_submodule_v2 = PumConfig(
+            base_path=submodule_v2_path,
+            pum={"module": "test_submodule_v2"},
+            application={"create": [{"file": "app/create_hook.py"}]},
+            validate=False,
+        )
+
+        handlers_submodule_v2 = cfg_submodule_v2.create_app_handlers()
+        self.assertEqual(len(handlers_submodule_v2), 1)
+
+        # Execute v2 hook - should import fresh view.submodule.helper which returns value_from_submodule_v2
+        # The assertion inside the hook will fail if the wrong version is loaded
+        handlers_submodule_v2[0].execute(connection=mock_conn, parameters={})
+
+        # Clean up
+        cfg_submodule_v2.cleanup_hook_imports()
 
     def test_parameter_type_string_conversion(self) -> None:
         """Test that ParameterType enums convert to string values correctly.
