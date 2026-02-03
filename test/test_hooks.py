@@ -42,6 +42,8 @@ class TestHooks(unittest.TestCase):
 
         This was the bug that wasn't caught by existing tests - all previous tests
         used top-level imports which happen during __init__, not during execute().
+
+        Also tests that hooks can be executed multiple times with consistent behavior.
         """
         test_dir = Path("test") / "data" / "hook_dynamic_import"
         hook_file = test_dir / "app" / "create_hook.py"
@@ -58,20 +60,5 @@ class TestHooks(unittest.TestCase):
         mock_conn = Mock()
         handler.execute(connection=mock_conn, parameters={})
 
-    def test_hook_execute_multiple_times_with_dynamic_imports(self) -> None:
-        """Test that hooks can be executed multiple times with dynamic imports.
-
-        This simulates the QGIS scenario where a hook might be executed multiple
-        times and needs consistent import behavior each time.
-        """
-        test_dir = Path("test") / "data" / "hook_dynamic_import"
-        hook_file = test_dir / "app" / "create_hook.py"
-
-        handler = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
-
-        mock_conn = Mock()
-
-        # Execute multiple times - each should work
-        handler.execute(connection=mock_conn, parameters={})
-        handler.execute(connection=mock_conn, parameters={})
+        # Execute again to verify it works multiple times
         handler.execute(connection=mock_conn, parameters={})
