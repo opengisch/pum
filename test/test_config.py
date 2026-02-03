@@ -198,15 +198,24 @@ class TestConfig(unittest.TestCase):
 
         This test simulates the QGIS plugin scenario where a user switches from one
         module version to another, which can cause import conflicts if old modules
-        are still cached in sys.modules. Tests both simple module imports and nested
-        submodule imports (e.g., view.submodule.helper) to ensure comprehensive cleanup.
+        are still cached in sys.modules.
+
+        Tests three critical scenarios:
+        1. Simple module imports (top-level imports at module load time)
+        2. Nested submodule imports (e.g., view.submodule.helper)
+        3. Dynamic imports (imports inside run_hook at execution time)
+
+        All three scenarios need proper cleanup to prevent version conflicts.
         """
         import sys
         from unittest.mock import Mock
 
-        # Clear any view modules from sys.modules
+        # Initial cleanup to ensure clean state from any previous test runs
+        # This is the ONLY manual cleanup - everything else should use the API
         modules_to_remove = [
-            key for key in list(sys.modules.keys()) if "view" in key or "helper_v" in key
+            key
+            for key in list(sys.modules.keys())
+            if "view" in key or "helper_v" in key or "helper_dynamic" in key
         ]
         for module in modules_to_remove:
             del sys.modules[module]
@@ -276,13 +285,7 @@ class TestConfig(unittest.TestCase):
         # Test 2: Nested submodule imports (view.submodule.helper)
         # This tests the critical case where parent modules cache can prevent
         # submodule reloading if not properly cleaned up
-
-        # Clear any remaining view modules
-        modules_to_remove = [
-            key for key in list(sys.modules.keys()) if key == "view" or key.startswith("view.")
-        ]
-        for module in modules_to_remove:
-            del sys.modules[module]
+        # No manual cleanup needed - the API should handle everything
 
         # Load submodule cleanup v1
         submodule_v1_path = Path("test") / "data" / "hook_submodule_cleanup" / "v1"
@@ -336,6 +339,69 @@ class TestConfig(unittest.TestCase):
 
         # Clean up
         cfg_submodule_v2.cleanup_hook_imports()
+
+        # Test 3: Dynamic imports (imports inside run_hook, not at module load time)
+        # This is the critical case that wasn't covered before - imports that happen
+        # during hook execution need cleanup too
+        # No manual cleanup needed - the API should handle everything
+
+        # Load dynamic import v1
+        dynamic_v1_path = Path("test") / "data" / "hook_dynamic_import_switch" / "v1"
+        cfg_dynamic_v1 = PumConfig(
+            base_path=dynamic_v1_path,
+            pum={"module": "test_dynamic_v1"},
+            application={"create": [{"file": "app/create_hook.py"}]},
+            validate=False,
+        )
+
+        handlers_dynamic_v1 = cfg_dynamic_v1.create_app_handlers()
+        self.assertEqual(len(handlers_dynamic_v1), 1)
+
+        # Execute v1 hook - this does a dynamic import of helper_dynamic_v1 inside run_hook
+        handlers_dynamic_v1[0].execute(connection=mock_conn, parameters={})
+
+        # Verify the dynamically imported module is in sys.modules
+        self.assertTrue(
+            any("helper_dynamic_v1" in mod for mod in sys.modules),
+            "helper_dynamic_v1 should be in sys.modules after dynamic import",
+        )
+
+        # Clean up v1 dynamic imports
+        cfg_dynamic_v1.cleanup_hook_imports()
+
+        # Verify dynamically imported modules were cleaned up
+        remaining_dynamic_v1_modules = [mod for mod in sys.modules if "helper_dynamic_v1" in mod]
+        self.assertEqual(
+            len(remaining_dynamic_v1_modules),
+            0,
+            f"Dynamic import modules should be cleaned up, but found: {remaining_dynamic_v1_modules}",
+        )
+
+        # Load dynamic import v2 - critical test for cleanup after dynamic imports
+        # Without proper cleanup, Python might use cached helper_dynamic_v1
+        dynamic_v2_path = Path("test") / "data" / "hook_dynamic_import_switch" / "v2"
+        cfg_dynamic_v2 = PumConfig(
+            base_path=dynamic_v2_path,
+            pum={"module": "test_dynamic_v2"},
+            application={"create": [{"file": "app/create_hook.py"}]},
+            validate=False,
+        )
+
+        handlers_dynamic_v2 = cfg_dynamic_v2.create_app_handlers()
+        self.assertEqual(len(handlers_dynamic_v2), 1)
+
+        # Execute v2 hook - should dynamically import fresh helper_dynamic_v2
+        # The assertion inside the hook will fail if the wrong version is loaded
+        handlers_dynamic_v2[0].execute(connection=mock_conn, parameters={})
+
+        # Verify v2 was imported
+        self.assertTrue(
+            any("helper_dynamic_v2" in mod for mod in sys.modules),
+            "helper_dynamic_v2 should be in sys.modules",
+        )
+
+        # Clean up
+        cfg_dynamic_v2.cleanup_hook_imports()
 
     def test_parameter_type_string_conversion(self) -> None:
         """Test that ParameterType enums convert to string values correctly.
