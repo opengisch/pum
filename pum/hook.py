@@ -111,19 +111,22 @@ class HookHandler:
             parent_dir = str(self.file.parent.resolve())
 
             # Store paths that need to be added for hook execution
-            # Add parent directory of the hook file
-            if parent_dir not in sys.path:
-                self.sys_path_additions.append(parent_dir)
+            # Always add paths even if already in sys.path - we need them at position 0
+            # for priority and we'll track what we added for cleanup
+            self.sys_path_additions.append(parent_dir)
 
             # Also add base_path if provided, to support imports from sibling directories
             if base_path is not None:
                 base_path_str = str(base_path.resolve())
-                if base_path_str not in sys.path and base_path_str != parent_dir:
+                if base_path_str != parent_dir:
                     self.sys_path_additions.append(base_path_str)
 
-            # Temporarily add paths for module loading - insert at position 0 for priority
+            # Add paths for module loading - insert at position 0 for priority
             for path in reversed(self.sys_path_additions):
                 sys.path.insert(0, path)
+
+            # Invalidate caches so Python recognizes the new paths
+            importlib.invalidate_caches()
 
             try:
                 logger.debug(f"Loading hook from: {self.file}")
@@ -178,11 +181,22 @@ class HookHandler:
                     arg for arg in arg_names if arg not in ("self", "connection")
                 ]
 
-            finally:
-                # Remove all paths that were added
-                for path in self.sys_path_additions:
-                    if path in sys.path:
-                        sys.path.remove(path)
+            except Exception:
+                # On error, clean up paths we added
+                self.cleanup_sys_path()
+                raise
+
+    def cleanup_sys_path(self) -> None:
+        """Remove paths that were added to sys.path for this hook.
+
+        This should be called when the hook is no longer needed to prevent
+        sys.path pollution.
+        """
+        for path in self.sys_path_additions:
+            # Remove all occurrences of this path (we may have added it multiple times)
+            while path in sys.path:
+                sys.path.remove(path)
+        self.sys_path_additions.clear()
 
     def __repr__(self) -> str:
         """Return a string representation of the Hook instance."""

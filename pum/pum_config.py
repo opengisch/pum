@@ -184,11 +184,15 @@ class PumConfig:
         return self._base_path
 
     def cleanup_hook_imports(self) -> None:
-        """Clean up imported modules from hooks to prevent conflicts when switching versions.
+        """Clean up imported modules and sys.path entries from hooks.
 
         This should be called when switching to a different module version to ensure
         that cached imports from the previous version don't cause conflicts.
         """
+        # First, clean up sys.path additions from all cached handlers
+        for handler in self._cached_handlers:
+            handler.cleanup_sys_path()
+
         # Clear all modules that were loaded from this base_path
         base_path_str = str(self._base_path.resolve())
         modules_to_remove = []

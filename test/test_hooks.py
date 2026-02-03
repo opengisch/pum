@@ -31,3 +31,47 @@ class TestHooks(unittest.TestCase):
         # Execute the hook to ensure imports work at runtime
         mock_conn = Mock()
         handler.execute(connection=mock_conn, parameters={})
+
+    def test_hook_with_dynamic_imports(self) -> None:
+        """Test that a hook file can import modules dynamically inside run_hook.
+
+        This test verifies that PUM hook files can properly import modules
+        during hook execution (inside run_hook), not just at module load time.
+        This is critical because hooks may need to import modules based on runtime
+        conditions or call functions that themselves import modules.
+
+        This was the bug that wasn't caught by existing tests - all previous tests
+        used top-level imports which happen during __init__, not during execute().
+        """
+        test_dir = Path("test") / "data" / "hook_dynamic_import"
+        hook_file = test_dir / "app" / "create_hook.py"
+
+        # Create hook handler - this should not raise an error
+        handler = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
+
+        # Verify the hook was loaded correctly
+        self.assertIsNotNone(handler.hook_instance)
+        self.assertTrue(hasattr(handler.hook_instance, "run_hook"))
+
+        # Execute the hook - this is where the dynamic import happens
+        # Without proper sys.path management during execute(), this will fail
+        mock_conn = Mock()
+        handler.execute(connection=mock_conn, parameters={})
+
+    def test_hook_execute_multiple_times_with_dynamic_imports(self) -> None:
+        """Test that hooks can be executed multiple times with dynamic imports.
+
+        This simulates the QGIS scenario where a hook might be executed multiple
+        times and needs consistent import behavior each time.
+        """
+        test_dir = Path("test") / "data" / "hook_dynamic_import"
+        hook_file = test_dir / "app" / "create_hook.py"
+
+        handler = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
+
+        mock_conn = Mock()
+
+        # Execute multiple times - each should work
+        handler.execute(connection=mock_conn, parameters={})
+        handler.execute(connection=mock_conn, parameters={})
+        handler.execute(connection=mock_conn, parameters={})
