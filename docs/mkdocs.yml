@@ -86,14 +86,15 @@ nav:
       - Dumper: tools/dumper.md
   - CLI:
       - Overview: cli.md
-      - info: cli/info.md
-      - install: cli/install.md
+      - baseline: cli/baseline.md
       - check: cli/check.md
       - dump: cli/dump.md
+      - info: cli/info.md
+      - install: cli/install.md
       - restore: cli/restore.md
-      - baseline: cli/baseline.md
-      - upgrade: cli/upgrade.md
       - role: cli/role.md
+      - uninstall: cli/uninstall.md
+      - upgrade: cli/upgrade.md
   - API:
       - Changelog: api/changelog.md
       - Dumper: api/dumper.md
