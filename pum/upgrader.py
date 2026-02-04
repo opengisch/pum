@@ -55,6 +55,7 @@ class Upgrader:
         beta_testing: bool = False,
         skip_drop_app: bool = False,
         skip_create_app: bool = False,
+        allow_multiple_modules: bool = False,
         commit: bool = False,
         feedback: Feedback | None = None,
     ) -> None:
@@ -82,6 +83,8 @@ class Upgrader:
                 If True, drop app handlers will be skipped.
             skip_create_app:
                 If True, create app handlers will be skipped.
+            allow_multiple_modules:
+                If True, allows multiple PUM modules in the same database.
             commit:
                 If True, the changes will be committed to the database.
             feedback:
@@ -100,7 +103,9 @@ class Upgrader:
             raise PumException(msg)
 
         feedback.report_progress("Creating migrations table...")
-        self.schema_migrations.create(connection, commit=False)
+        self.schema_migrations.create(
+            connection, allow_multiple_modules=allow_multiple_modules, commit=False
+        )
 
         logger.info("Installing module...")
         feedback.report_progress("Installing module...")

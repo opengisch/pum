@@ -191,6 +191,11 @@ def create_parser(
         help="Skip create app handlers during installation.",
         action="store_true",
     )
+    parser_install.add_argument(
+        "--allow-multiple-modules",
+        help="Allow multiple PUM modules (with separate migration tables) in the same database",
+        action="store_true",
+    )
 
     # Upgrade parser
     parser_upgrade = subparsers.add_parser(
@@ -321,6 +326,11 @@ def create_parser(
     parser_baseline.add_argument(
         "--create-table",
         help="Create the pum_migrations table if it does not exist",
+        action="store_true",
+    )
+    parser_baseline.add_argument(
+        "--allow-multiple-modules",
+        help="Allow multiple PUM modules (with separate migration tables) in the same database",
         action="store_true",
     )
 
@@ -473,6 +483,7 @@ def cli() -> int:  # noqa: PLR0912
                 beta_testing=args.beta_testing,
                 skip_drop_app=args.skip_drop_app,
                 skip_create_app=args.skip_create_app,
+                allow_multiple_modules=args.allow_multiple_modules,
             )
             conn.commit()
             if args.demo_data:
@@ -534,7 +545,10 @@ def cli() -> int:  # noqa: PLR0912
             sm = SchemaMigrations(config=config)
             if not sm.exists(connection=conn):
                 if args.create_table:
-                    sm.create(connection=conn)
+                    sm.create(
+                        connection=conn,
+                        allow_multiple_modules=args.allow_multiple_modules,
+                    )
                     logger.info("Created pum_migrations table.")
                 else:
                     logger.error(

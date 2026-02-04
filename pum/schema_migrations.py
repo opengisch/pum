@@ -106,15 +106,15 @@ class SchemaMigrations:
         self,
         connection: psycopg.Connection,
         *,
-        allow_multiple_schemas: bool = False,
+        allow_multiple_modules: bool = False,
         commit: bool = False,
     ) -> None:
         """Create the schema_migrations information table
         Args:
             connection: The database connection to create the table.
             commit: If true, the transaction is committed. The default is false.
-            allow_multiple_schemas: If true, several pum_migrations tables are allowed in
-                distinct schemas. Default is false.
+            allow_multiple_modules: If true, allows multiple PUM modules (with separate
+                pum_migrations tables in different schemas) in the same database. Default is false.
         """
         if self.exists(connection):
             logger.debug(
@@ -122,12 +122,18 @@ class SchemaMigrations:
             )
             return
 
-        if not allow_multiple_schemas and len(self.exists_in_other_schemas(connection)) > 0:
-            raise PumSchemaMigrationError(
-                f"Another {self.config.config.pum.migration_table_schema}.{MIGRATION_TABLE_NAME} table exists in another schema (). "
-                "Please use the allow_multiple_schemas option to create a new one."
-            )
-
+        if not allow_multiple_modules:
+            schemas = self.exists_in_other_schemas(connection)
+            if len(schemas) > 1:
+                raise PumSchemaMigrationError(
+                    f"Another {MIGRATION_TABLE_NAME} table exists in other schemas {', '.join(schemas)}, indicating other PUM modules in this database. "
+                    "Use allow_multiple_modules=True to allow multiple PUM modules per database."
+                )
+            elif len(schemas) == 1:
+                raise PumSchemaMigrationError(
+                    f"Another {MIGRATION_TABLE_NAME} table exists in schema {schemas[0]}, indicating another PUM module in this database. "
+                    "Use allow_multiple_modules=True to allow multiple PUM modules per database."
+                )
         # Create the schema if it doesn't exist
         parameters = {
             "version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
