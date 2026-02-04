@@ -78,6 +78,27 @@ class SchemaMigrations:
         result = cursor._pum_results[0] if cursor._pum_results else None
         return result[0] if result else False
 
+    @staticmethod
+    def schemas_with_migrations(connection: psycopg.Connection) -> list[str]:
+        """Check if the schema_migrations information table exists in any schemas.
+
+        Args:
+            connection: The database connection to check for the existence of the table.
+
+        Returns:
+            List[str]: List of all schemas where the table exists.
+
+        """
+        query = psycopg.sql.SQL(
+            """
+            SELECT table_schema
+            FROM information_schema.tables
+            WHERE table_name = 'pum_migrations'
+        """
+        )
+        cursor = SqlContent(query).execute(connection, parameters={})
+        return [row[0] for row in (cursor._pum_results or [])]
+
     def exists_in_other_schemas(self, connection: psycopg.Connection) -> list[str]:
         """Check if the schema_migrations information table exists in other schemas.
 
@@ -88,19 +109,12 @@ class SchemaMigrations:
             List[str]: List of schemas where the table exists.
 
         """
-        query = psycopg.sql.SQL(
-            """
-            SELECT table_schema
-            FROM information_schema.tables
-            WHERE table_name = 'pum_migrations' AND table_schema != {schema}
-        """
-        )
-
-        parameters = {
-            "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
-        }
-        cursor = SqlContent(query).execute(connection, parameters=parameters)
-        return [row[0] for row in (cursor._pum_results or [])]
+        all_schemas = self.schemas_with_migrations(connection)
+        return [
+            schema
+            for schema in all_schemas
+            if schema != self.config.config.pum.migration_table_schema
+        ]
 
     def create(
         self,

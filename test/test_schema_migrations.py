@@ -130,3 +130,45 @@ class TestSchemaMigrations(unittest.TestCase):
             self.assertIn(
                 "Changelog for version 9.9.9 not found in the source", str(context.exception)
             )
+
+    def test_schemas_with_migrations(self) -> None:
+        """Test the schemas_with_migrations static method."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg1 = PumConfig(
+            test_dir, pum={"module": "test_module1", "migration_table_schema": "public"}
+        )
+        cfg2 = PumConfig(
+            test_dir,
+            pum={
+                "module": "test_module2",
+                "migration_table_schema": "pum_custom_migrations_schema",
+            },
+        )
+
+        sm1 = SchemaMigrations(cfg1)
+        sm2 = SchemaMigrations(cfg2)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Initially, no schemas have migrations
+            schemas = SchemaMigrations.schemas_with_migrations(conn)
+            self.assertEqual(schemas, [])
+
+            # Create migration table in public schema
+            sm1.create(connection=conn, allow_multiple_modules=True)
+            schemas = SchemaMigrations.schemas_with_migrations(conn)
+            self.assertEqual(schemas, ["public"])
+
+            # Create migration table in custom schema
+            sm2.create(connection=conn, allow_multiple_modules=True)
+            schemas = SchemaMigrations.schemas_with_migrations(conn)
+            self.assertIn("public", schemas)
+            self.assertIn("pum_custom_migrations_schema", schemas)
+            self.assertEqual(len(schemas), 2)
+
+            # Test exists_in_other_schemas for sm1
+            other_schemas = sm1.exists_in_other_schemas(conn)
+            self.assertEqual(other_schemas, ["pum_custom_migrations_schema"])
+
+            # Test exists_in_other_schemas for sm2
+            other_schemas = sm2.exists_in_other_schemas(conn)
+            self.assertEqual(other_schemas, ["public"])
