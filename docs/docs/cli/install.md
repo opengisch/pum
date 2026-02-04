@@ -1,4 +1,5 @@
 usage: pum install [-h] [-p PARAMETER PARAMETER] [--max-version MAX_VERSION] [--skip-roles] [--skip-grant] [-d DEMO_DATA] [--beta-testing] [--skip-drop-app] [--skip-create-app]
+[--allow-multiple-modules]
 ### options:
 - `-h, --help`: show this help message and exit
 - `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`: Assign variable for running SQL deltas. Format is name value.
@@ -9,3 +10,4 @@ usage: pum install [-h] [-p PARAMETER PARAMETER] [--max-version MAX_VERSION] [--
 - `--beta-testing`: This will install the module in beta testing, meaning that it will not be possible to receive any future updates.
 - `--skip-drop-app`: Skip drop app handlers during installation.
 - `--skip-create-app`: Skip create app handlers during installation.
+- `--allow-multiple-modules`: Allow multiple PUM modules (with separate migration tables) in the same database
