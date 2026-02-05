@@ -9,7 +9,7 @@ from .pum_config import PumConfig
 from .exceptions import PumException
 from .schema_migrations import SchemaMigrations
 from .sql_content import SqlContent
-from .feedback import Feedback, LogFeedback
+from .feedback import Feedback, LogFeedback, SilentFeedback
 
 
 logger = logging.getLogger(__name__)
@@ -396,7 +396,7 @@ class Upgrader:
         connection: psycopg.Connection,
         *,
         parameters: dict | None = None,
-        commit: bool = True,
+        commit: bool = False,
         feedback: Feedback | None = None,
     ) -> None:
         """Uninstall the module by executing uninstall hooks.
@@ -404,7 +404,7 @@ class Upgrader:
         Args:
             connection: The database connection to use for the uninstall.
             parameters: The parameters to pass to the uninstall hooks.
-            commit: If True, the changes will be committed to the database. Default is True.
+            commit: If True, the changes will be committed to the database. Default is False.
             feedback: A Feedback instance to report progress and check for cancellation.
                 If None, a LogFeedback instance will be used.
 
@@ -443,4 +443,103 @@ class Upgrader:
             feedback.report_progress("Committing changes...")
             connection.commit()
             logger.info("Uninstall completed and changes committed to the database.")
-            logger.info("Uninstall completed and changes committed to the database.")
+
+    def drop_app(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        feedback: Feedback | None = None,
+        commit: bool = False,
+    ) -> None:
+        """Execute drop app handlers.
+
+        Args:
+            connection: The database connection to use.
+            parameters: The parameters to pass to the handlers.
+            feedback: The feedback instance to report progress.
+            commit: If True, commit the changes after executing handlers. Default is False.
+        """
+        if feedback is None:
+            feedback = SilentFeedback()
+
+        logger.info("Executing drop app handlers...")
+        feedback.report_progress("Executing drop app handlers...")
+
+        handlers = self.config.drop_app_handlers()
+        total = len(handlers)
+        for i, drop_app_hook in enumerate(handlers, 1):
+            feedback.report_progress(f"Executing drop app handler {i}/{total}...", i, total)
+            drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        if commit:
+            feedback.lock_cancellation()
+            feedback.report_progress("Committing changes...")
+            connection.commit()
+            logger.info("Drop app handlers completed successfully.")
+
+    def create_app(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        feedback: Feedback | None = None,
+        commit: bool = False,
+    ) -> None:
+        """Execute create app handlers.
+
+        Args:
+            connection: The database connection to use.
+            parameters: The parameters to pass to the handlers.
+            feedback: The feedback instance to report progress.
+            commit: If True, commit the changes after executing handlers. Default is False.
+        """
+        if feedback is None:
+            feedback = SilentFeedback()
+
+        logger.info("Executing create app handlers...")
+        feedback.report_progress("Executing create app handlers...")
+
+        handlers = self.config.create_app_handlers()
+        total = len(handlers)
+        for i, create_app_hook in enumerate(handlers, 1):
+            feedback.report_progress(f"Executing create app handler {i}/{total}...", i, total)
+            create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        if commit:
+            feedback.lock_cancellation()
+            feedback.report_progress("Committing changes...")
+            connection.commit()
+            logger.info("Create app handlers completed successfully.")
+
+    def recreate_app(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        feedback: Feedback | None = None,
+        commit: bool = False,
+    ) -> None:
+        """Execute drop app handlers followed by create app handlers.
+
+        Args:
+            connection: The database connection to use.
+            parameters: The parameters to pass to the handlers.
+            feedback: The feedback instance to report progress.
+            commit: If True, commit the changes after executing handlers. Default is False.
+        """
+        if feedback is None:
+            feedback = SilentFeedback()
+
+        logger.info("Executing recreate app (drop then create)...")
+        feedback.report_progress("Recreating app: dropping first...")
+
+        # Drop handlers and commit before creating
+        self.drop_app(connection=connection, parameters=parameters, feedback=feedback, commit=False)
+
+        feedback.report_progress("Recreating app: creating now...")
+
+        # Create handlers - use the commit parameter passed to this method
+        self.create_app(
+            connection=connection, parameters=parameters, feedback=feedback, commit=commit
+        )
