@@ -504,6 +504,6 @@ class Upgrader:
         """
         logger.info("Executing recreate app (drop then create)...")
         # Drop handlers and commit before creating
-        self.drop_app(connection=connection, parameters=parameters, commit=True)
+        self.drop_app(connection=connection, parameters=parameters, commit=False)
         # Create handlers - use the commit parameter passed to this method
         self.create_app(connection=connection, parameters=parameters, commit=commit)
