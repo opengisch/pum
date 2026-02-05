@@ -86,6 +86,7 @@ nav:
       - Dumper: tools/dumper.md
   - CLI:
       - Overview: cli.md
+      - app: cli/app.md
       - baseline: cli/baseline.md
       - check: cli/check.md
       - dump: cli/dump.md

@@ -443,4 +443,65 @@ class Upgrader:
             feedback.report_progress("Committing changes...")
             connection.commit()
             logger.info("Uninstall completed and changes committed to the database.")
-            logger.info("Uninstall completed and changes committed to the database.")
+
+    def drop_app(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        commit: bool = True,
+    ) -> None:
+        """Execute drop app handlers.
+
+        Args:
+            connection: The database connection to use.
+            parameters: The parameters to pass to the handlers.
+            commit: If True, commit the changes after executing handlers. Default is True.
+        """
+        logger.info("Executing drop app handlers...")
+        for drop_app_hook in self.config.drop_app_handlers():
+            drop_app_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        if commit:
+            connection.commit()
+            logger.info("Drop app handlers completed successfully.")
+
+    def create_app(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        commit: bool = True,
+    ) -> None:
+        """Execute create app handlers.
+
+        Args:
+            connection: The database connection to use.
+            parameters: The parameters to pass to the handlers.
+            commit: If True, commit the changes after executing handlers. Default is True.
+        """
+        logger.info("Executing create app handlers...")
+        for create_app_hook in self.config.create_app_handlers():
+            create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
+
+        if commit:
+            connection.commit()
+            logger.info("Create app handlers completed successfully.")
+
+    def recreate_app(
+        self,
+        connection: psycopg.Connection,
+        *,
+        parameters: dict | None = None,
+        commit: bool = True,
+    ) -> None:
+        """Execute drop app handlers followed by create app handlers.
+
+        Args:
+            connection: The database connection to use.
+            parameters: The parameters to pass to the handlers.
+            commit: If True, commit the changes after executing handlers. Default is True.
+        """
+        logger.info("Executing recreate app (drop then create)...")
+        self.drop_app(connection=connection, parameters=parameters, commit=True)
+        self.create_app(connection=connection, parameters=parameters, commit=commit)

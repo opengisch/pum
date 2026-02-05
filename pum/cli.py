@@ -354,6 +354,25 @@ def create_parser(
         dest="force",
     )
 
+    # Parser for the "app" command
+    parser_app = subparsers.add_parser(
+        "app",
+        help="Manage application handlers (create, drop, recreate)",
+        formatter_class=formatter_class,
+    )
+    parser_app.add_argument(
+        "action",
+        choices=["create", "drop", "recreate"],
+        help="Action to perform: create (run create_app handlers), drop (run drop_app handlers), recreate (run drop then create)",
+    )
+    parser_app.add_argument(
+        "-p",
+        "--parameter",
+        nargs=2,
+        help="Assign variable for running SQL handlers. Format is name value.",
+        action="append",
+    )
+
     return parser
 
 
@@ -450,7 +469,7 @@ def cli() -> int:  # noqa: PLR0912
 
         # Build parameters dict for install and upgrade commands
         parameters = {}
-        if args.command in ("install", "upgrade", "uninstall"):
+        if args.command in ("install", "upgrade", "uninstall", "app"):
             for p in args.parameter or ():
                 param = config.parameter(p[0])
                 if not param:
@@ -572,6 +591,24 @@ def cli() -> int:  # noqa: PLR0912
             upg = Upgrader(config=config)
             upg.uninstall(connection=conn, parameters=parameters)
             logger.info("Uninstall completed successfully.")
+
+        elif args.command == "app":
+            if not args.action:
+                logger.error(
+                    "You must specify an action for the app command (create, drop, recreate)."
+                )
+                exit_code = 1
+            else:
+                upg = Upgrader(config=config)
+                if args.action == "drop":
+                    upg.drop_app(connection=conn, parameters=parameters)
+                elif args.action == "create":
+                    upg.create_app(connection=conn, parameters=parameters)
+                elif args.action == "recreate":
+                    upg.recreate_app(connection=conn, parameters=parameters)
+                else:
+                    logger.error(f"Unknown action: {args.action}")
+                    exit_code = 1
 
         else:
             logger.error(f"Unknown command: {args.command}")
