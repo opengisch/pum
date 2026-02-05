@@ -589,7 +589,7 @@ def cli() -> int:  # noqa: PLR0912
                     return 0
 
             upg = Upgrader(config=config)
-            upg.uninstall(connection=conn, parameters=parameters)
+            upg.uninstall(connection=conn, parameters=parameters, commit=True)
             logger.info("Uninstall completed successfully.")
 
         elif args.command == "app":
@@ -601,11 +601,11 @@ def cli() -> int:  # noqa: PLR0912
             else:
                 upg = Upgrader(config=config)
                 if args.action == "drop":
-                    upg.drop_app(connection=conn, parameters=parameters)
+                    upg.drop_app(connection=conn, parameters=parameters, commit=True)
                 elif args.action == "create":
-                    upg.create_app(connection=conn, parameters=parameters)
+                    upg.create_app(connection=conn, parameters=parameters, commit=True)
                 elif args.action == "recreate":
-                    upg.recreate_app(connection=conn, parameters=parameters)
+                    upg.recreate_app(connection=conn, parameters=parameters, commit=True)
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1

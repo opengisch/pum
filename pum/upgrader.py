@@ -396,7 +396,7 @@ class Upgrader:
         connection: psycopg.Connection,
         *,
         parameters: dict | None = None,
-        commit: bool = True,
+        commit: bool = False,
         feedback: Feedback | None = None,
     ) -> None:
         """Uninstall the module by executing uninstall hooks.
@@ -404,7 +404,7 @@ class Upgrader:
         Args:
             connection: The database connection to use for the uninstall.
             parameters: The parameters to pass to the uninstall hooks.
-            commit: If True, the changes will be committed to the database. Default is True.
+            commit: If True, the changes will be committed to the database. Default is False.
             feedback: A Feedback instance to report progress and check for cancellation.
                 If None, a LogFeedback instance will be used.
 
@@ -449,14 +449,14 @@ class Upgrader:
         connection: psycopg.Connection,
         *,
         parameters: dict | None = None,
-        commit: bool = True,
+        commit: bool = False,
     ) -> None:
         """Execute drop app handlers.
 
         Args:
             connection: The database connection to use.
             parameters: The parameters to pass to the handlers.
-            commit: If True, commit the changes after executing handlers. Default is True.
+            commit: If True, commit the changes after executing handlers. Default is False.
         """
         logger.info("Executing drop app handlers...")
         for drop_app_hook in self.config.drop_app_handlers():
@@ -471,14 +471,14 @@ class Upgrader:
         connection: psycopg.Connection,
         *,
         parameters: dict | None = None,
-        commit: bool = True,
+        commit: bool = False,
     ) -> None:
         """Execute create app handlers.
 
         Args:
             connection: The database connection to use.
             parameters: The parameters to pass to the handlers.
-            commit: If True, commit the changes after executing handlers. Default is True.
+            commit: If True, commit the changes after executing handlers. Default is False.
         """
         logger.info("Executing create app handlers...")
         for create_app_hook in self.config.create_app_handlers():
@@ -493,15 +493,17 @@ class Upgrader:
         connection: psycopg.Connection,
         *,
         parameters: dict | None = None,
-        commit: bool = True,
+        commit: bool = False,
     ) -> None:
         """Execute drop app handlers followed by create app handlers.
 
         Args:
             connection: The database connection to use.
             parameters: The parameters to pass to the handlers.
-            commit: If True, commit the changes after executing handlers. Default is True.
+            commit: If True, commit the changes after executing handlers. Default is False.
         """
         logger.info("Executing recreate app (drop then create)...")
+        # Drop handlers and commit before creating
         self.drop_app(connection=connection, parameters=parameters, commit=True)
+        # Create handlers - use the commit parameter passed to this method
         self.create_app(connection=connection, parameters=parameters, commit=commit)
