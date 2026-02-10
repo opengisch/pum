@@ -239,7 +239,7 @@ class Upgrader:
 
         connection.commit()
 
-        logger.info("Demo data '%s' installed successfully.", name)
+        logger.info(f"Demo data '{name}' installed successfully.")
 
     def upgrade(
         self,
