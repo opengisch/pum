@@ -70,6 +70,7 @@ nav:
   - Application: application.md
   - Configuration:
       - Overview: configuration/configuration.md
+      - Demo data: configuration/demo_data.md
       - Models:
         - ConfigModel: configuration/models/config_model.md
         - DependencyModel: configuration/models/dependency_model.md
