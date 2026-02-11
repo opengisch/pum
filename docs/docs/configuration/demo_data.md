@@ -8,7 +8,7 @@ Demo data is defined in your [configuration file](configuration.md) using the `d
 
 ## Configuration
 
-Demo data is configured using the [`DemoDataModel`](../api/config_model.md#demodatamodel) in your `.pum.yaml` configuration file. Each demo dataset requires:
+Demo data is configured using the [`DemoDataModel`](models/demo_data_model) in your `.pum.yaml` configuration file. Each demo dataset requires:
 
 - **name**: A descriptive name for the demo dataset
 - **file**: Path to a single SQL file containing the demo data

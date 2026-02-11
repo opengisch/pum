@@ -23,4 +23,4 @@ parameters:
 
 ## Complete documentation
 
-For detailed configuration options, see the [Configuration Model](config_model.md).
+For detailed configuration options, see the [Configuration Model](models/config_model).
