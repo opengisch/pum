@@ -68,9 +68,12 @@ nav:
   - About: index.md
   - Getting Started: getting_started.md
   - Application: application.md
+  - Parameters: parameters.md
+  - Demo data: demo_data.md
+  - Roles: roles.md
+  - Dependencies: dependencies.md
   - Configuration:
       - Overview: configuration/configuration.md
-      - Demo data: configuration/demo_data.md
       - Models:
         - ConfigModel: configuration/models/config_model.md
         - DependencyModel: configuration/models/dependency_model.md
@@ -81,7 +84,6 @@ nav:
         - PumModel: configuration/models/pum_model.md
         - RoleModel: configuration/models/role_model.md
 
-  - Roles: roles.md
   - Tools:
       - Checker: tools/checker.md
       - Dumper: tools/dumper.md

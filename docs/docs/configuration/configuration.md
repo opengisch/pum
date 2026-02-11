@@ -11,6 +11,9 @@ In the config file `.pum.yaml`, you can define, with the YAML syntax:
 For example:  
 ```yaml
 
+pum:
+  module: my_module
+
 changelogs_directory: my_custom_directory
 
 parameters:
@@ -18,6 +21,13 @@ parameters:
     type: integer
     default: 2056
     description: Coordinate Reference System (CRS) to use for the data. This is used for the geometry column in the database. Default is 2056 (CH1903+ / LV95).
+
+app:
+  drop:
+    - code: DROP SCHEMA my_app CASCADE;
+
+  create:
+    - file: app/create.py
 
 ```  
 

@@ -4,11 +4,11 @@ Demo data in pum allows you to provide sample datasets that can be loaded into y
 
 ## Overview
 
-Demo data is defined in your [configuration file](configuration.md) using the `demo_data` section. You basically provide an SQL file (or multiple SQL files) to fill the data. These SQL files are typically generated using `pg_dump` with specific options to export only the data you want to include.
+Demo data is defined in your [configuration file](configuration/configuration.md) using the `demo_data` section. You basically provide an SQL file (or multiple SQL files) to fill the data. These SQL files are typically generated using `pg_dump` with specific options to export only the data you want to include.
 
 ## Configuration
 
-Demo data is configured using the [`DemoDataModel`](models/demo_data_model) in your `.pum.yaml` configuration file. Each demo dataset requires:
+Demo data is configured using the [`DemoDataModel`](configuration/models/demo_data_model) in your `.pum.yaml` configuration file. Each demo dataset requires:
 
 - **name**: A descriptive name for the demo dataset
 - **file**: Path to a single SQL file containing the demo data
