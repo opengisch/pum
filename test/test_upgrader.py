@@ -584,6 +584,127 @@ class TestUpgrader(unittest.TestCase):
             # Verify the error message is helpful
             self.assertIn("No uninstall hooks defined", str(context.exception))
 
+    def test_app_only_parameter_can_change_on_recreate(self) -> None:
+        """Test that an app_only parameter can be changed when recreating the app."""
+        test_dir = Path("test") / "data" / "app_only_parameters"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(
+                connection=conn,
+                parameters={
+                    "schema_name": "pum_test_data",
+                    "view_comment": "initial comment",
+                },
+            )
+            conn.commit()
+
+        # Recreate app with a different app_only parameter — should succeed
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.recreate_app(
+                connection=conn,
+                parameters={
+                    "schema_name": "pum_test_data",
+                    "view_comment": "updated comment",
+                },
+                commit=True,
+            )
+
+            # Verify the view comment was updated
+            cur = conn.cursor()
+            cur.execute("SELECT obj_description('pum_test_app.some_view'::regclass, 'pg_class');")
+            comment = cur.fetchone()[0]
+            self.assertEqual(comment, "updated comment")
+
+    def test_standard_parameter_cannot_change_on_recreate(self) -> None:
+        """Test that a standard (non-app_only) parameter cannot change on app recreation."""
+        test_dir = Path("test") / "data" / "app_only_parameters"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(
+                connection=conn,
+                parameters={
+                    "schema_name": "pum_test_data",
+                    "view_comment": "initial comment",
+                },
+            )
+            conn.commit()
+
+        # Try to recreate app with a different standard parameter — should fail
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            with self.assertRaises(PumException) as context:
+                upgrader.recreate_app(
+                    connection=conn,
+                    parameters={
+                        "schema_name": "changed_schema",
+                        "view_comment": "initial comment",
+                    },
+                )
+            self.assertIn("schema_name", str(context.exception))
+            self.assertIn("must remain consistent", str(context.exception))
+
+    def test_standard_parameter_cannot_change_on_upgrade(self) -> None:
+        """Test that a standard parameter cannot change during an upgrade."""
+        test_dir = Path("test") / "data" / "app_only_parameters"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(
+                connection=conn,
+                parameters={
+                    "schema_name": "pum_test_data",
+                    "view_comment": "initial comment",
+                },
+            )
+            conn.commit()
+
+        # Try to upgrade with a different standard parameter — should fail
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            with self.assertRaises(PumException) as context:
+                upgrader.upgrade(
+                    connection=conn,
+                    parameters={
+                        "schema_name": "changed_schema",
+                        "view_comment": "initial comment",
+                    },
+                )
+            self.assertIn("schema_name", str(context.exception))
+
+    def test_standard_parameter_same_value_on_upgrade(self) -> None:
+        """Test that passing the same standard parameter value on upgrade is accepted."""
+        test_dir = Path("test") / "data" / "app_only_parameters"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(
+                connection=conn,
+                parameters={
+                    "schema_name": "pum_test_data",
+                    "view_comment": "initial comment",
+                },
+            )
+            conn.commit()
+
+        # Upgrade with same values — should not raise
+        # (there are no new changelogs so it's a no-op, but validation should pass)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(
+                connection=conn,
+                parameters={
+                    "schema_name": "pum_test_data",
+                    "view_comment": "initial comment",
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

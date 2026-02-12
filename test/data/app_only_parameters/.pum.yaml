@@ -1,0 +1,27 @@
+
+pum:
+  module: app_only_params_test
+
+parameters:
+  - name: schema_name
+    type: text
+    default: pum_test_data
+    description: The schema name (standard parameter, cannot change)
+
+  - name: view_comment
+    type: text
+    default: "default comment"
+    description: A comment for the view (can be changed at app recreation)
+    app_only: true
+
+application:
+  drop:
+    - code: DROP VIEW IF EXISTS pum_test_app.some_view;
+
+  create:
+    - code: CREATE SCHEMA IF NOT EXISTS pum_test_app;
+    - code: |
+        CREATE VIEW pum_test_app.some_view AS
+        SELECT id, name
+        FROM pum_test_data.some_table;
+    - code: "COMMENT ON VIEW pum_test_app.some_view IS {view_comment};"
