@@ -19,12 +19,18 @@ class ParameterDefinitionModel(PumCustomBaseModel):
         type: Type of the parameter (default is TEXT).
         default: Optional default value for the parameter.
         description: Optional description of the parameter.
+        app_only: If True, the parameter can be changed when recreating the app.
+            Standard parameters (app_only=False) must remain the same across
+            the whole application lifecycle.
     """
 
     name: str
     type: ParameterType = Field(default=ParameterType.TEXT, description="Type of the parameter")
     default: Any | None = None
     description: str | None = None
+    app_only: bool = Field(
+        default=False, description="If True, the parameter can be changed when recreating the app."
+    )
 
     @model_validator(mode="before")
     def validate_default(cls, values):

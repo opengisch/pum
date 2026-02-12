@@ -44,6 +44,52 @@ class Upgrader:
         self.max_version = packaging.version.parse(max_version) if max_version else None
         self.schema_migrations = SchemaMigrations(self.config)
 
+    def _validate_parameters_consistency(
+        self,
+        connection: psycopg.Connection,
+        parameters: dict | None,
+    ) -> None:
+        """Validate that non-app_only parameters are consistent with previously stored values.
+
+        Compares the provided parameters against the ones stored in the last migration
+        record. Parameters that are not marked as ``app_only`` must keep their value
+        unchanged across the entire lifecycle of the module.
+
+        Args:
+            connection: The database connection.
+            parameters: The parameters provided for this operation.
+
+        Raises:
+            PumException: If a non-app_only parameter value differs from the stored value.
+        """
+        if not parameters:
+            return
+
+        if not self.schema_migrations.exists(connection):
+            return
+
+        try:
+            migration_details = self.schema_migrations.migration_details(connection)
+        except Exception:
+            return
+
+        stored_parameters = migration_details.get("parameters") or {}
+        if not stored_parameters:
+            return
+
+        # Build a set of app_only parameter names for quick lookup
+        app_only_names = {p.name for p in self.config.config.parameters if p.app_only}
+
+        for name, value in parameters.items():
+            if name in app_only_names:
+                continue  # app_only parameters can change freely
+            if name in stored_parameters and stored_parameters[name] != value:
+                raise PumException(
+                    f"Parameter '{name}' has value '{value}' but was previously set to "
+                    f"'{stored_parameters[name]}'. Non app_only parameters must remain "
+                    f"consistent across the application lifecycle."
+                )
+
     def install(
         self,
         connection: psycopg.Connection = None,
@@ -312,6 +358,8 @@ class Upgrader:
             )
             raise PumException(msg)
 
+        self._validate_parameters_consistency(connection, parameters)
+
         effective_beta_testing = beta_testing or installed_beta_testing
 
         logger.info("Starting upgrade process...")
@@ -506,6 +554,8 @@ class Upgrader:
         """
         if feedback is None:
             feedback = SilentFeedback()
+
+        self._validate_parameters_consistency(connection, parameters)
 
         logger.info("Executing create app handlers...")
         feedback.report_progress("Executing create app handlers...")
