@@ -488,6 +488,12 @@ def cli() -> int:  # noqa: PLR0912
                     parameters[p[0]] = p[1]
                 else:
                     raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
+                if param.values and parameters[p[0]] not in param.values:
+                    logger.error(
+                        f"Parameter '{p[0]}' value '{parameters[p[0]]}' is not allowed. "
+                        f"Allowed values: {param.values}"
+                    )
+                    sys.exit(1)
             logger.debug(f"Parameters: {parameters}")
 
         exit_code = 0

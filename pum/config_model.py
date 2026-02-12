@@ -28,6 +28,9 @@ class ParameterDefinitionModel(PumCustomBaseModel):
     type: ParameterType = Field(default=ParameterType.TEXT, description="Type of the parameter")
     default: Any | None = None
     description: str | None = None
+    values: list[Any] | None = Field(
+        default=None, description="List of allowed values for this parameter."
+    )
     app_only: bool = Field(
         default=False, description="If True, the parameter can be adapted when recreating the app."
     )
@@ -37,6 +40,15 @@ class ParameterDefinitionModel(PumCustomBaseModel):
         if values.get("type") == ParameterType.BOOLEAN:
             values["default"] = values.get("default", False) in (1, "1", "true", "TRUE", True)
         return values
+
+    @model_validator(mode="after")
+    def validate_default_in_values(self):
+        if self.values and self.default is not None and self.default not in self.values:
+            raise ValueError(
+                f"Parameter '{self.name}' has default '{self.default}' "
+                f"which is not in the allowed values: {self.values}"
+            )
+        return self
 
 
 class HookModel(PumCustomBaseModel):
