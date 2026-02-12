@@ -468,8 +468,11 @@ def cli() -> int:  # noqa: PLR0912
             sys.exit(1)
 
         # Build parameters dict for install and upgrade commands
+        # Start with config-declared defaults, then override with CLI-provided values
         parameters = {}
         if args.command in ("install", "upgrade", "uninstall", "app"):
+            for param_def in config.parameters():
+                parameters[param_def.name] = param_def.default
             for p in args.parameter or ():
                 param = config.parameter(p[0])
                 if not param:
