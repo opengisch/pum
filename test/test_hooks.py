@@ -62,3 +62,22 @@ class TestHooks(unittest.TestCase):
 
         # Execute again to verify it works multiple times
         handler.execute(connection=mock_conn, parameters={})
+
+    def test_hook_with_optional_arg(self) -> None:
+        """Test that a hook with an optional argument (default value) passes validation
+        even when the argument is not declared as a config parameter."""
+        test_dir = Path("test") / "data" / "hook_optional_arg"
+        hook_file = test_dir / "create_app" / "create_hook.py"
+
+        handler = HookHandler(base_path=test_dir, file=str(hook_file.relative_to(test_dir)))
+
+        # lang_code has a default value, so it should not be required
+        self.assertIn("lang_code", handler.parameter_args)
+        self.assertNotIn("lang_code", handler.required_parameter_args)
+
+        # Validation should pass without lang_code in parameters
+        handler.validate(parameters={})
+
+        # Execution should also work without lang_code
+        mock_conn = Mock()
+        handler.execute(connection=mock_conn, parameters={})

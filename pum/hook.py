@@ -93,6 +93,8 @@ class HookHandler:
         self.code = code
         self.hook_instance = None
         self.sys_path_additions = []  # Store paths to add during execution
+        self.parameter_args = []
+        self.required_parameter_args = []
 
         if file:
             if isinstance(file, str):
@@ -172,13 +174,19 @@ class HookHandler:
                     raise PumHookError(f"Hook function 'run_hook' not found in {self.file}.")
 
                 self.hook_instance = hook_class()
-                arg_names = list(inspect.signature(hook_class.run_hook).parameters.keys())
+                sig = inspect.signature(hook_class.run_hook)
+                arg_names = list(sig.parameters.keys())
                 if "connection" not in arg_names:
                     raise PumHookError(
                         f"Hook function 'run_hook' in {self.file} must accept 'connection' as an argument."
                     )
                 self.parameter_args = [
                     arg for arg in arg_names if arg not in ("self", "connection")
+                ]
+                self.required_parameter_args = [
+                    arg
+                    for arg in self.parameter_args
+                    if sig.parameters[arg].default is inspect.Parameter.empty
                 ]
 
             except Exception:
@@ -222,7 +230,7 @@ class HookHandler:
 
         """
         if self.file and self.file.suffix == ".py":
-            for parameter_arg in self.parameter_args:
+            for parameter_arg in self.required_parameter_args:
                 if parameter_arg not in parameters:
                     raise PumHookError(
                         f"Hook function 'run_hook' in {self.file} has an unexpected argument "
@@ -263,7 +271,7 @@ class HookHandler:
                     connection=connection, commit=False, parameters=parameters_literals
                 )
             elif self.file.suffix == ".py":
-                for parameter_arg in self.parameter_args:
+                for parameter_arg in self.required_parameter_args:
                     if not parameters or parameter_arg not in parameters:
                         raise PumHookError(
                             f"Hook function 'run_hook' in {self.file} has an unexpected "
