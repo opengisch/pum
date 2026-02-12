@@ -34,6 +34,7 @@ class ParameterDefinition:
         type: str | ParameterType,
         default: str | float | int | None = None,
         description: str | None = None,
+        values: list | None = None,
         app_only: bool = False,
     ) -> None:
         """Initialize a ParameterDefintion instance.
@@ -43,6 +44,7 @@ class ParameterDefinition:
             type: The type of the parameter, as a string or ParameterType.
             default: The default value for the parameter. Defaults to None.
             description: A description of the parameter. Defaults to None.
+            values: An optional list of allowed values for this parameter.
             app_only: If True, the parameter can be changed when recreating the app.
                 Standard parameters (app_only=False) must remain the same across
                 the whole application lifecycle. Defaults to False.
@@ -64,11 +66,12 @@ class ParameterDefinition:
             raise TypeError("type must be a str or ParameterType")
         self.default = default
         self.description = description
+        self.values = values
         self.app_only = app_only
 
     def __repr__(self) -> str:
         """Return a string representation of the ParameterDefinition instance."""
-        return f"ParameterDefinition({self.name}, type: {self.type}, default: {self.default}, app_only: {self.app_only})"
+        return f"ParameterDefinition({self.name}, type: {self.type}, default: {self.default}, values: {self.values}, app_only: {self.app_only})"
 
     def __eq__(self, other: "ParameterDefinition") -> bool:
         """Check if two ParameterDefinition instances are equal."""
@@ -79,5 +82,6 @@ class ParameterDefinition:
             and self.type == other.type
             and self.default == other.default
             and self.description == other.description
+            and self.values == other.values
             and self.app_only == other.app_only
         )

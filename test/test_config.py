@@ -452,3 +452,60 @@ class TestConfig(unittest.TestCase):
 
         param_text = next(p for p in params if p.name == "default_text_value")
         self.assertEqual(str(param_text.type), "text")
+
+    def test_parameter_values(self) -> None:
+        """Test that parameters with a restricted set of values work correctly."""
+        cfg = PumConfig(
+            base_path=Path("test") / "data" / "single_changelog",
+            validate=False,
+            pum={"module": "test_param_values"},
+            parameters=[
+                {
+                    "name": "lang_code",
+                    "type": "text",
+                    "default": "en",
+                    "values": ["en", "de", "fr", "it"],
+                },
+                {"name": "srid", "type": "integer", "default": 2056, "values": [2056, 4326, 21781]},
+            ],
+        )
+        params = cfg.parameters()
+        self.assertEqual(len(params), 2)
+
+        lang = next(p for p in params if p.name == "lang_code")
+        self.assertEqual(lang.values, ["en", "de", "fr", "it"])
+        self.assertEqual(lang.default, "en")
+
+        srid = next(p for p in params if p.name == "srid")
+        self.assertEqual(srid.values, [2056, 4326, 21781])
+
+    def test_parameter_values_invalid_default(self) -> None:
+        """Test that a default value not in the allowed values raises an error."""
+        with self.assertRaises(PumConfigError):
+            PumConfig(
+                base_path=Path("test") / "data" / "single_changelog",
+                validate=False,
+                pum={"module": "test_param_values_bad"},
+                parameters=[
+                    {
+                        "name": "lang_code",
+                        "type": "text",
+                        "default": "es",
+                        "values": ["en", "de", "fr", "it"],
+                    },
+                ],
+            )
+
+    def test_parameter_values_none(self) -> None:
+        """Test that parameters without values work as before."""
+        cfg = PumConfig(
+            base_path=Path("test") / "data" / "single_changelog",
+            validate=False,
+            pum={"module": "test_param_no_values"},
+            parameters=[
+                {"name": "schema_name", "type": "text", "default": "public"},
+            ],
+        )
+        params = cfg.parameters()
+        self.assertEqual(len(params), 1)
+        self.assertIsNone(params[0].values)
