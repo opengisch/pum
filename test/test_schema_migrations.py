@@ -248,3 +248,22 @@ class TestSchemaMigrations(unittest.TestCase):
             self.assertEqual(by_schema["public"]["version"], "1.0.0")
             self.assertEqual(by_schema["pum_custom_migrations_schema"]["module"], "module_b")
             self.assertEqual(by_schema["pum_custom_migrations_schema"]["version"], "2.0.0")
+
+    def test_upgrade_module_mismatch(self) -> None:
+        """Test that upgrading module X over an installation of module Y is rejected."""
+        test_dir = Path("test") / "data" / "single_changelog"
+
+        # Install module_a
+        cfg_a = PumConfig(test_dir, pum={"module": "module_a"})
+        upgrader_a = Upgrader(config=cfg_a)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader_a.install(connection=conn)
+
+        # Try to upgrade with module_b config — should fail
+        cfg_b = PumConfig(test_dir, pum={"module": "module_b"})
+        upgrader_b = Upgrader(config=cfg_b)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            with self.assertRaises(PumException) as context:
+                upgrader_b.upgrade(connection=conn)
+            self.assertIn("module_a", str(context.exception))
+            self.assertIn("module_b", str(context.exception))
