@@ -99,6 +99,75 @@ class SchemaMigrations:
         cursor = SqlContent(query).execute(connection, parameters={})
         return [row[0] for row in (cursor._pum_results or [])]
 
+    @staticmethod
+    def schemas_with_migration_details(
+        connection: psycopg.Connection,
+    ) -> list[dict]:
+        """Return detailed migration info for each schema that has a pum_migrations table.
+
+        For each schema, returns the module name, current version, first installation
+        date and latest upgrade date (if different from the installation date).
+
+        Args:
+            connection: The database connection.
+
+        Returns:
+            list[dict]: A list of dicts with keys: schema, module, version,
+                        installed_date, upgrade_date (None if never upgraded).
+        """
+        schemas = SchemaMigrations.schemas_with_migrations(connection)
+        details = []
+        for schema in schemas:
+            table_id = psycopg.sql.SQL(".").join(
+                [psycopg.sql.Identifier(schema), psycopg.sql.Identifier(MIGRATION_TABLE_NAME)]
+            )
+            query = psycopg.sql.SQL(
+                """
+                SELECT
+                    module,
+                    version,
+                    installed_date,
+                    CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
+                    beta_testing
+                FROM (
+                    SELECT
+                        module,
+                        (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
+                        MIN(date_installed) AS installed_date,
+                        MAX(date_installed) AS upgrade_date,
+                        (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing
+                    FROM {table}
+                    GROUP BY module
+                ) sub
+                """
+            )
+            try:
+                cursor = SqlContent(query).execute(connection, parameters={"table": table_id})
+                for row in cursor._pum_results or []:
+                    details.append(
+                        {
+                            "schema": schema,
+                            "module": row[0],
+                            "version": row[1],
+                            "installed_date": row[2],
+                            "upgrade_date": row[3],
+                            "beta_testing": row[4],
+                        }
+                    )
+            except Exception:
+                logger.warning(f"Could not read migration details from schema {schema}")
+                details.append(
+                    {
+                        "schema": schema,
+                        "module": None,
+                        "version": None,
+                        "installed_date": None,
+                        "upgrade_date": None,
+                        "beta_testing": None,
+                    }
+                )
+        return details
+
     def exists_in_other_schemas(self, connection: psycopg.Connection) -> list[str]:
         """Check if the schema_migrations information table exists in other schemas.
 

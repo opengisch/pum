@@ -172,3 +172,79 @@ class TestSchemaMigrations(unittest.TestCase):
             # Test exists_in_other_schemas for sm2
             other_schemas = sm2.exists_in_other_schemas(conn)
             self.assertEqual(other_schemas, ["public"])
+
+    def test_schemas_with_migration_details_empty(self) -> None:
+        """Test schemas_with_migration_details when no migrations exist."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            details = SchemaMigrations.schemas_with_migration_details(conn)
+            self.assertEqual(details, [])
+
+    def test_schemas_with_migration_details_single_schema(self) -> None:
+        """Test schemas_with_migration_details with a single installed module."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_module"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="1.2.3")
+
+            details = SchemaMigrations.schemas_with_migration_details(conn)
+            self.assertEqual(len(details), 1)
+            detail = details[0]
+            self.assertEqual(detail["schema"], "public")
+            self.assertEqual(detail["module"], "test_module")
+            self.assertEqual(detail["version"], "1.2.3")
+            self.assertIsNotNone(detail["installed_date"])
+            self.assertIsNone(detail["upgrade_date"])  # No upgrade yet
+            self.assertFalse(detail["beta_testing"])
+
+    def test_schemas_with_migration_details_after_upgrade(self) -> None:
+        """Test schemas_with_migration_details shows upgrade_date after a second baseline."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_module"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="1.2.3", commit=True)
+
+        # Use a separate connection/transaction so now() differs
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.set_baseline(connection=conn, version="1.2.4", commit=True)
+
+            details = SchemaMigrations.schemas_with_migration_details(conn)
+            self.assertEqual(len(details), 1)
+            detail = details[0]
+            self.assertEqual(detail["version"], "1.2.4")
+            self.assertIsNotNone(detail["installed_date"])
+            self.assertIsNotNone(detail["upgrade_date"])  # Upgrade happened
+
+    def test_schemas_with_migration_details_multiple_schemas(self) -> None:
+        """Test schemas_with_migration_details with modules in different schemas."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg1 = PumConfig(test_dir, pum={"module": "module_a", "migration_table_schema": "public"})
+        cfg2 = PumConfig(
+            test_dir,
+            pum={"module": "module_b", "migration_table_schema": "pum_custom_migrations_schema"},
+        )
+        sm1 = SchemaMigrations(cfg1)
+        sm2 = SchemaMigrations(cfg2)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm1.create(connection=conn, allow_multiple_modules=True)
+            sm1.set_baseline(connection=conn, version="1.0.0")
+
+            sm2.create(connection=conn, allow_multiple_modules=True)
+            sm2.set_baseline(connection=conn, version="2.0.0")
+
+            details = SchemaMigrations.schemas_with_migration_details(conn)
+            self.assertEqual(len(details), 2)
+
+            by_schema = {d["schema"]: d for d in details}
+            self.assertIn("public", by_schema)
+            self.assertIn("pum_custom_migrations_schema", by_schema)
+            self.assertEqual(by_schema["public"]["module"], "module_a")
+            self.assertEqual(by_schema["public"]["version"], "1.0.0")
+            self.assertEqual(by_schema["pum_custom_migrations_schema"]["module"], "module_b")
+            self.assertEqual(by_schema["pum_custom_migrations_schema"]["version"], "2.0.0")
