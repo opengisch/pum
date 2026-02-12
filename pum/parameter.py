@@ -68,7 +68,7 @@ class ParameterDefinition:
 
     def __repr__(self) -> str:
         """Return a string representation of the ParameterDefinition instance."""
-        return f"Parameter({self.name}, type: {self.type}, default: {self.default}, app_only: {self.app_only})"
+        return f"ParameterDefinition({self.name}, type: {self.type}, default: {self.default}, app_only: {self.app_only})"
 
     def __eq__(self, other: "ParameterDefinition") -> bool:
         """Check if two ParameterDefinition instances are equal."""
