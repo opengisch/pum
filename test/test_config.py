@@ -4,7 +4,7 @@ from pathlib import Path
 from packaging.version import parse as parse_version
 
 from pum.pum_config import PumConfig
-from pum.exceptions import PumConfigError
+from pum.exceptions import PumConfigError, PumException
 from pum.hook import HookHandler
 import os
 import platform
@@ -62,6 +62,23 @@ class TestConfig(unittest.TestCase):
             min_version="2.1.0",
         )
         self.assertIsNone(last_version_result)
+
+    def test_empty_changelogs_directory(self) -> None:
+        """Test that an empty changelogs directory raises PumException."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            # Create an empty changelogs directory
+            (tmp_path / "changelogs").mkdir()
+            cfg = PumConfig(
+                base_path=tmp_path,
+                pum={"module": "test_empty"},
+                validate=False,
+            )
+            with self.assertRaises(PumException) as ctx:
+                cfg.changelogs()
+            self.assertIn("is empty", str(ctx.exception))
 
     def test_hooks(self) -> None:
         """Test hooks."""
