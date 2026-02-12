@@ -80,6 +80,13 @@ class TestConfig(unittest.TestCase):
                 cfg.changelogs()
             self.assertIn("is empty", str(ctx.exception))
 
+    def test_app_only_parameter_in_changelog(self) -> None:
+        """Test that using an app_only parameter in a changelog raises an error."""
+        with self.assertRaises(PumConfigError) as ctx:
+            PumConfig.from_yaml(Path("test") / "data" / "app_only_in_changelog" / ".pum.yaml")
+        self.assertIn("app_only", str(ctx.exception))
+        self.assertIn("view_comment", str(ctx.exception))
+
     def test_hooks(self) -> None:
         """Test hooks."""
         cfg = PumConfig.from_yaml(Path("test") / "data" / "pre_post_sql_files" / ".pum.yaml")

@@ -1,0 +1,19 @@
+
+pum:
+  module: app_only_in_changelog_test
+
+parameters:
+  - name: schema_name
+    type: text
+    default: pum_test_data
+    description: A standard parameter
+
+  - name: view_comment
+    type: text
+    default: "default comment"
+    description: An app-only parameter
+    app_only: true
+
+application:
+  create:
+    - code: "SELECT 1;"

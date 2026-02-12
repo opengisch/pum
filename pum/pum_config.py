@@ -90,6 +90,15 @@ except importlib.metadata.PackageNotFoundError:
 logger = logging.getLogger(__name__)
 
 
+def _exception_chain_text(exc: BaseException) -> str:
+    """Concatenate str() of all exceptions in the cause chain."""
+    parts = []
+    while exc:
+        parts.append(str(exc))
+        exc = exc.__cause__
+    return " ".join(parts)
+
+
 class PumConfig:
     """A class to hold configuration settings."""
 
@@ -374,18 +383,36 @@ class PumConfig:
             sys.path.insert(0, str(self.dependency_path))
 
         parameter_defaults = {}
+        app_only_parameter_names = set()
         for parameter in self.config.parameters:
             parameter_defaults[parameter.name] = psycopg.sql.Literal(parameter.default)
+            if parameter.app_only:
+                app_only_parameter_names.add(parameter.name)
 
         for dependency in self.config.dependencies:
             DependencyHandler(**dependency.model_dump()).resolve(
                 install_dependencies=install_dependencies, install_path=self.dependency_path
             )
 
+        # Validate changelogs with only non-app_only parameters.
+        # app_only parameters must not be used in changelogs (migrations),
+        # they are only allowed in application hooks.
+        changelog_parameters = {
+            k: v for k, v in parameter_defaults.items() if k not in app_only_parameter_names
+        }
         for changelog in self.changelogs():
             try:
-                changelog.validate(parameters=parameter_defaults)
+                changelog.validate(parameters=changelog_parameters)
             except (PumInvalidChangelog, PumSqlError) as e:
+                # Check if the error is due to an app_only parameter being used
+                error_text = _exception_chain_text(e)
+                for name in app_only_parameter_names:
+                    if name in error_text:
+                        raise PumInvalidChangelog(
+                            f"Changelog `{changelog}` uses app_only parameter `{name}`. "
+                            f"App-only parameters cannot be used in changelogs (migrations), "
+                            f"they are only allowed in application hooks (create/drop)."
+                        ) from e
                 raise PumInvalidChangelog(f"Changelog `{changelog}` is invalid.") from e
 
         hook_handlers = []
