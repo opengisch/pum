@@ -12,6 +12,7 @@ Each parameter accepts:
 - **type** *(optional, default: `text`)*: One of `boolean`, `integer`, `text`, `decimal`, `path`.
 - **default** *(optional)*: A default value used for validation.
 - **description** *(optional)*: A human-readable description.
+- **values** *(optional)*: A list of allowed values. When set, the parameter value (including the default) must be one of the listed entries. PUM validates this both at configuration load time and when values are passed from the CLI.
 - **app_only** *(optional, default: `false`)*: If `true`, the parameter can be changed freely when recreating the app. Standard parameters (`app_only: false`) must keep the same value across the entire module lifecycle (install, upgrade, create-app).
 
 ```yaml
@@ -34,7 +35,36 @@ parameters:
     default: my comment
     description: Comment used when creating application views.
     app_only: true
+
+  - name: lang_code
+    type: text
+    default: en
+    description: Language for the application.
+    values: [en, de, fr, it]
+    app_only: true
 ```
+
+### Restricting parameter values
+
+Use the `values` field to restrict a parameter to a fixed set of allowed entries:
+
+```yaml
+parameters:
+  - name: lang_code
+    type: text
+    default: en
+    values: [en, de, fr, it]
+
+  - name: SRID
+    type: integer
+    default: 2056
+    values: [2056, 4326, 21781]
+```
+
+PUM validates allowed values at two points:
+
+1. **Configuration load** — the `default` must be in `values` (if both are set).
+2. **CLI** — when a user passes `--parameter lang_code es`, PUM rejects the value with a clear error message.
 
 ### Standard vs. app-only parameters
 
