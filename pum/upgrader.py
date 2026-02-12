@@ -294,6 +294,16 @@ class Upgrader:
             raise PumException(msg)
 
         migration_details = self.schema_migrations.migration_details(connection)
+
+        installed_module = migration_details.get("module")
+        if installed_module and installed_module != self.config.config.pum.module:
+            msg = (
+                f"Cannot upgrade: the installed module is '{installed_module}' but the "
+                f"configuration defines module '{self.config.config.pum.module}'. "
+                "Make sure you are using the correct configuration file for this database."
+            )
+            raise PumException(msg)
+
         installed_beta_testing = bool(migration_details.get("beta_testing", False))
         if installed_beta_testing and not force:
             msg = (
