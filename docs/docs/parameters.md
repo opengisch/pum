@@ -12,6 +12,7 @@ Each parameter accepts:
 - **type** *(optional, default: `text`)*: One of `boolean`, `integer`, `text`, `decimal`, `path`.
 - **default** *(optional)*: A default value used for validation.
 - **description** *(optional)*: A human-readable description.
+- **app_only** *(optional, default: `false`)*: If `true`, the parameter can be changed freely when recreating the app. Standard parameters (`app_only: false`) must keep the same value across the entire module lifecycle (install, upgrade, create-app).
 
 ```yaml
 parameters:
@@ -27,7 +28,26 @@ parameters:
   - name: my_flag
     type: boolean
     default: true
+
+  - name: view_comment
+    type: text
+    default: my comment
+    description: Comment used when creating application views.
+    app_only: true
 ```
+
+### Standard vs. app-only parameters
+
+PUM stores the parameter values used during each migration in the `pum_migrations` table.
+On every subsequent **upgrade**, **create app**, or **recreate app** call, PUM compares the
+provided parameter values against the stored ones:
+
+- **Standard parameters** (`app_only: false`, the default) must remain unchanged. If a
+  different value is provided, PUM raises an error. This protects structural values
+  (e.g. an SRID) that would cause data inconsistencies if changed after installation.
+- **App-only parameters** (`app_only: true`) are allowed to change between calls. Use
+  this for values that only affect application-level objects such as views or comments,
+  which are dropped and recreated anyway.
 
 ## Passing values from the CLI
 

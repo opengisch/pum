@@ -21,7 +21,7 @@ class ParameterDefinitionModel(PumCustomBaseModel):
         description: Optional description of the parameter.
         app_only: If True, the parameter can be changed when recreating the app.
             Standard parameters (app_only=False) must remain the same across
-            the whole application lifecycle.
+            the whole module lifecycle.
     """
 
     name: str
@@ -29,7 +29,7 @@ class ParameterDefinitionModel(PumCustomBaseModel):
     default: Any | None = None
     description: str | None = None
     app_only: bool = Field(
-        default=False, description="If True, the parameter can be changed when recreating the app."
+        default=False, description="If True, the parameter can be adapted when recreating the app."
     )
 
     @model_validator(mode="before")
