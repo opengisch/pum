@@ -128,14 +128,16 @@ class SchemaMigrations:
                     version,
                     installed_date,
                     CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
-                    beta_testing
+                    beta_testing,
+                    parameters
                 FROM (
                     SELECT
                         module,
                         (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
                         MIN(date_installed) AS installed_date,
                         MAX(date_installed) AS upgrade_date,
-                        (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing
+                        (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing,
+                        (SELECT parameters FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS parameters
                     FROM {table}
                     GROUP BY module
                 ) sub
@@ -152,6 +154,7 @@ class SchemaMigrations:
                             "installed_date": row[2],
                             "upgrade_date": row[3],
                             "beta_testing": row[4],
+                            "parameters": row[5],
                         }
                     )
             except Exception:
@@ -164,6 +167,7 @@ class SchemaMigrations:
                         "installed_date": None,
                         "upgrade_date": None,
                         "beta_testing": None,
+                        "parameters": None,
                     }
                 )
         return details
