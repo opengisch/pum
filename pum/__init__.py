@@ -62,7 +62,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Dumper": ("pum.dumper", "Dumper"),
     "DumpFormat": ("pum.dumper", "DumpFormat"),
     "HookBase": ("pum.hook", "HookBase"),
+    "Feedback": ("pum.feedback", "Feedback"),
     "HookHandler": ("pum.hook", "HookHandler"),
+    "LogFeedback": ("pum.feedback", "LogFeedback"),
     "ParameterDefinition": ("pum.parameter", "ParameterDefinition"),
     "ParameterType": ("pum.parameter", "ParameterType"),
     "Permission": ("pum.role_manager", "Permission"),
@@ -71,6 +73,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Role": ("pum.role_manager", "Role"),
     "RoleManager": ("pum.role_manager", "RoleManager"),
     "SchemaMigrations": ("pum.schema_migrations", "SchemaMigrations"),
+    "SilentFeedback": ("pum.feedback", "SilentFeedback"),
     "SqlContent": ("pum.sql_content", "SqlContent"),
     "Upgrader": ("pum.upgrader", "Upgrader"),
 }

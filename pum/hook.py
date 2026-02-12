@@ -264,7 +264,7 @@ class HookHandler:
                 )
             elif self.file.suffix == ".py":
                 for parameter_arg in self.parameter_args:
-                    if not parameters or parameter_arg not in self.parameter_args:
+                    if not parameters or parameter_arg not in parameters:
                         raise PumHookError(
                             f"Hook function 'run_hook' in {self.file} has an unexpected "
                             f"argument '{parameter_arg}' which is not specified in the parameters."

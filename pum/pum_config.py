@@ -154,7 +154,7 @@ class PumConfig:
         Args:
             file_path: The path to the YAML file.
             validate: Whether to validate the changelogs and hooks.
-            install_dependencies: Wheter to temporarily install dependencies.
+            install_dependencies: Whether to temporarily install dependencies.
 
         Returns:
             PumConfig: An instance of the PumConfig class.
@@ -239,7 +239,7 @@ class PumConfig:
         for parameter in self.config.parameters:
             if parameter.name == name:
                 return ParameterDefinition(**parameter.model_dump(mode="python"))
-        raise PumConfigError(f"Parameter '{name}' not found in configuration.") from KeyError
+        raise PumConfigError(f"Parameter '{name}' not found in configuration.") from None
 
     def last_version(
         self, min_version: str | None = None, max_version: str | None = None
@@ -256,16 +256,6 @@ class PumConfig:
 
         """
         changelogs = self.changelogs(min_version, max_version)
-        if not changelogs:
-            return None
-        if min_version:
-            changelogs = [
-                c for c in changelogs if c.version >= packaging.version.parse(min_version)
-            ]
-        if max_version:
-            changelogs = [
-                c for c in changelogs if c.version <= packaging.version.parse(max_version)
-            ]
         if not changelogs:
             return None
         return changelogs[-1].version
@@ -289,7 +279,7 @@ class PumConfig:
         path = self._base_path / self.config.changelogs_directory
         if not path.is_dir():
             raise PumException(f"Changelogs directory `{path}` does not exist.")
-        if not path.iterdir():
+        if not any(path.iterdir()):
             raise PumException(f"Changelogs directory `{path}` is empty.")
 
         # Local import avoids circular imports at module import time.
@@ -368,7 +358,7 @@ class PumConfig:
             # Remove from sys.path if present
             sys.path = [p for p in sys.path if p != str(self.dependency_path)]
             # Remove the directory if it exists and is a TemporaryDirectory
-            if hasattr(self, "_temp_dir") and self._temp_dir:
+            if hasattr(self, "dependency_tmp") and self.dependency_tmp:
                 self.dependency_tmp.cleanup()
 
     def validate(self, install_dependencies: bool = False) -> None:

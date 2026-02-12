@@ -195,7 +195,7 @@ class DependencyModel(PumCustomBaseModel):
             ver = values.get(value)
             if isinstance(ver, str):
                 values[value] = Version(ver)
-            return values
+        return values
 
 
 class ConfigModel(PumCustomBaseModel):

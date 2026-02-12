@@ -98,11 +98,11 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
         forbidden_statements = (
             (
                 r"\bBEGIN\b\s*;",
-                "BEGIN; COMMIT; is not authroized in executed SQL since connections are handled by PUM.",
+                "BEGIN; COMMIT; is not authorized in executed SQL since connections are handled by PUM.",
             ),
             (
                 r"\bCOMMIT\b\s*;",
-                "BEGIN; COMMIT; is not authroized in executed SQL since connections are handled by PUM.",
+                "BEGIN; COMMIT; is not authorized in executed SQL since connections are handled by PUM.",
             ),
             (
                 r"SELECT +pg_catalog.set_config.*search_path.*;",
