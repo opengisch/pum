@@ -12,7 +12,8 @@ class ParameterType(Enum):
         DECIMAL (str): Represents a decimal parameter type.
         PATH (str): Represents a path parameter type.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     BOOLEAN = "boolean"
@@ -29,7 +30,8 @@ class ParameterType(Enum):
 class ParameterDefinition:
     """A class to define a migration parameter.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(

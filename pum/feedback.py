@@ -12,7 +12,8 @@ class Feedback(abc.ABC):
     This class provides methods for progress reporting and cancellation handling.
     Subclasses should implement the abstract methods to provide custom feedback mechanisms.
 
-    .. versionadded:: 1.3.0
+    Version Added:
+        1.3.0
     """
 
     def __init__(self) -> None:
@@ -92,7 +93,8 @@ class LogFeedback(Feedback):
     This is the default feedback implementation that simply logs messages
     without any UI interaction.
 
-    .. versionadded:: 1.3.0
+    Version Added:
+        1.3.0
     """
 
     def report_progress(self, message: str, current: int = 0, total: int = 0) -> None:
@@ -111,7 +113,8 @@ class SilentFeedback(Feedback):
 
     This can be used when no feedback is desired.
 
-    .. versionadded:: 1.3.0
+    Version Added:
+        1.3.0
     """
 
     def report_progress(self, message: str, current: int = 0, total: int = 0) -> None:

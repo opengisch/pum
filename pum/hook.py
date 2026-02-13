@@ -20,7 +20,8 @@ class HookBase(abc.ABC):
     It requires the implementation of the `run_hook` method, which will be called during the migration process.
     It can call the execute method to run SQL statements with the provided connection and parameters.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(self) -> None:
@@ -73,7 +74,8 @@ class HookHandler:
     """Handler for application hooks.
     This class manages the execution of application hooks, which can be either SQL files or Python functions.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(

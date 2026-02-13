@@ -21,7 +21,8 @@ class Changelog:
     """This class represent a changelog directory.
     The directory name is the version of the changelog.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(self, dir):

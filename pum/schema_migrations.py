@@ -31,7 +31,8 @@ class SchemaMigrations:
     It provides methods to create the schema_migrations table, check its existence,
     set the baseline version, and retrieve migration details.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(self, config: PumConfig) -> None:
@@ -117,7 +118,8 @@ class SchemaMigrations:
             list[dict]: A list of dicts with keys: schema, module, version,
                         installed_date, upgrade_date (None if never upgraded).
 
-        .. versionadded:: 1.4.0
+        Version Added:
+            1.4.0
         """
         schemas = SchemaMigrations.schemas_with_migrations(connection)
         details = []

@@ -17,7 +17,8 @@ class CursorResult:
     This class provides a cursor-compatible interface for accessing query results
     after the actual database cursor has been closed.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(
@@ -204,7 +205,8 @@ def sql_chunks_from_file(file: str | Path) -> list[psycopg.sql.SQL]:
 class SqlContent:
     """Class to handle SQL content preparation and execution.
 
-    .. versionadded:: 1.0.0
+    Version Added:
+        1.0.0
     """
 
     def __init__(self, sql: str | psycopg.sql.SQL | Path) -> None:
