@@ -19,6 +19,8 @@ class PermissionType(enum.Enum):
     Attributes:
         READ (str): Read permission.
         WRITE (str): Write permission.
+
+    .. versionadded:: 1.3.0
     """
 
     READ = "read"
@@ -31,6 +33,8 @@ class Permission:
     Attributes:
         type: Type of permission (read or write).
         schemas: List of schemas this permission applies to.
+
+    .. versionadded:: 1.3.0
     """
 
     def __init__(self, type: PermissionType | str, schemas: list[str] = None) -> None:
@@ -180,6 +184,8 @@ class Role:
     Represents a database role with associated permissions and optional inheritance.
     The Role class encapsulates the concept of a database role, including its name,
     permissions, optional inheritance from another role, and an optional description.
+
+    .. versionadded:: 1.3.0
     """
 
     def __init__(
@@ -295,6 +301,8 @@ class RoleManager:
     RoleManager manages a collection of Role objects,
     allowing creation and permission management
     for multiple roles in the PostgreSQL database.
+
+    .. versionadded:: 1.3.0
     """
 
     def __init__(self, roles=list[Role] | list[dict]) -> None:
@@ -329,27 +337,93 @@ class RoleManager:
     def create_roles(
         self,
         connection: psycopg.Connection,
+        *,
+        suffix: str | None = None,
+        create_generic: bool = True,
         grant: bool = False,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
     ) -> None:
         """Create roles in the database.
+
+        When *suffix* is provided, DB-specific roles are created by appending
+        the suffix to each configured role name (e.g. ``tww_user_lausanne``
+        for suffix ``lausanne``). The *create_generic* flag controls whether
+        the base roles are also created and granted membership of the specific
+        roles (so that the generic role inherits the specific one's permissions).
+
+        When *suffix* is ``None`` (default), only the generic roles defined in
+        the configuration are created.
+
         Args:
             connection: The database connection to execute the SQL statements.
+            suffix: Optional suffix to append to role names for DB-specific
+                roles.
+            create_generic: Whether to also create the generic (config-defined)
+                roles and grant them membership of the specific roles.
+                When *suffix* is ``None`` this is always ``True``.
+                Defaults to True.
             grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
+
+        .. versionchanged:: 1.5.0
+            Added *suffix* and *create_generic* parameters for DB-specific roles.
         """
         roles_list = list(self.roles.values())
-        for role in roles_list:
-            if feedback and feedback.is_cancelled():
-                from .exceptions import PumException
 
-                raise PumException("Role creation cancelled by user")
-            if feedback:
-                feedback.increment_step()
-                feedback.report_progress(f"Creating role: {role.name}")
-            role.create(connection=connection, commit=False, grant=grant, feedback=feedback)
+        if suffix:
+            for role in roles_list:
+                if feedback and feedback.is_cancelled():
+                    raise PumException("Role creation cancelled by user")
+
+                specific_name = f"{role.name}_{suffix}"
+
+                # Build a specific role with the suffixed name and same permissions
+                specific_role = Role(
+                    name=specific_name,
+                    permissions=[
+                        Permission(type=p.type, schemas=p.schemas) for p in role.permissions()
+                    ],
+                    description=(
+                        f"{role.description} (specific to {suffix})" if role.description else None
+                    ),
+                )
+
+                if feedback:
+                    feedback.increment_step()
+                    feedback.report_progress(f"Creating specific role: {specific_name}")
+
+                specific_role.create(
+                    connection=connection, commit=False, grant=grant, feedback=feedback
+                )
+
+                if create_generic:
+                    if feedback:
+                        feedback.increment_step()
+                        feedback.report_progress(f"Creating generic role: {role.name}")
+                    role.create(connection=connection, commit=False, grant=False, feedback=feedback)
+
+                    logger.debug(
+                        f"Granting specific role {specific_name} to generic role {role.name}."
+                    )
+                    SqlContent("GRANT {specific} TO {generic}").execute(
+                        connection=connection,
+                        commit=False,
+                        parameters={
+                            "specific": psycopg.sql.Identifier(specific_name),
+                            "generic": psycopg.sql.Identifier(role.name),
+                        },
+                    )
+        else:
+            for role in roles_list:
+                if feedback and feedback.is_cancelled():
+                    raise PumException("Role creation cancelled by user")
+                if feedback:
+                    feedback.increment_step()
+                    feedback.report_progress(f"Creating role: {role.name}")
+                role.create(connection=connection, commit=False, grant=grant, feedback=feedback)
+
         if commit:
             if feedback:
                 feedback.lock_cancellation()

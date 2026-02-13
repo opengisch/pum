@@ -100,7 +100,10 @@ def _exception_chain_text(exc: BaseException) -> str:
 
 
 class PumConfig:
-    """A class to hold configuration settings."""
+    """A class to hold configuration settings.
+
+    .. versionadded:: 1.0.0
+    """
 
     def __init__(
         self,

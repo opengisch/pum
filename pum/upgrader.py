@@ -19,6 +19,8 @@ class Upgrader:
     """Class to handle the upgrade of a module.
     This class is used to install a new instance or to upgrade an existing instance of a module.
     It stores the info about the upgrade in a table on the database.
+
+    .. versionadded:: 1.0.0
     """
 
     def __init__(
@@ -459,6 +461,7 @@ class Upgrader:
     ) -> None:
         """Uninstall the module by executing uninstall hooks.
 
+        .. versionadded:: 1.3.0
         Args:
             connection: The database connection to use for the uninstall.
             parameters: The parameters to pass to the uninstall hooks.
@@ -512,6 +515,7 @@ class Upgrader:
     ) -> None:
         """Execute drop app handlers.
 
+        .. versionadded:: 1.4.0
         Args:
             connection: The database connection to use.
             parameters: The parameters to pass to the handlers.
@@ -546,6 +550,7 @@ class Upgrader:
     ) -> None:
         """Execute create app handlers.
 
+        .. versionadded:: 1.4.0
         Args:
             connection: The database connection to use.
             parameters: The parameters to pass to the handlers.
@@ -582,6 +587,7 @@ class Upgrader:
     ) -> None:
         """Execute drop app handlers followed by create app handlers.
 
+        .. versionadded:: 1.4.0
         Args:
             connection: The database connection to use.
             parameters: The parameters to pass to the handlers.

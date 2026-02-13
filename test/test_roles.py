@@ -21,6 +21,8 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_user_lausanne;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
 
         self.tmpdir.cleanup()
         self.tmp = None
@@ -40,6 +42,8 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_user_lausanne;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
@@ -303,6 +307,127 @@ class TestRoles(unittest.TestCase):
                 "DROP SCHEMA pum_test_data_schema_2 CASCADE;"
             )
             Upgrader(cfg).install(connection=conn, roles=True, grant=True, commit=True)
+
+    def test_create_specific_roles(self) -> None:
+        """Test creating DB-specific roles with a suffix."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                create_generic=True,
+                grant=True,
+                commit=True,
+            )
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            # Verify specific roles were created
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer_lausanne', 'pum_test_user_lausanne');"
+            )
+            roles = cur.fetchall()
+            self.assertEqual(len(roles), 2)
+            self.assertIn(("pum_test_viewer_lausanne",), roles)
+            self.assertIn(("pum_test_user_lausanne",), roles)
+
+            # Verify generic roles were also created
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user');"
+            )
+            roles = cur.fetchall()
+            self.assertEqual(len(roles), 2)
+
+            # Verify generic role inherits from specific role
+            cur.execute(
+                "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Generic viewer should be member of specific viewer")
+
+            cur.execute("SELECT pg_has_role('pum_test_user', 'pum_test_user_lausanne', 'MEMBER');")
+            self.assertTrue(cur.fetchone()[0], "Generic user should be member of specific user")
+
+    def test_create_specific_roles_with_permissions(self) -> None:
+        """Test that permissions are granted to specific roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                create_generic=True,
+                grant=True,
+                commit=True,
+            )
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            # Specific viewer should have READ on schema_1
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer_lausanne', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Specific viewer should have SELECT")
+
+            # Specific user should have WRITE on schema_2
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user_lausanne', "
+                "'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Specific user should have INSERT")
+
+            # Generic viewer should inherit permissions from specific viewer
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Generic viewer should have SELECT via inheritance from specific",
+            )
+
+    def test_create_specific_roles_no_generic(self) -> None:
+        """Test creating specific roles without generic roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                create_generic=False,
+                grant=True,
+                commit=True,
+            )
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            # Specific roles should exist
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer_lausanne', 'pum_test_user_lausanne');"
+            )
+            roles = cur.fetchall()
+            self.assertEqual(len(roles), 2)
+
+            # Generic roles should NOT exist
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user');"
+            )
+            roles = cur.fetchall()
+            self.assertEqual(len(roles), 0)
 
 
 if __name__ == "__main__":

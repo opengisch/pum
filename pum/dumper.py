@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class DumpFormat(Enum):
+    """Enumeration of supported dump formats.
+
+    .. versionadded:: 1.0.0
+    """
+
     CUSTOM = "custom"
     PLAIN = "plain"
 
@@ -26,7 +31,10 @@ class DumpFormat(Enum):
 
 
 class Dumper:
-    """This class is used to dump and restore a Postgres database."""
+    """This class is used to dump and restore a Postgres database.
+
+    .. versionadded:: 1.0.0
+    """
 
     def __init__(self, pg_connection: str, dump_path: str):
         """Initialize the Dumper.
