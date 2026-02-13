@@ -329,27 +329,90 @@ class RoleManager:
     def create_roles(
         self,
         connection: psycopg.Connection,
+        *,
+        suffix: str | None = None,
+        create_generic: bool = True,
         grant: bool = False,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
     ) -> None:
         """Create roles in the database.
+
+        When *suffix* is provided, DB-specific roles are created by appending
+        the suffix to each configured role name (e.g. ``tww_user_lausanne``
+        for suffix ``lausanne``). The *create_generic* flag controls whether
+        the base roles are also created and granted membership of the specific
+        roles (so that the generic role inherits the specific one's permissions).
+
+        When *suffix* is ``None`` (default), only the generic roles defined in
+        the configuration are created.
+
         Args:
             connection: The database connection to execute the SQL statements.
+            suffix: Optional suffix to append to role names for DB-specific
+                roles.
+            create_generic: Whether to also create the generic (config-defined)
+                roles and grant them membership of the specific roles.
+                When *suffix* is ``None`` this is always ``True``.
+                Defaults to True.
             grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
         """
         roles_list = list(self.roles.values())
-        for role in roles_list:
-            if feedback and feedback.is_cancelled():
-                from .exceptions import PumException
 
-                raise PumException("Role creation cancelled by user")
-            if feedback:
-                feedback.increment_step()
-                feedback.report_progress(f"Creating role: {role.name}")
-            role.create(connection=connection, commit=False, grant=grant, feedback=feedback)
+        if suffix:
+            for role in roles_list:
+                if feedback and feedback.is_cancelled():
+                    raise PumException("Role creation cancelled by user")
+
+                specific_name = f"{role.name}_{suffix}"
+
+                # Build a specific role with the suffixed name and same permissions
+                specific_role = Role(
+                    name=specific_name,
+                    permissions=[
+                        Permission(type=p.type, schemas=p.schemas) for p in role.permissions()
+                    ],
+                    description=(
+                        f"{role.description} (specific to {suffix})" if role.description else None
+                    ),
+                )
+
+                if feedback:
+                    feedback.increment_step()
+                    feedback.report_progress(f"Creating specific role: {specific_name}")
+
+                specific_role.create(
+                    connection=connection, commit=False, grant=grant, feedback=feedback
+                )
+
+                if create_generic:
+                    if feedback:
+                        feedback.increment_step()
+                        feedback.report_progress(f"Creating generic role: {role.name}")
+                    role.create(connection=connection, commit=False, grant=False, feedback=feedback)
+
+                    logger.debug(
+                        f"Granting specific role {specific_name} to generic role {role.name}."
+                    )
+                    SqlContent("GRANT {specific} TO {generic}").execute(
+                        connection=connection,
+                        commit=False,
+                        parameters={
+                            "specific": psycopg.sql.Identifier(specific_name),
+                            "generic": psycopg.sql.Identifier(role.name),
+                        },
+                    )
+        else:
+            for role in roles_list:
+                if feedback and feedback.is_cancelled():
+                    raise PumException("Role creation cancelled by user")
+                if feedback:
+                    feedback.increment_step()
+                    feedback.report_progress(f"Creating role: {role.name}")
+                role.create(connection=connection, commit=False, grant=grant, feedback=feedback)
+
         if commit:
             if feedback:
                 feedback.lock_cancellation()

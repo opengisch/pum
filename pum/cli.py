@@ -238,6 +238,18 @@ def create_parser(
     parser_role.add_argument(
         "action", choices=["create", "grant", "revoke", "drop"], help="Action to perform"
     )
+    parser_role.add_argument(
+        "--suffix",
+        help="Create DB-specific roles by appending this suffix to each role name (e.g. 'lausanne' creates 'role_lausanne')",
+        type=str,
+        default=None,
+    )
+    parser_role.add_argument(
+        "--no-create-generic",
+        help="When using --suffix, skip creating the generic (base) roles and granting inheritance",
+        action="store_true",
+        default=False,
+    )
 
     # Parser for the "check" command
     parser_checker = subparsers.add_parser(
@@ -545,7 +557,13 @@ def cli() -> int:  # noqa: PLR0912
                 exit_code = 1
             else:
                 if args.action == "create":
-                    config.role_manager().create_roles(connection=conn)
+                    config.role_manager().create_roles(
+                        connection=conn,
+                        suffix=args.suffix,
+                        create_generic=not args.no_create_generic,
+                        grant=True,
+                        commit=True,
+                    )
                 elif args.action == "grant":
                     config.role_manager().grant_permissions(connection=conn)
                 elif args.action == "revoke":
