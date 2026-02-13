@@ -486,6 +486,8 @@ def cli() -> int:  # noqa: PLR0912
                     parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
                 elif param.type == ParameterType.TEXT:
                     parameters[p[0]] = p[1]
+                elif param.type == ParameterType.PATH:
+                    parameters[p[0]] = p[1]
                 else:
                     raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
                 if param.values and parameters[p[0]] not in param.values:
