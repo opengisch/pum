@@ -267,3 +267,66 @@ class TestSchemaMigrations(unittest.TestCase):
                 upgrader_b.upgrade(connection=conn)
             self.assertIn("module_a", str(context.exception))
             self.assertIn("module_b", str(context.exception))
+
+    def test_migration_summary(self) -> None:
+        """Test migration_summary returns install date, version, and no upgrade_date on fresh install."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_module"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="1.2.3", parameters={"SRID": 2056})
+
+            summary = sm.migration_summary(conn)
+            self.assertEqual(summary["schema"], "public")
+            self.assertEqual(summary["module"], "test_module")
+            self.assertEqual(summary["version"], "1.2.3")
+            self.assertIsNotNone(summary["installed_date"])
+            self.assertIsNone(summary["upgrade_date"])
+            self.assertFalse(summary["beta_testing"])
+            self.assertIn("SRID", summary["parameters"])
+
+    def test_migration_summary_after_upgrade(self) -> None:
+        """Test migration_summary shows upgrade_date after a second baseline."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_module"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="1.2.3", commit=True)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.set_baseline(connection=conn, version="1.2.4", commit=True)
+
+            summary = sm.migration_summary(conn)
+            self.assertEqual(summary["version"], "1.2.4")
+            self.assertIsNotNone(summary["installed_date"])
+            self.assertIsNotNone(summary["upgrade_date"])
+
+    def test_migration_summary_multi_changelog_install(self) -> None:
+        """Test that installing multiple changelogs in one transaction shows no upgrade_date.
+
+        PostgreSQL's now() returns the transaction start time, so all baselines
+        set within the same transaction share the same date_installed. The summary
+        should report the latest version with no upgrade_date.
+        """
+        test_dir = Path("test") / "data" / "multiple_changelogs"
+        cfg = PumConfig(test_dir, pum={"module": "test_multi"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.create(connection=conn)
+            # Simulate install: multiple baselines in a single transaction
+            sm.set_baseline(connection=conn, version="1.2.3")
+            sm.set_baseline(connection=conn, version="1.2.4")
+            sm.set_baseline(connection=conn, version="1.3.0")
+            sm.set_baseline(connection=conn, version="2.0.0")
+
+            summary = sm.migration_summary(conn)
+            self.assertEqual(summary["version"], "2.0.0")
+            self.assertIsNotNone(summary["installed_date"])
+            # All rows share the same now() within the transaction,
+            # so upgrade_date should be None
+            self.assertIsNone(summary["upgrade_date"])

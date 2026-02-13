@@ -128,16 +128,14 @@ class SchemaMigrations:
                     version,
                     installed_date,
                     CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
-                    beta_testing,
-                    parameters
+                    beta_testing
                 FROM (
                     SELECT
                         module,
                         (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
                         MIN(date_installed) AS installed_date,
                         MAX(date_installed) AS upgrade_date,
-                        (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing,
-                        (SELECT parameters FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS parameters
+                        (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing
                     FROM {table}
                     GROUP BY module
                 ) sub
@@ -154,7 +152,6 @@ class SchemaMigrations:
                             "installed_date": row[2],
                             "upgrade_date": row[3],
                             "beta_testing": row[4],
-                            "parameters": row[5],
                         }
                     )
             except Exception:
@@ -167,7 +164,6 @@ class SchemaMigrations:
                         "installed_date": None,
                         "upgrade_date": None,
                         "beta_testing": None,
-                        "parameters": None,
                     }
                 )
         return details
@@ -444,6 +440,63 @@ INSERT INTO {table} (
                 f"Baseline version not found in the {self.migration_table_identifier_str} table."
             )
         return packaging.version.parse(row[0])
+
+    def migration_summary(self, connection: psycopg.Connection) -> dict:
+        """Return aggregated migration summary for the configured schema.
+
+        Returns the module name, current version, first installation date,
+        latest upgrade date (if different from the installation date),
+        beta testing flag, and parameters.
+
+        Args:
+            connection: The database connection.
+
+        Returns:
+            dict: A dict with keys: schema, module, version, installed_date,
+                  upgrade_date (None if never upgraded), beta_testing, parameters.
+
+        Raises:
+            PumSchemaMigrationError: If the migration table does not exist or has no data.
+        """
+        query = psycopg.sql.SQL(
+            """
+            SELECT
+                module,
+                version,
+                installed_date,
+                CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
+                beta_testing,
+                parameters
+            FROM (
+                SELECT
+                    module,
+                    (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
+                    MIN(date_installed) AS installed_date,
+                    MAX(date_installed) AS upgrade_date,
+                    (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing,
+                    (SELECT parameters FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS parameters
+                FROM {table}
+                GROUP BY module
+            ) sub
+            """
+        )
+        cursor = SqlContent(query).execute(
+            connection, parameters={"table": self.migration_table_identifier}
+        )
+        row = cursor._pum_results[0] if cursor._pum_results else None
+        if row is None:
+            raise PumSchemaMigrationError(
+                f"No migration data found in {self.migration_table_identifier_str}."
+            )
+        return {
+            "schema": self.config.config.pum.migration_table_schema,
+            "module": row[0],
+            "version": row[1],
+            "installed_date": row[2],
+            "upgrade_date": row[3],
+            "beta_testing": row[4],
+            "parameters": row[5],
+        }
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
         """Return the migration details from the migration table.
