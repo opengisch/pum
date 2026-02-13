@@ -19,6 +19,8 @@ class PermissionType(enum.Enum):
     Attributes:
         READ (str): Read permission.
         WRITE (str): Write permission.
+
+    .. versionadded:: 1.3.0
     """
 
     READ = "read"
@@ -31,6 +33,8 @@ class Permission:
     Attributes:
         type: Type of permission (read or write).
         schemas: List of schemas this permission applies to.
+
+    .. versionadded:: 1.3.0
     """
 
     def __init__(self, type: PermissionType | str, schemas: list[str] = None) -> None:
@@ -180,6 +184,8 @@ class Role:
     Represents a database role with associated permissions and optional inheritance.
     The Role class encapsulates the concept of a database role, including its name,
     permissions, optional inheritance from another role, and an optional description.
+
+    .. versionadded:: 1.3.0
     """
 
     def __init__(
@@ -295,6 +301,8 @@ class RoleManager:
     RoleManager manages a collection of Role objects,
     allowing creation and permission management
     for multiple roles in the PostgreSQL database.
+
+    .. versionadded:: 1.3.0
     """
 
     def __init__(self, roles=list[Role] | list[dict]) -> None:
@@ -358,6 +366,9 @@ class RoleManager:
             grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
+
+        .. versionchanged:: 1.5.0
+            Added *suffix* and *create_generic* parameters for DB-specific roles.
         """
         roles_list = list(self.roles.values())
 
