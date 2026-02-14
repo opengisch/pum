@@ -18,7 +18,7 @@ from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
-from .role_manager import RoleList
+from .role_manager import RoleInventory
 from . import SQL
 
 
@@ -695,7 +695,7 @@ def cli() -> int:  # noqa: PLR0912
     return exit_code
 
 
-def _print_role_list(result: RoleList) -> None:
+def _print_role_list(result: RoleInventory) -> None:
     """Print the role listing to stdout."""
     ok_mark = "\033[32m✓\033[0m"
     fail_mark = "\033[31m✗\033[0m"

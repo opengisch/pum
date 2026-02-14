@@ -809,7 +809,7 @@ class RoleManager:
         connection: psycopg.Connection,
         *,
         include_superusers: bool = False,
-    ) -> "RoleList":
+    ) -> "RoleInventory":
         """List all database roles related to the module's configured schemas.
 
         Returns the module's generic roles, any DB-specific (suffixed)
@@ -825,7 +825,7 @@ class RoleManager:
                 implicitly have access to everything.
 
         Returns:
-            A ``RoleList`` containing the discovered roles.
+            A ``RoleInventory`` containing the discovered roles.
 
         Version Added:
             1.5.0
@@ -865,7 +865,7 @@ class RoleManager:
         all_known = known_names | {r.name for r in unknown_roles}
         other_login = _find_other_login_roles(connection, configured_schemas, all_known)
 
-        return RoleList(
+        return RoleInventory(
             roles=role_statuses + unknown_roles,
             expected_roles=list(self.roles.keys()),
             other_login_roles=other_login,
@@ -947,7 +947,7 @@ class RoleStatus:
 
 
 @dataclass
-class RoleList:
+class RoleInventory:
     """Result of ``RoleManager.list_roles``.
 
     Contains all discovered database roles related to the module's
