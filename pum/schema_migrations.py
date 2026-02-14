@@ -77,9 +77,10 @@ class SchemaMigrations:
             "schema": psycopg.sql.Literal(self.config.config.pum.migration_table_schema),
         }
 
-        cursor = SqlContent(query).execute(connection, parameters=parameters)
-        result = cursor._pum_results[0] if cursor._pum_results else None
-        return result[0] if result else False
+        with connection.transaction():
+            cursor = SqlContent(query).execute(connection, parameters=parameters)
+            result = cursor._pum_results[0] if cursor._pum_results else None
+            return result[0] if result else False
 
     @staticmethod
     def schemas_with_migrations(connection: psycopg.Connection) -> list[str]:
@@ -99,8 +100,9 @@ class SchemaMigrations:
             WHERE table_name = 'pum_migrations'
         """
         )
-        cursor = SqlContent(query).execute(connection, parameters={})
-        return [row[0] for row in (cursor._pum_results or [])]
+        with connection.transaction():
+            cursor = SqlContent(query).execute(connection, parameters={})
+            return [row[0] for row in (cursor._pum_results or [])]
 
     @staticmethod
     def schemas_with_migration_details(
@@ -121,58 +123,59 @@ class SchemaMigrations:
         Version Added:
             1.4.0
         """
-        schemas = SchemaMigrations.schemas_with_migrations(connection)
-        details = []
-        for schema in schemas:
-            table_id = psycopg.sql.SQL(".").join(
-                [psycopg.sql.Identifier(schema), psycopg.sql.Identifier(MIGRATION_TABLE_NAME)]
-            )
-            query = psycopg.sql.SQL(
-                """
-                SELECT
-                    module,
-                    version,
-                    installed_date,
-                    CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
-                    beta_testing
-                FROM (
+        with connection.transaction():
+            schemas = SchemaMigrations.schemas_with_migrations(connection)
+            details = []
+            for schema in schemas:
+                table_id = psycopg.sql.SQL(".").join(
+                    [psycopg.sql.Identifier(schema), psycopg.sql.Identifier(MIGRATION_TABLE_NAME)]
+                )
+                query = psycopg.sql.SQL(
+                    """
                     SELECT
                         module,
-                        (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
-                        MIN(date_installed) AS installed_date,
-                        MAX(date_installed) AS upgrade_date,
-                        (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing
-                    FROM {table}
-                    GROUP BY module
-                ) sub
-                """
-            )
-            try:
-                cursor = SqlContent(query).execute(connection, parameters={"table": table_id})
-                for row in cursor._pum_results or []:
+                        version,
+                        installed_date,
+                        CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
+                        beta_testing
+                    FROM (
+                        SELECT
+                            module,
+                            (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
+                            MIN(date_installed) AS installed_date,
+                            MAX(date_installed) AS upgrade_date,
+                            (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing
+                        FROM {table}
+                        GROUP BY module
+                    ) sub
+                    """
+                )
+                try:
+                    cursor = SqlContent(query).execute(connection, parameters={"table": table_id})
+                    for row in cursor._pum_results or []:
+                        details.append(
+                            {
+                                "schema": schema,
+                                "module": row[0],
+                                "version": row[1],
+                                "installed_date": row[2],
+                                "upgrade_date": row[3],
+                                "beta_testing": row[4],
+                            }
+                        )
+                except Exception:
+                    logger.warning(f"Could not read migration details from schema {schema}")
                     details.append(
                         {
                             "schema": schema,
-                            "module": row[0],
-                            "version": row[1],
-                            "installed_date": row[2],
-                            "upgrade_date": row[3],
-                            "beta_testing": row[4],
+                            "module": None,
+                            "version": None,
+                            "installed_date": None,
+                            "upgrade_date": None,
+                            "beta_testing": None,
                         }
                     )
-            except Exception:
-                logger.warning(f"Could not read migration details from schema {schema}")
-                details.append(
-                    {
-                        "schema": schema,
-                        "module": None,
-                        "version": None,
-                        "installed_date": None,
-                        "upgrade_date": None,
-                        "beta_testing": None,
-                    }
-                )
-        return details
+            return details
 
     def exists_in_other_schemas(self, connection: psycopg.Connection) -> list[str]:
         """Check if the schema_migrations information table exists in other schemas.
@@ -184,12 +187,13 @@ class SchemaMigrations:
             List[str]: List of schemas where the table exists.
 
         """
-        all_schemas = self.schemas_with_migrations(connection)
-        return [
-            schema
-            for schema in all_schemas
-            if schema != self.config.config.pum.migration_table_schema
-        ]
+        with connection.transaction():
+            all_schemas = self.schemas_with_migrations(connection)
+            return [
+                schema
+                for schema in all_schemas
+                if schema != self.config.config.pum.migration_table_schema
+            ]
 
     def create(
         self,
@@ -284,13 +288,14 @@ class SchemaMigrations:
             "table": self.migration_table_identifier,
         }
 
-        cursor = SqlContent(query).execute(connection, parameters=parameters)
-        row = cursor._pum_results[0] if cursor._pum_results else None
-        if row is None:
-            raise PumSchemaMigrationError(
-                f"Migration table {self.migration_table_identifier_str} does not exist."
-            )
-        return row[0]
+        with connection.transaction():
+            cursor = SqlContent(query).execute(connection, parameters=parameters)
+            row = cursor._pum_results[0] if cursor._pum_results else None
+            if row is None:
+                raise PumSchemaMigrationError(
+                    f"Migration table {self.migration_table_identifier_str} does not exist."
+                )
+            return row[0]
 
     def update_migration_table_schema(self, connection: psycopg.Connection) -> None:
         """Update the migration table schema to the latest version.
@@ -396,11 +401,12 @@ INSERT INTO {table} (
         Returns:
             bool: True if the baseline version exists, False otherwise.
         """
-        try:
-            self.baseline(connection=connection)
-            return True
-        except PumSchemaMigrationError:
-            return False
+        with connection.transaction():
+            try:
+                self.baseline(connection=connection)
+                return True
+            except PumSchemaMigrationError:
+                return False
 
     def baseline(self, connection: psycopg.Connection) -> packaging.version.Version:
         """Return the baseline version from the migration table.
@@ -417,35 +423,36 @@ INSERT INTO {table} (
             PumSchemaMigrationNoBaselineError: If the migration table does not exist
         """
 
-        if not self.exists(connection=connection):
-            raise PumSchemaMigrationError(
-                f"{self.migration_table_identifier_str} table does not exist."
-            )
+        with connection.transaction():
+            if not self.exists(connection=connection):
+                raise PumSchemaMigrationError(
+                    f"{self.migration_table_identifier_str} table does not exist."
+                )
 
-        query = psycopg.sql.SQL(
-            """
-            SELECT version
-            FROM {table}
-            WHERE id = (
-                SELECT id
+            query = psycopg.sql.SQL(
+                """
+                SELECT version
                 FROM {table}
-                ORDER BY version DESC, date_installed DESC
-                LIMIT 1
+                WHERE id = (
+                    SELECT id
+                    FROM {table}
+                    ORDER BY version DESC, date_installed DESC
+                    LIMIT 1
+                )
+            """
             )
-        """
-        )
 
-        parameters = {
-            "table": self.migration_table_identifier,
-        }
+            parameters = {
+                "table": self.migration_table_identifier,
+            }
 
-        cursor = SqlContent(query).execute(connection, parameters=parameters)
-        row = cursor._pum_results[0] if cursor._pum_results else None
-        if row is None:
-            raise PumSchemaMigrationNoBaselineError(
-                f"Baseline version not found in the {self.migration_table_identifier_str} table."
-            )
-        return packaging.version.parse(row[0])
+            cursor = SqlContent(query).execute(connection, parameters=parameters)
+            row = cursor._pum_results[0] if cursor._pum_results else None
+            if row is None:
+                raise PumSchemaMigrationNoBaselineError(
+                    f"Baseline version not found in the {self.migration_table_identifier_str} table."
+                )
+            return packaging.version.parse(row[0])
 
     def migration_summary(self, connection: psycopg.Connection) -> dict:
         """Return aggregated migration summary for the configured schema.
@@ -486,23 +493,24 @@ INSERT INTO {table} (
             ) sub
             """
         )
-        cursor = SqlContent(query).execute(
-            connection, parameters={"table": self.migration_table_identifier}
-        )
-        row = cursor._pum_results[0] if cursor._pum_results else None
-        if row is None:
-            raise PumSchemaMigrationError(
-                f"No migration data found in {self.migration_table_identifier_str}."
+        with connection.transaction():
+            cursor = SqlContent(query).execute(
+                connection, parameters={"table": self.migration_table_identifier}
             )
-        return {
-            "schema": self.config.config.pum.migration_table_schema,
-            "module": row[0],
-            "version": row[1],
-            "installed_date": row[2],
-            "upgrade_date": row[3],
-            "beta_testing": row[4],
-            "parameters": row[5],
-        }
+            row = cursor._pum_results[0] if cursor._pum_results else None
+            if row is None:
+                raise PumSchemaMigrationError(
+                    f"No migration data found in {self.migration_table_identifier_str}."
+                )
+            return {
+                "schema": self.config.config.pum.migration_table_schema,
+                "module": row[0],
+                "version": row[1],
+                "installed_date": row[2],
+                "upgrade_date": row[3],
+                "beta_testing": row[4],
+                "parameters": row[5],
+            }
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
         """Return the migration details from the migration table.
@@ -553,13 +561,14 @@ INSERT INTO {table} (
                 "version": psycopg.sql.Literal(version),
             }
 
-        cursor = SqlContent(query).execute(connection, parameters=parameters)
-        row = cursor._pum_results[0] if cursor._pum_results else None
-        if row is None:
-            raise PumSchemaMigrationError(
-                f"Migration details not found for version {version} in the {self.migration_table_identifier_str} table."
-            )
-        return dict(zip([desc[0] for desc in cursor._pum_description], row, strict=False))
+        with connection.transaction():
+            cursor = SqlContent(query).execute(connection, parameters=parameters)
+            row = cursor._pum_results[0] if cursor._pum_results else None
+            if row is None:
+                raise PumSchemaMigrationError(
+                    f"Migration details not found for version {version} in the {self.migration_table_identifier_str} table."
+                )
+            return dict(zip([desc[0] for desc in cursor._pum_description], row, strict=False))
 
     def compare(self, connection: psycopg.Connection) -> int:
         """Compare the migrations details in the database to the changelogs in the source.
@@ -573,19 +582,20 @@ INSERT INTO {table} (
             PumSchemaMigrationError: If there is a mismatch between the database and the source.
         """
 
-        current_version = self.baseline(connection=connection)
-        migration_details = self.migration_details(connection=connection)
-        changelogs = [str(changelog.version) for changelog in self.config.changelogs()]
+        with connection.transaction():
+            current_version = self.baseline(connection=connection)
+            migration_details = self.migration_details(connection=connection)
+            changelogs = [str(changelog.version) for changelog in self.config.changelogs()]
 
-        # Check if the current migration version is in the changelogs
-        if migration_details["version"] not in changelogs:
-            raise PumSchemaMigrationError(
-                f"Changelog for version {migration_details['version']} not found in the source."
-            )
+            # Check if the current migration version is in the changelogs
+            if migration_details["version"] not in changelogs:
+                raise PumSchemaMigrationError(
+                    f"Changelog for version {migration_details['version']} not found in the source."
+                )
 
-        # Check if there are newer changelogs than current version
-        for changelog_version in changelogs:
-            if packaging.version.parse(changelog_version) > current_version:
-                return -1  # database is behind
+            # Check if there are newer changelogs than current version
+            for changelog_version in changelogs:
+                if packaging.version.parse(changelog_version) > current_version:
+                    return -1  # database is behind
 
-        return 0  # database is up to date
+            return 0  # database is up to date

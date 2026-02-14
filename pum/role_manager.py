@@ -880,13 +880,14 @@ class RoleManager:
         Version Added:
             1.5.0
         """
-        cursor = connection.cursor()
-        cursor.execute(
-            "SELECT rolname FROM pg_roles "
-            "WHERE rolcanlogin AND NOT rolsuper AND rolname NOT LIKE 'pg\\_%' "
-            "ORDER BY rolname"
-        )
-        return [row[0] for row in cursor.fetchall()]
+        with connection.transaction():
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT rolname FROM pg_roles "
+                "WHERE rolcanlogin AND NOT rolsuper AND rolname NOT LIKE 'pg\\_%' "
+                "ORDER BY rolname"
+            )
+            return [row[0] for row in cursor.fetchall()]
 
     @staticmethod
     def members_of(connection: psycopg.Connection, role_name: str) -> list[str]:
@@ -902,17 +903,18 @@ class RoleManager:
         Version Added:
             1.5.0
         """
-        cursor = connection.cursor()
-        cursor.execute(
-            "SELECT m.rolname "
-            "FROM pg_auth_members am "
-            "JOIN pg_roles r ON r.oid = am.roleid "
-            "JOIN pg_roles m ON m.oid = am.member "
-            "WHERE r.rolname = %s AND m.rolcanlogin "
-            "ORDER BY m.rolname",
-            (role_name,),
-        )
-        return [row[0] for row in cursor.fetchall()]
+        with connection.transaction():
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT m.rolname "
+                "FROM pg_auth_members am "
+                "JOIN pg_roles r ON r.oid = am.roleid "
+                "JOIN pg_roles m ON m.oid = am.member "
+                "WHERE r.rolname = %s AND m.rolcanlogin "
+                "ORDER BY m.rolname",
+                (role_name,),
+            )
+            return [row[0] for row in cursor.fetchall()]
 
     def roles_inventory(
         self,
@@ -946,40 +948,43 @@ class RoleManager:
                 if perm.schemas:
                     configured_schemas.update(perm.schemas)
 
-        cursor = connection.cursor()
+        with connection.transaction():
+            cursor = connection.cursor()
 
-        # Discover all roles matching each configured name or <name>_*
-        role_statuses: list[RoleStatus] = []
-        known_names: set[str] = set()
-        for role in self.roles.values():
-            # Find the generic role and any suffixed variants
-            cursor.execute(
-                "SELECT rolname FROM pg_roles WHERE rolname = %s OR rolname LIKE %s ORDER BY rolname",
-                (role.name, f"{role.name}\\_%"),
+            # Discover all roles matching each configured name or <name>_*
+            role_statuses: list[RoleStatus] = []
+            known_names: set[str] = set()
+            for role in self.roles.values():
+                # Find the generic role and any suffixed variants
+                cursor.execute(
+                    "SELECT rolname FROM pg_roles WHERE rolname = %s OR rolname LIKE %s ORDER BY rolname",
+                    (role.name, f"{role.name}\\_%"),
+                )
+                found_names = [row[0] for row in cursor.fetchall()]
+
+                for name in found_names:
+                    role_statuses.append(
+                        _build_role_status(connection, name, role, configured_schemas)
+                    )
+                    known_names.add(name)
+
+            # Discover unknown roles with privileges on the configured schemas
+            unknown_roles = _find_unknown_roles(
+                connection,
+                configured_schemas,
+                known_names=known_names,
+                include_superusers=include_superusers,
             )
-            found_names = [row[0] for row in cursor.fetchall()]
 
-            for name in found_names:
-                role_statuses.append(_build_role_status(connection, name, role, configured_schemas))
-                known_names.add(name)
+            # Discover login roles that have no access to the configured schemas
+            all_known = known_names | {r.name for r in unknown_roles}
+            other_login = _find_other_login_roles(connection, configured_schemas, all_known)
 
-        # Discover unknown roles with privileges on the configured schemas
-        unknown_roles = _find_unknown_roles(
-            connection,
-            configured_schemas,
-            known_names=known_names,
-            include_superusers=include_superusers,
-        )
-
-        # Discover login roles that have no access to the configured schemas
-        all_known = known_names | {r.name for r in unknown_roles}
-        other_login = _find_other_login_roles(connection, configured_schemas, all_known)
-
-        return RoleInventory(
-            roles=role_statuses + unknown_roles,
-            expected_roles=list(self.roles.keys()),
-            other_login_roles=other_login,
-        )
+            return RoleInventory(
+                roles=role_statuses + unknown_roles,
+                expected_roles=list(self.roles.keys()),
+                other_login_roles=other_login,
+            )
 
 
 # ---------------------------------------------------------------------------
