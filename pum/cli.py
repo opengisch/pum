@@ -613,11 +613,11 @@ def cli() -> int:  # noqa: PLR0912
                         connection=conn, roles=args.roles, suffix=args.suffix, commit=True
                     )
                 elif args.action == "list":
-                    result = config.role_manager().list_roles(
+                    result = config.role_manager().roles_inventory(
                         connection=conn,
                         include_superusers=args.include_superusers,
                     )
-                    _print_role_list(result)
+                    _print_roles_inventory(result)
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
@@ -695,8 +695,8 @@ def cli() -> int:  # noqa: PLR0912
     return exit_code
 
 
-def _print_role_list(result: RoleInventory) -> None:
-    """Print the role listing to stdout."""
+def _print_roles_inventory(result: RoleInventory) -> None:
+    """Print the roles inventory to stdout."""
     ok_mark = "\033[32m✓\033[0m"
     fail_mark = "\033[31m✗\033[0m"
 

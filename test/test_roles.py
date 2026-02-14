@@ -737,14 +737,14 @@ class TestRoles(unittest.TestCase):
                 "Target should lose SELECT after revoke_from",
             )
 
-    def test_list_roles_all_ok(self) -> None:
-        """Test list_roles when roles are created with correct permissions."""
+    def test_roles_inventory_all_ok(self) -> None:
+        """Test roles_inventory when roles are created with correct permissions."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
         with psycopg.connect(f"service={self.pg_service}") as conn:
             Upgrader(cfg).install(connection=conn, roles=True, grant=True)
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         self.assertEqual(len(result.configured_roles), 2)
         self.assertEqual(result.missing_roles, [])
@@ -760,8 +760,8 @@ class TestRoles(unittest.TestCase):
         viewer_status = next(r for r in result.roles if r.name == "pum_test_viewer")
         self.assertEqual(viewer_status.granted_to, [])
 
-    def test_list_roles_login_attribute(self) -> None:
-        """Test that list_roles reports the LOGIN attribute correctly."""
+    def test_roles_inventory_login_attribute(self) -> None:
+        """Test that roles_inventory reports the LOGIN attribute correctly."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
@@ -774,7 +774,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("GRANT USAGE ON SCHEMA pum_test_data_schema_1 TO pum_test_intruder;")
             conn.commit()
 
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         # Configured roles are created with NOLOGIN by default
         viewer = next(r for r in result.roles if r.name == "pum_test_viewer")
@@ -787,23 +787,23 @@ class TestRoles(unittest.TestCase):
         intruder = next(r for r in result.unknown_roles if r.name == "pum_test_intruder")
         self.assertTrue(intruder.login, "pum_test_intruder should have LOGIN")
 
-    def test_list_roles_missing(self) -> None:
-        """Test list_roles when roles have not been created."""
+    def test_roles_inventory_missing(self) -> None:
+        """Test roles_inventory when roles have not been created."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
         with psycopg.connect(f"service={self.pg_service}") as conn:
             Upgrader(cfg).install(connection=conn)
             # Don't create roles
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         self.assertEqual(len(result.configured_roles), 0)
         self.assertEqual(len(result.missing_roles), 2)
         self.assertIn("pum_test_viewer", result.missing_roles)
         self.assertIn("pum_test_user", result.missing_roles)
 
-    def test_list_roles_no_permissions(self) -> None:
-        """Test list_roles when roles exist but have no permissions."""
+    def test_roles_inventory_no_permissions(self) -> None:
+        """Test roles_inventory when roles exist but have no permissions."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
@@ -811,7 +811,7 @@ class TestRoles(unittest.TestCase):
             Upgrader(cfg).install(connection=conn)
             # Create roles without granting permissions
             rm.create_roles(connection=conn, grant=False)
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         self.assertEqual(result.missing_roles, [])
         for role_status in result.configured_roles:
@@ -822,8 +822,8 @@ class TestRoles(unittest.TestCase):
                 f"Role {role_status.name} should not have matching permissions",
             )
 
-    def test_list_roles_with_suffix(self) -> None:
-        """Test list_roles automatically discovers suffixed roles."""
+    def test_roles_inventory_with_suffix(self) -> None:
+        """Test roles_inventory automatically discovers suffixed roles."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
@@ -835,7 +835,7 @@ class TestRoles(unittest.TestCase):
                 grant=True,
                 commit=True,
             )
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         # Should find both generic and suffixed roles (4 total)
         self.assertEqual(len(result.configured_roles), 4)
@@ -854,8 +854,8 @@ class TestRoles(unittest.TestCase):
         # Generic user also inherits from generic viewer (config inheritance)
         self.assertIn("pum_test_viewer", by_name["pum_test_user"].granted_to)
 
-    def test_list_roles_unknown_roles(self) -> None:
-        """Test that list_roles reports other roles with schema access."""
+    def test_roles_inventory_unknown_roles(self) -> None:
+        """Test that roles_inventory reports other roles with schema access."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
@@ -868,7 +868,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("GRANT USAGE ON SCHEMA pum_test_data_schema_1 TO pum_test_intruder;")
             conn.commit()
 
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         # The configured roles' permissions should all match
         for r in result.configured_roles:
@@ -882,7 +882,7 @@ class TestRoles(unittest.TestCase):
         for ur in result.unknown_roles:
             self.assertFalse(ur.superuser)
 
-    def test_list_roles_include_superusers(self) -> None:
+    def test_roles_inventory_include_superusers(self) -> None:
         """Test that include_superusers=True lists superusers as other roles."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
@@ -890,8 +890,8 @@ class TestRoles(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             Upgrader(cfg).install(connection=conn, roles=True, grant=True)
 
-            result_without = rm.list_roles(connection=conn)
-            result_with = rm.list_roles(connection=conn, include_superusers=True)
+            result_without = rm.roles_inventory(connection=conn)
+            result_with = rm.roles_inventory(connection=conn, include_superusers=True)
 
         # With superusers included, there should be more (or equal) unknown roles
         self.assertGreaterEqual(len(result_with.unknown_roles), len(result_without.unknown_roles))
@@ -906,7 +906,7 @@ class TestRoles(unittest.TestCase):
         for ur in superuser_roles:
             self.assertTrue(ur.superuser)
 
-    def test_list_roles_other_login_roles(self) -> None:
+    def test_roles_inventory_other_login_roles(self) -> None:
         """Test that other_login_roles lists login roles with no schema access."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
@@ -919,7 +919,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("CREATE ROLE pum_test_intruder LOGIN NOSUPERUSER;")
             conn.commit()
 
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         # The login role should appear in other_login_roles
         self.assertIn("pum_test_intruder", result.other_login_roles)
@@ -927,7 +927,7 @@ class TestRoles(unittest.TestCase):
         unknown_names = {ur.name for ur in result.unknown_roles}
         self.assertNotIn("pum_test_intruder", unknown_names)
 
-    def test_list_roles_other_login_roles_excluded_when_has_access(self) -> None:
+    def test_roles_inventory_other_login_roles_excluded_when_has_access(self) -> None:
         """Login roles with schema access should NOT appear in other_login_roles."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
@@ -941,21 +941,21 @@ class TestRoles(unittest.TestCase):
             cur.execute("GRANT USAGE ON SCHEMA pum_test_data_schema_1 TO pum_test_intruder;")
             conn.commit()
 
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
         # Should be in unknown_roles (has schema access), NOT in other_login_roles
         unknown_names = {ur.name for ur in result.unknown_roles}
         self.assertIn("pum_test_intruder", unknown_names)
         self.assertNotIn("pum_test_intruder", result.other_login_roles)
 
-    def test_list_roles_other_login_roles_excludes_superusers(self) -> None:
+    def test_roles_inventory_other_login_roles_excludes_superusers(self) -> None:
         """Superuser login roles should NOT appear in other_login_roles."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
         with psycopg.connect(f"service={self.pg_service}") as conn:
             Upgrader(cfg).install(connection=conn, roles=True, grant=True)
-            result = rm.list_roles(connection=conn)
+            result = rm.roles_inventory(connection=conn)
 
             # Verify none of the other_login_roles are superusers
             for name in result.other_login_roles:

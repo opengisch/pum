@@ -804,7 +804,7 @@ class RoleManager:
                 feedback.lock_cancellation()
             connection.commit()
 
-    def list_roles(
+    def roles_inventory(
         self,
         connection: psycopg.Connection,
         *,
@@ -948,7 +948,7 @@ class RoleStatus:
 
 @dataclass
 class RoleInventory:
-    """Result of ``RoleManager.list_roles``.
+    """Result of ``RoleManager.roles_inventory``.
 
     Contains all discovered database roles related to the module's
     configured schemas: configured roles (generic and suffixed),

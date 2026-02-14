@@ -97,6 +97,7 @@ You can list all database roles related to the module's schemas using the `list`
 - Each configured role (generic and DB-specific/suffixed variants).
 - Which schemas each role can read or write, and whether this matches expectations.
 - Any other (unconfigured) roles that have access to the module's schemas.
+- Other login roles (non-superuser) that exist but have no access to any configured schema.
 - Whether each role is a superuser or can log in.
 
 ### CLI Usage
@@ -118,7 +119,7 @@ The output uses colored markers to indicate status:
 ### Python API
 
 ```python
-result = role_manager.list_roles(connection=conn)
+result = role_manager.roles_inventory(connection=conn)
 
 for name in result.missing_roles:
     print(f"Missing role: {name}")
@@ -133,6 +134,9 @@ for other in result.unknown_roles:
     print(f"Other role {other.name} on schemas: {other.schemas}")
     if other.login:
         print("  (can log in)")
+
+for name in result.other_login_roles:
+    print(f"Login role with no schema access: {name}")
 ```
 
 ## Summary
