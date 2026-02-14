@@ -459,6 +459,152 @@ class TestRoles(unittest.TestCase):
             )
             self.assertEqual(len(cur.fetchall()), 2)
 
+    def test_drop_single_role(self) -> None:
+        """Test dropping a single role by name while keeping the other."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user') ORDER BY rolname;"
+            )
+            self.assertEqual(len(cur.fetchall()), 2)
+
+            # Drop only pum_test_user
+            rm.drop_roles(connection=conn, roles=["pum_test_user"], commit=True)
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_user';")
+            self.assertIsNone(cur.fetchone(), "pum_test_user should be dropped")
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_viewer';")
+            self.assertIsNotNone(cur.fetchone(), "pum_test_viewer should still exist")
+
+    def test_drop_single_role_with_suffix(self) -> None:
+        """Test dropping a single suffixed role while keeping the other."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(connection=conn, suffix="lausanne", grant=True, commit=True)
+
+            cur = conn.cursor()
+            # All 4 roles should exist
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user', "
+                "'pum_test_viewer_lausanne', 'pum_test_user_lausanne');"
+            )
+            self.assertEqual(len(cur.fetchall()), 4)
+
+            # Drop only the suffixed viewer
+            rm.drop_roles(
+                connection=conn, roles=["pum_test_viewer"], suffix="lausanne", commit=True
+            )
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_viewer_lausanne';")
+            self.assertIsNone(cur.fetchone(), "pum_test_viewer_lausanne should be dropped")
+
+            # The other 3 roles should still exist
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user', 'pum_test_user_lausanne');"
+            )
+            self.assertEqual(len(cur.fetchall()), 3)
+
+    def test_revoke_single_role(self) -> None:
+        """Test revoking permissions from a single role by name."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            cur = conn.cursor()
+
+            # Both roles should have their permissions
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0])
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', "
+                "'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertTrue(cur.fetchone()[0])
+
+            # Revoke only pum_test_user permissions
+            rm.revoke_permissions(connection=conn, roles=["pum_test_user"], commit=True)
+
+            # pum_test_user should lose write access
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', "
+                "'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertFalse(cur.fetchone()[0], "pum_test_user should lose INSERT after revoke")
+
+            # pum_test_viewer should still have read access (untouched)
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "pum_test_viewer should still have SELECT")
+
+    def test_revoke_removes_memberships(self) -> None:
+        """Test that revoke_permissions also revokes role memberships."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                grant=True,
+                commit=True,
+            )
+
+            cur = conn.cursor()
+
+            # Generic viewer should be a member of the specific viewer (inheritance)
+            cur.execute(
+                "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Generic viewer should be member of specific viewer")
+
+            # Generic viewer should have inherited SELECT via the membership
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Generic viewer should have inherited SELECT")
+
+            # Revoke permissions (including memberships) from the generic roles
+            rm.revoke_permissions(connection=conn, commit=True)
+
+            # Membership should be revoked
+            cur.execute(
+                "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
+            )
+            self.assertFalse(
+                cur.fetchone()[0], "Membership should be revoked after revoke_permissions"
+            )
+
+            # Generic viewer should no longer have SELECT (inherited privilege gone)
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(
+                cur.fetchone()[0], "Generic viewer should lose inherited SELECT after revoke"
+            )
+
     def test_check_roles_all_ok(self) -> None:
         """Test check_roles when roles are created with correct permissions."""
         test_dir = Path("test") / "data" / "roles"

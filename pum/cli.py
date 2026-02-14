@@ -246,6 +246,12 @@ def create_parser(
         default=None,
     )
     parser_role.add_argument(
+        "--roles",
+        help="Restrict the action to specific configured role names (space-separated). When omitted, all configured roles are affected.",
+        nargs="+",
+        default=None,
+    )
+    parser_role.add_argument(
         "--include-superusers",
         help="Include superusers in the unknown-roles list when checking (they are hidden by default)",
         action="store_true",
@@ -568,11 +574,11 @@ def cli() -> int:  # noqa: PLR0912
                     config.role_manager().grant_permissions(connection=conn)
                 elif args.action == "revoke":
                     config.role_manager().revoke_permissions(
-                        connection=conn, suffix=args.suffix, commit=True
+                        connection=conn, roles=args.roles, suffix=args.suffix, commit=True
                     )
                 elif args.action == "drop":
                     config.role_manager().drop_roles(
-                        connection=conn, suffix=args.suffix, commit=True
+                        connection=conn, roles=args.roles, suffix=args.suffix, commit=True
                     )
                 elif args.action == "check":
                     result = config.role_manager().check_roles(

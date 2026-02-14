@@ -452,16 +452,45 @@ class RoleManager:
                 permission.grant(
                     role=role.name, connection=connection, commit=False, feedback=feedback
                 )
-        logger.info("All permissions granted to roles.")
+        role_names = ", ".join(r.name for r in roles_list)
+        logger.info(f"Permissions granted to roles: {role_names}.")
         if commit:
             if feedback:
                 feedback.lock_cancellation()
             connection.commit()
 
+    def _resolve_roles(
+        self,
+        roles: list[str] | None = None,
+    ) -> list[Role]:
+        """Return the list of Role objects to act on.
+
+        When *roles* is ``None`` all configured roles are returned.
+        Otherwise only the roles whose names appear in the list are
+        returned (in configuration order).  Raises ``PumException``
+        if any requested name is not in the configuration.
+
+        Args:
+            roles: Optional role names to filter on.
+
+        Returns:
+            Filtered list of ``Role`` objects.
+        """
+        if roles is None:
+            return list(self.roles.values())
+        unknown = set(roles) - set(self.roles)
+        if unknown:
+            raise PumException(
+                f"Unknown role(s): {', '.join(sorted(unknown))}. "
+                f"Configured roles: {', '.join(self.roles)}"
+            )
+        return [self.roles[name] for name in roles]
+
     def revoke_permissions(
         self,
         connection: psycopg.Connection,
         *,
+        roles: list[str] | None = None,
         suffix: str | None = None,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
@@ -472,16 +501,25 @@ class RoleManager:
         DB-specific (suffixed) roles only.  Otherwise they are revoked
         from the generic roles.
 
+        When *roles* is provided only those configured roles are acted
+        on; otherwise all configured roles are affected.
+
         Args:
             connection: The database connection to execute the SQL statements.
+            roles: Optional list of configured role names to revoke.
+                When ``None`` (default), all configured roles are revoked.
             suffix: Optional suffix identifying DB-specific roles.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
 
         Version Added:
             1.5.0
+
+        Version Changed:
+            1.5.0: Added *roles* parameter for per-role operations.
         """
-        for role in self.roles.values():
+        target_roles = self._resolve_roles(roles)
+        for role in target_roles:
             if feedback and feedback.is_cancelled():
                 raise PumException("Permission revoke cancelled by user")
 
@@ -551,7 +589,36 @@ class RoleManager:
                             },
                         )
 
-        logger.info("All permissions revoked from roles.")
+        # Revoke role memberships so inherited privileges are removed too.
+        # E.g. if generic is a member of specific (GRANT specific TO generic),
+        # we need to REVOKE specific FROM generic for the revoke to be effective.
+        for role in target_roles:
+            role_name = f"{role.name}_{suffix}" if suffix else role.name
+
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT r.rolname
+                FROM pg_auth_members m
+                JOIN pg_roles r ON r.oid = m.roleid
+                JOIN pg_roles mr ON mr.oid = m.member
+                WHERE mr.rolname = %s
+                """,
+                (role_name,),
+            )
+            for (parent_role,) in cursor.fetchall():
+                logger.debug(f"Revoking membership: REVOKE {parent_role} FROM {role_name}")
+                SqlContent("REVOKE {parent} FROM {member}").execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
+                        "parent": psycopg.sql.Identifier(parent_role),
+                        "member": psycopg.sql.Identifier(role_name),
+                    },
+                )
+
+        role_names = ", ".join(f"{r.name}_{suffix}" if suffix else r.name for r in target_roles)
+        logger.info(f"Permissions revoked from roles: {role_names}.")
         if commit:
             if feedback:
                 feedback.lock_cancellation()
@@ -561,6 +628,7 @@ class RoleManager:
         self,
         connection: psycopg.Connection,
         *,
+        roles: list[str] | None = None,
         suffix: str | None = None,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
@@ -572,21 +640,31 @@ class RoleManager:
         dropped; the generic roles are left untouched.  Without *suffix* only
         the generic roles are dropped.
 
+        When *roles* is provided only those configured roles are acted
+        on; otherwise all configured roles are affected.
+
         Args:
             connection: The database connection to execute the SQL statements.
+            roles: Optional list of configured role names to drop.
+                When ``None`` (default), all configured roles are dropped.
             suffix: Optional suffix identifying DB-specific roles.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
 
         Version Added:
             1.5.0
+
+        Version Changed:
+            1.5.0: Added *roles* parameter for per-role operations.
         """
+        target_roles = self._resolve_roles(roles)
+
         # Revoke permissions first so the roles own nothing
         self.revoke_permissions(
-            connection=connection, suffix=suffix, commit=False, feedback=feedback
+            connection=connection, roles=roles, suffix=suffix, commit=False, feedback=feedback
         )
 
-        for role in self.roles.values():
+        for role in target_roles:
             if feedback and feedback.is_cancelled():
                 raise PumException("Role drop cancelled by user")
 
@@ -603,7 +681,8 @@ class RoleManager:
                 parameters={"name": psycopg.sql.Identifier(role_name)},
             )
 
-        logger.info("Roles dropped.")
+        role_names = ", ".join(f"{r.name}_{suffix}" if suffix else r.name for r in target_roles)
+        logger.info(f"Roles dropped: {role_names}.")
         if commit:
             if feedback:
                 feedback.lock_cancellation()
