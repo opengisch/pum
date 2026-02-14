@@ -761,6 +761,33 @@ class TestRoles(unittest.TestCase):
         viewer_status = next(r for r in result.roles if r.name == "pum_test_viewer")
         self.assertEqual(viewer_status.granted_to, [])
 
+    def test_check_roles_login_attribute(self) -> None:
+        """Test that check_roles reports the LOGIN attribute correctly."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            # Create a LOGIN role that will appear as unknown
+            cur = conn.cursor()
+            cur.execute("CREATE ROLE pum_test_intruder LOGIN;")
+            cur.execute("GRANT USAGE ON SCHEMA pum_test_data_schema_1 TO pum_test_intruder;")
+            conn.commit()
+
+            result = rm.check_roles(connection=conn)
+
+        # Configured roles are created with NOLOGIN by default
+        viewer = next(r for r in result.roles if r.name == "pum_test_viewer")
+        self.assertFalse(viewer.login, "pum_test_viewer should not have LOGIN")
+
+        user = next(r for r in result.roles if r.name == "pum_test_user")
+        self.assertFalse(user.login, "pum_test_user should not have LOGIN")
+
+        # The intruder was created with LOGIN
+        intruder = next(r for r in result.unknown_roles if r.name == "pum_test_intruder")
+        self.assertTrue(intruder.login, "pum_test_intruder should have LOGIN")
+
     def test_check_roles_missing(self) -> None:
         """Test check_roles when roles have not been created."""
         test_dir = Path("test") / "data" / "roles"

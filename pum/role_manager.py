@@ -922,6 +922,8 @@ class RoleStatus:
     """Roles that this role is a member of (i.e. ``GRANT parent TO this``)."""
     superuser: bool = False
     """Whether the role is a PostgreSQL superuser."""
+    login: bool = False
+    """Whether the role has the LOGIN attribute."""
 
     @property
     def is_unknown(self) -> bool:
@@ -991,6 +993,14 @@ def _check_single_role(
     """Build a ``RoleStatus`` for a role known to exist in the database."""
     cursor = connection.cursor()
 
+    # Fetch role attributes
+    cursor.execute(
+        "SELECT rolcanlogin FROM pg_roles WHERE rolname = %s",
+        (name,),
+    )
+    row = cursor.fetchone()
+    can_login = bool(row and row[0])
+
     # Discover role memberships (GRANT <parent> TO <name>)
     cursor.execute(
         """
@@ -1026,6 +1036,7 @@ def _check_single_role(
         suffix=name[len(role.name) + 1 :] if name != role.name else "",
         schema_permissions=schema_statuses,
         granted_to=granted_to,
+        login=can_login,
     )
 
 
@@ -1133,7 +1144,7 @@ def _find_unknown_roles(
     if include_superusers:
         cursor.execute(
             """
-            SELECT DISTINCT r.rolname, n.nspname, r.rolsuper
+            SELECT DISTINCT r.rolname, n.nspname, r.rolsuper, r.rolcanlogin
             FROM pg_namespace n
             CROSS JOIN pg_roles r
             WHERE n.nspname = ANY(%s)
@@ -1146,7 +1157,7 @@ def _find_unknown_roles(
     else:
         cursor.execute(
             """
-            SELECT DISTINCT r.rolname, n.nspname, r.rolsuper
+            SELECT DISTINCT r.rolname, n.nspname, r.rolsuper, r.rolcanlogin
             FROM pg_namespace n
             CROSS JOIN pg_roles r
             WHERE n.nspname = ANY(%s)
@@ -1158,16 +1169,17 @@ def _find_unknown_roles(
             (list(schemas),),
         )
 
-    role_info: dict[str, tuple[list[str], bool]] = {}
-    for rolname, nspname, is_super in cursor.fetchall():
+    role_info: dict[str, tuple[list[str], bool, bool]] = {}
+    for rolname, nspname, is_super, can_login in cursor.fetchall():
         if rolname not in known_names:
-            schemas_list, _ = role_info.setdefault(rolname, ([], is_super))
+            schemas_list, _, _ = role_info.setdefault(rolname, ([], is_super, can_login))
             schemas_list.append(nspname)
 
     return [
         RoleStatus(
             name=name,
             superuser=info[1],
+            login=info[2],
             schema_permissions=[SchemaPermissionStatus(schema=s, expected=None) for s in info[0]],
         )
         for name, info in role_info.items()
