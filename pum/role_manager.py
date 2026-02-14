@@ -809,6 +809,7 @@ class RoleManager:
         connection: psycopg.Connection,
         name: str,
         *,
+        password: str | None = None,
         commit: bool = False,
     ) -> None:
         """Create a PostgreSQL role with the LOGIN attribute.
@@ -816,17 +817,52 @@ class RoleManager:
         Args:
             connection: The database connection.
             name: The name of the role to create.
+            password: Optional password for the role.
             commit: Whether to commit the transaction. Defaults to False.
 
         Version Added:
             1.5.0
         """
-        SqlContent("CREATE ROLE {role} LOGIN").execute(
+        if password:
+            SqlContent("CREATE ROLE {role} LOGIN PASSWORD {pwd}").execute(
+                connection=connection,
+                commit=commit,
+                parameters={
+                    "role": psycopg.sql.Identifier(name),
+                    "pwd": password,
+                },
+            )
+        else:
+            SqlContent("CREATE ROLE {role} LOGIN").execute(
+                connection=connection,
+                commit=commit,
+                parameters={"role": psycopg.sql.Identifier(name)},
+            )
+        logger.info(f"Login role '{name}' created.")
+
+    @staticmethod
+    def drop_login_role(
+        connection: psycopg.Connection,
+        name: str,
+        *,
+        commit: bool = False,
+    ) -> None:
+        """Drop a PostgreSQL login role.
+
+        Args:
+            connection: The database connection.
+            name: The name of the role to drop.
+            commit: Whether to commit the transaction. Defaults to False.
+
+        Version Added:
+            1.5.0
+        """
+        SqlContent("DROP ROLE IF EXISTS {role}").execute(
             connection=connection,
             commit=commit,
             parameters={"role": psycopg.sql.Identifier(name)},
         )
-        logger.info(f"Login role '{name}' created.")
+        logger.info(f"Login role '{name}' dropped.")
 
     @staticmethod
     def login_roles(connection: psycopg.Connection) -> list[str]:

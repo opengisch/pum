@@ -1040,6 +1040,25 @@ class TestRoles(unittest.TestCase):
                     connection=conn, name="pum_test_login_user", commit=True
                 )
 
+    def test_drop_login_role(self) -> None:
+        """Test drop_login_role removes an existing login role."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+            RoleManager.drop_login_role(connection=conn, name="pum_test_login_user", commit=True)
+
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT 1 FROM pg_roles WHERE rolname = %s",
+                ("pum_test_login_user",),
+            )
+            self.assertIsNone(cur.fetchone(), "Role should no longer exist")
+
+    def test_drop_login_role_nonexistent(self) -> None:
+        """Test drop_login_role does not error for a non-existent role (IF EXISTS)."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Should not raise
+            RoleManager.drop_login_role(connection=conn, name="pum_test_login_user", commit=True)
+
     def test_login_roles(self) -> None:
         """Test login_roles returns non-superuser login roles."""
         with psycopg.connect(f"service={self.pg_service}") as conn:

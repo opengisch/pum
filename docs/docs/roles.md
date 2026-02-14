@@ -139,6 +139,62 @@ for name in result.other_login_roles:
     print(f"Login role with no schema access: {name}")
 ```
 
+<<<<<<< Updated upstream
+=======
+## Login Roles
+
+PUM provides utilities to manage login roles (database users) independently of
+the module's configured roles.
+
+### Creating a Login Role
+
+```bash
+# Create a login role
+pum -p mydb role create-login --name john
+```
+
+```python
+RoleManager.create_login_role(connection=conn, name="john", commit=True)
+```
+
+### Dropping a Login Role
+
+```bash
+# Drop a login role
+pum -p mydb role drop-login --name john
+```
+
+```python
+RoleManager.drop_login_role(connection=conn, name="john", commit=True)
+```
+
+### Listing All Login Roles
+
+List all non-superuser login roles in the database (regardless of the module configuration):
+
+```bash
+pum -p mydb role login-roles
+```
+
+```python
+for name in RoleManager.login_roles(connection=conn):
+    print(name)
+```
+
+### Listing Members of a Role
+
+Show which login users are members of a given role:
+
+```bash
+pum -p mydb role members --roles tww_viewer
+```
+
+```python
+for name in RoleManager.members_of(connection=conn, role_name="tww_viewer"):
+    print(name)
+```
+
+>>>>>>> Stashed changes
 ## Summary
 
 - Define roles and permissions in your config YAML under the `roles` key.
@@ -146,5 +202,9 @@ for name in result.other_login_roles:
 - Each permission specifies a type and a list of schemas.
 - The system ensures only valid roles and permissions are created and applied.
 - Use `role list` to audit which roles have access to the module's schemas.
+<<<<<<< Updated upstream
+=======
+- Use `role create-login`, `role drop-login`, `role login-roles`, and `role members` to manage login users.
+>>>>>>> Stashed changes
 
 For more details, see the [configuration](./configuration.md) page or the [RoleManager](./api/role_manager.md) class.

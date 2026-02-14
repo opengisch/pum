@@ -241,9 +241,10 @@ def create_parser(
         choices=[
             "create",
             "create-login",
+            "drop",
+            "drop-login",
             "grant",
             "revoke",
-            "drop",
             "list",
             "login-roles",
             "members",
@@ -278,7 +279,7 @@ def create_parser(
     )
     parser_role.add_argument(
         "--name",
-        help="Name of the login role to create (used with 'create-login' action)",
+        help="Name of the login role (used with 'create-login' and 'drop-login' actions)",
         type=str,
         default=None,
     )
@@ -641,6 +642,12 @@ def cli() -> int:  # noqa: PLR0912
                         exit_code = 1
                     else:
                         RoleManager.create_login_role(connection=conn, name=args.name, commit=True)
+                elif args.action == "drop-login":
+                    if not args.name:
+                        logger.error("--name is required for the 'drop-login' action.")
+                        exit_code = 1
+                    else:
+                        RoleManager.drop_login_role(connection=conn, name=args.name, commit=True)
                 elif args.action == "login-roles":
                     for name in RoleManager.login_roles(connection=conn):
                         print(f"  {name}")
