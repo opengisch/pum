@@ -23,7 +23,15 @@ if TYPE_CHECKING:
     from .hook import HookBase, HookHandler
     from .parameter import ParameterDefinition, ParameterType
     from .pum_config import PumConfig
-    from .role_manager import Permission, PermissionType, Role, RoleManager
+    from .role_manager import (
+        Permission,
+        PermissionType,
+        Role,
+        RoleManager,
+        RoleInventory,
+        RoleStatus,
+        SchemaPermissionStatus,
+    )
     from .schema_migrations import SchemaMigrations
     from .sql_content import SqlContent, CursorResult
     from .upgrader import Upgrader
@@ -45,7 +53,10 @@ __all__ = [
     "PermissionType",
     "PumConfig",
     "Role",
+    "RoleInventory",
     "RoleManager",
+    "RoleStatus",
+    "SchemaPermissionStatus",
     "SchemaMigrations",
     "SilentFeedback",
     "SQL",
@@ -71,7 +82,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "PermissionType": ("pum.role_manager", "PermissionType"),
     "PumConfig": ("pum.pum_config", "PumConfig"),
     "Role": ("pum.role_manager", "Role"),
+    "RoleInventory": ("pum.role_manager", "RoleInventory"),
     "RoleManager": ("pum.role_manager", "RoleManager"),
+    "RoleStatus": ("pum.role_manager", "RoleStatus"),
+    "SchemaPermissionStatus": ("pum.role_manager", "SchemaPermissionStatus"),
     "SchemaMigrations": ("pum.schema_migrations", "SchemaMigrations"),
     "SilentFeedback": ("pum.feedback", "SilentFeedback"),
     "SqlContent": ("pum.sql_content", "SqlContent"),

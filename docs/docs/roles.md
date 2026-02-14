@@ -67,7 +67,7 @@ When you have several database instances of the same module in a single PostgreS
 For example, with a role `tww_user` and suffix `lausanne`:
 
 1. A specific role `tww_user_lausanne` is created and granted the configured permissions.
-2. The generic role `tww_user` is also created (unless `create_generic=False` / `--no-create-generic`).
+2. The generic role `tww_user` is also created.
 3. The generic role is granted membership of the specific role, so that `tww_user` inherits `tww_user_lausanne`'s permissions.
 
 This way, users assigned to `tww_user` automatically get access to the Lausanne database, and you can repeat the process for other databases (e.g. `tww_user_zurich`).
@@ -77,9 +77,6 @@ This way, users assigned to `tww_user` automatically get access to the Lausanne 
 ```bash
 # Create specific roles with suffix, plus generic roles with inheritance
 pum -p mydb role create --suffix lausanne
-
-# Create only the specific roles (no generic roles)
-pum -p mydb role create --suffix lausanne --no-create-generic
 ```
 
 ### Python API
@@ -87,11 +84,59 @@ pum -p mydb role create --suffix lausanne --no-create-generic
 ```python
 role_manager.create_roles(
     connection=conn,
-    suffix="lausanne",         # creates <role>_lausanne
-    create_generic=True,       # also create the base roles (default)
+    suffix="lausanne",         # creates <role>_lausanne + base roles
     grant=True,                # grant configured permissions
     commit=True,
 )
+```
+
+## Listing Roles
+
+You can list all database roles related to the module's schemas using the `list` action. This shows:
+
+- Each configured role (generic and DB-specific/suffixed variants).
+- Which schemas each role can read or write, and whether this matches expectations.
+- Any other (unconfigured) roles that have access to the module's schemas.
+- Other login roles (non-superuser) that exist but have no access to any configured schema.
+- Whether each role is a superuser or can log in.
+
+### CLI Usage
+
+```bash
+# List roles related to the module
+pum -p mydb role list
+```
+
+The listing automatically discovers all matching roles, including both generic roles
+and any DB-specific (suffixed) variants.
+
+The output uses colored markers to indicate status:
+
+- **✓** permission matches the configuration
+- **✗** permission doesn't match
+- **?** other role with access to a configured schema
+
+### Python API
+
+```python
+result = role_manager.roles_inventory(connection=conn)
+
+for name in result.missing_roles:
+    print(f"Missing role: {name}")
+
+for role_status in result.configured_roles:
+    for sp in role_status.schema_permissions:
+        if not sp.satisfied:
+            print(f"  {role_status.name}/{sp.schema}: expected {sp.expected.value}, "
+                  f"has_read={sp.has_read}, has_write={sp.has_write}")
+
+for other in result.unknown_roles:
+    print(f"Other role {other.name} on schemas: {other.schemas}")
+    if other.login:
+        print("  (can log in)")
+
+for name in result.other_login_roles:
+    print(f"Login role with no schema access: {name}")
 ```
 
 ## Summary
@@ -100,5 +145,6 @@ role_manager.create_roles(
 - Use inheritance to avoid duplication and build role hierarchies.
 - Each permission specifies a type and a list of schemas.
 - The system ensures only valid roles and permissions are created and applied.
+- Use `role list` to audit which roles have access to the module's schemas.
 
 For more details, see the [configuration](./configuration.md) page or the [RoleManager](./api/role_manager.md) class.

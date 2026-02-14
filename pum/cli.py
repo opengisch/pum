@@ -18,6 +18,7 @@ from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
+from .role_manager import RoleInventory, RoleManager
 from . import SQL
 
 
@@ -236,7 +237,18 @@ def create_parser(
         "role", help="manage roles in the database", formatter_class=formatter_class
     )
     parser_role.add_argument(
-        "action", choices=["create", "grant", "revoke", "drop"], help="Action to perform"
+        "action",
+        choices=[
+            "create",
+            "create-login",
+            "grant",
+            "revoke",
+            "drop",
+            "list",
+            "login-roles",
+            "members",
+        ],
+        help="Action to perform",
     )
     parser_role.add_argument(
         "--suffix",
@@ -245,8 +257,34 @@ def create_parser(
         default=None,
     )
     parser_role.add_argument(
-        "--no-create-generic",
-        help="When using --suffix, skip creating the generic (base) roles and granting inheritance",
+        "--roles",
+        help="Restrict the action to specific configured role names (space-separated). When omitted, all configured roles are affected.",
+        nargs="+",
+        default=None,
+    )
+    parser_role.add_argument(
+        "--to",
+        help="Target database user to grant role membership to (used with 'grant' action)",
+        type=str,
+        default=None,
+        dest="to_role",
+    )
+    parser_role.add_argument(
+        "--from",
+        help="Target database user to revoke role membership from (used with 'revoke' action)",
+        type=str,
+        default=None,
+        dest="from_role",
+    )
+    parser_role.add_argument(
+        "--name",
+        help="Name of the login role to create (used with 'create-login' action)",
+        type=str,
+        default=None,
+    )
+    parser_role.add_argument(
+        "--include-superusers",
+        help="Include superusers in the role listing (they are hidden by default)",
         action="store_true",
         default=False,
     )
@@ -552,7 +590,7 @@ def cli() -> int:  # noqa: PLR0912
         elif args.command == "role":
             if not args.action:
                 logger.error(
-                    "You must specify an action for the role command (create, grant, revoke, drop)."
+                    "You must specify an action for the role command (create, grant, revoke, drop, check)."
                 )
                 exit_code = 1
             else:
@@ -560,16 +598,65 @@ def cli() -> int:  # noqa: PLR0912
                     config.role_manager().create_roles(
                         connection=conn,
                         suffix=args.suffix,
-                        create_generic=not args.no_create_generic,
                         grant=True,
                         commit=True,
                     )
                 elif args.action == "grant":
-                    config.role_manager().grant_permissions(connection=conn)
+                    if args.to_role:
+                        config.role_manager().grant_to(
+                            connection=conn,
+                            to=args.to_role,
+                            roles=args.roles,
+                            suffix=args.suffix,
+                            commit=True,
+                        )
+                    else:
+                        config.role_manager().grant_permissions(connection=conn)
                 elif args.action == "revoke":
-                    config.role_manager().revoke_permissions(connection=conn)
+                    if args.from_role:
+                        config.role_manager().revoke_from(
+                            connection=conn,
+                            from_role=args.from_role,
+                            roles=args.roles,
+                            suffix=args.suffix,
+                            commit=True,
+                        )
+                    else:
+                        config.role_manager().revoke_permissions(
+                            connection=conn, roles=args.roles, suffix=args.suffix, commit=True
+                        )
                 elif args.action == "drop":
-                    config.role_manager().drop_roles(connection=conn)
+                    config.role_manager().drop_roles(
+                        connection=conn, roles=args.roles, suffix=args.suffix, commit=True
+                    )
+                elif args.action == "list":
+                    result = config.role_manager().roles_inventory(
+                        connection=conn,
+                        include_superusers=args.include_superusers,
+                    )
+                    _print_roles_inventory(result)
+                elif args.action == "create-login":
+                    if not args.name:
+                        logger.error("--name is required for the 'create-login' action.")
+                        exit_code = 1
+                    else:
+                        RoleManager.create_login_role(connection=conn, name=args.name, commit=True)
+                elif args.action == "login-roles":
+                    for name in RoleManager.login_roles(connection=conn):
+                        print(f"  {name}")
+                elif args.action == "members":
+                    if not args.roles or len(args.roles) != 1:
+                        logger.error(
+                            "--roles with exactly one role name is required for the 'members' action."
+                        )
+                        exit_code = 1
+                    else:
+                        members = RoleManager.members_of(connection=conn, role_name=args.roles[0])
+                        if members:
+                            for name in members:
+                                print(f"  {name}")
+                        else:
+                            logger.info(f"No login members found for role '{args.roles[0]}'.")
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
@@ -645,6 +732,83 @@ def cli() -> int:  # noqa: PLR0912
             exit_code = 1
 
     return exit_code
+
+
+def _print_roles_inventory(result: RoleInventory) -> None:
+    """Print the roles inventory to stdout."""
+    ok_mark = "\033[32m✓\033[0m"
+    fail_mark = "\033[31m✗\033[0m"
+
+    for role_status in result.configured_roles:
+        perms_ok = all(sp.satisfied for sp in role_status.schema_permissions)
+        mark = ok_mark if perms_ok else fail_mark
+
+        badges = []
+        if role_status.is_suffixed:
+            badges.append("\033[90m[suffixed]\033[0m")
+        if role_status.login:
+            badges.append("\033[90m[login]\033[0m")
+        if role_status.superuser:
+            badges.append("\033[31m[superuser]\033[0m")
+        badge_str = "  " + " ".join(badges) if badges else ""
+        print(f"  {mark} {role_status.name}{badge_str}")
+        if role_status.granted_to:
+            members_str = ", ".join(role_status.granted_to)
+            print(f"      \033[90mmember of: {members_str}\033[0m")
+        for sp in role_status.schema_permissions:
+            sp_mark = ok_mark if sp.satisfied else fail_mark
+            actual = []
+            if sp.has_read:
+                actual.append("read")
+            if sp.has_write:
+                actual.append("write")
+            actual_str = ", ".join(actual) if actual else "none"
+            expected_str = sp.expected.value if sp.expected else "none"
+            if sp.satisfied:
+                print(f"      {sp_mark} {sp.schema}  ({actual_str})")
+            else:
+                print(
+                    f"      {sp_mark} {sp.schema}  (expected: {expected_str}, actual: {actual_str})"
+                )
+
+    if result.missing_roles:
+        print()
+        for name in result.missing_roles:
+            print(f"  {fail_mark} {name}  (missing)")
+
+    if result.grantee_roles:
+        print()
+        print("  \033[36mGrantee roles (members of configured roles):\033[0m")
+        for gr in result.grantee_roles:
+            schemas_str = ", ".join(gr.schemas)
+            members_str = ", ".join(gr.granted_to)
+            badges = []
+            if gr.login:
+                badges.append("\033[90m[login]\033[0m")
+            if gr.superuser:
+                badges.append("\033[31m[superuser]\033[0m")
+            badge_str = " " + " ".join(badges) if badges else ""
+            print(f"    \033[36m→\033[0m {gr.name}{badge_str}  ({schemas_str})")
+            print(f"      \033[90mmember of: {members_str}\033[0m")
+
+    if result.unknown_roles:
+        print()
+        print("  \033[33mOther roles with schema access:\033[0m")
+        for ur in result.unknown_roles:
+            schemas_str = ", ".join(ur.schemas)
+            badges = []
+            if ur.login:
+                badges.append("\033[90m[login]\033[0m")
+            if ur.superuser:
+                badges.append("\033[31m[superuser]\033[0m")
+            badge_str = " " + " ".join(badges) if badges else ""
+            print(f"    \033[33m?\033[0m {ur.name}{badge_str}  ({schemas_str})")
+
+    if result.other_login_roles:
+        print()
+        print("  \033[33mOther login roles (no schema access):\033[0m")
+        for name in result.other_login_roles:
+            print(f"    \033[90m- {name}\033[0m")
 
 
 if __name__ == "__main__":
