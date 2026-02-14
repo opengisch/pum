@@ -583,7 +583,7 @@ def cli() -> int:  # noqa: PLR0912
                         include_superusers=args.include_superusers,
                     )
                     _print_role_check_result(result)
-                    if not result.ok:
+                    if not result.complete:
                         exit_code = 1
                 else:
                     logger.error(f"Unknown action: {args.action}")

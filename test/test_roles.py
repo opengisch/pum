@@ -440,7 +440,7 @@ class TestRoles(unittest.TestCase):
             Upgrader(cfg).install(connection=conn, roles=True, grant=True)
             result = rm.check_roles(connection=conn)
 
-        self.assertTrue(result.ok, f"Expected result.ok, got roles: {result.roles}")
+        self.assertTrue(result.complete, f"Expected result.complete, got roles: {result.roles}")
         self.assertEqual(len(result.configured_roles), 2)
         self.assertEqual(result.missing_roles, [])
         for role_status in result.configured_roles:
@@ -467,8 +467,7 @@ class TestRoles(unittest.TestCase):
             # Don't create roles
             result = rm.check_roles(connection=conn)
 
-        self.assertFalse(result.ok)
-        # No DB roles match → configured_roles is empty, missing_roles has both
+        self.assertFalse(result.complete)
         self.assertEqual(len(result.configured_roles), 0)
         self.assertEqual(len(result.missing_roles), 2)
         self.assertIn("pum_test_viewer", result.missing_roles)
@@ -485,7 +484,7 @@ class TestRoles(unittest.TestCase):
             rm.create_roles(connection=conn, grant=False)
             result = rm.check_roles(connection=conn)
 
-        self.assertFalse(result.ok, "Should not be ok without permissions")
+        self.assertFalse(result.complete, "Should not be complete without permissions")
         self.assertEqual(result.missing_roles, [])
         for role_status in result.configured_roles:
             self.assertFalse(role_status.is_unknown)
@@ -511,7 +510,7 @@ class TestRoles(unittest.TestCase):
             )
             result = rm.check_roles(connection=conn)
 
-        self.assertTrue(result.ok)
+        self.assertTrue(result.complete)
         # Should find both generic and suffixed roles (4 total)
         self.assertEqual(len(result.configured_roles), 4)
         self.assertEqual(result.missing_roles, [])
@@ -557,8 +556,8 @@ class TestRoles(unittest.TestCase):
                 all(sp.ok for sp in r.schema_permissions),
                 f"Role {r.name} permissions should match",
             )
-        # But result.ok should be False because of the unknown role
-        self.assertFalse(result.ok)
+        # result.complete should still be True — unknown roles don't affect completeness
+        self.assertTrue(result.complete)
         unknown_names = {ur.name for ur in result.unknown_roles}
         self.assertIn("pum_test_intruder", unknown_names)
         # Superusers should not be listed by default

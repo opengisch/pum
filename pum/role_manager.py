@@ -625,13 +625,11 @@ class RoleCheckResult:
         return [name for name in self.expected_roles if name not in found]
 
     @property
-    def ok(self) -> bool:
-        """``True`` when there are no missing roles, no unknown roles,
-        and all configured roles have matching permissions."""
-        return (
-            not self.missing_roles
-            and not self.unknown_roles
-            and all(sp.ok for r in self.configured_roles for sp in r.schema_permissions)
+    def complete(self) -> bool:
+        """``True`` when there are no missing roles and all configured
+        roles have matching permissions."""
+        return not self.missing_roles and all(
+            sp.ok for r in self.configured_roles for sp in r.schema_permissions
         )
 
 

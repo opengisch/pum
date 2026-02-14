@@ -123,7 +123,7 @@ The output uses colored markers to indicate status:
 ```python
 result = role_manager.check_roles(connection=conn)
 
-if result.ok:
+if result.complete:
     print("All roles match the configuration")
 else:
     for name in result.missing_roles:
