@@ -18,6 +18,7 @@ from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
+from .role_manager import RoleCheckResult
 from . import SQL
 
 
@@ -236,7 +237,7 @@ def create_parser(
         "role", help="manage roles in the database", formatter_class=formatter_class
     )
     parser_role.add_argument(
-        "action", choices=["create", "grant", "revoke", "drop"], help="Action to perform"
+        "action", choices=["create", "grant", "revoke", "drop", "check"], help="Action to perform"
     )
     parser_role.add_argument(
         "--suffix",
@@ -552,7 +553,7 @@ def cli() -> int:  # noqa: PLR0912
         elif args.command == "role":
             if not args.action:
                 logger.error(
-                    "You must specify an action for the role command (create, grant, revoke, drop)."
+                    "You must specify an action for the role command (create, grant, revoke, drop, check)."
                 )
                 exit_code = 1
             else:
@@ -570,6 +571,13 @@ def cli() -> int:  # noqa: PLR0912
                     config.role_manager().revoke_permissions(connection=conn)
                 elif args.action == "drop":
                     config.role_manager().drop_roles(connection=conn)
+                elif args.action == "check":
+                    result = config.role_manager().check_roles(
+                        connection=conn,
+                    )
+                    _print_role_check_result(result)
+                    if not result.ok:
+                        exit_code = 1
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
@@ -645,6 +653,42 @@ def cli() -> int:  # noqa: PLR0912
             exit_code = 1
 
     return exit_code
+
+
+def _print_role_check_result(result: RoleCheckResult) -> None:
+    """Print the role check result to stdout."""
+    ok_mark = "\033[32m✓\033[0m"
+    fail_mark = "\033[31m✗\033[0m"
+
+    for role_status in result.roles:
+        mark = ok_mark if role_status.ok else fail_mark
+        if not role_status.exists:
+            print(f"  {fail_mark} {role_status.name}  (missing)")
+            continue
+
+        print(f"  {mark} {role_status.name}")
+        for sp in role_status.schema_permissions:
+            sp_mark = ok_mark if sp.ok else fail_mark
+            actual = []
+            if sp.has_read:
+                actual.append("read")
+            if sp.has_write:
+                actual.append("write")
+            actual_str = ", ".join(actual) if actual else "none"
+            expected_str = sp.expected.value if sp.expected else "none"
+            if sp.ok:
+                print(f"      {sp_mark} {sp.schema}  ({actual_str})")
+            else:
+                print(
+                    f"      {sp_mark} {sp.schema}  (expected: {expected_str}, actual: {actual_str})"
+                )
+
+    if result.unknown_roles:
+        print()
+        print("  \033[33mUnknown roles with schema access:\033[0m")
+        for ur in result.unknown_roles:
+            schemas_str = ", ".join(ur.schemas)
+            print(f"    \033[33m?\033[0m {ur.name}  ({schemas_str})")
 
 
 if __name__ == "__main__":

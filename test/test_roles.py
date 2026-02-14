@@ -23,6 +23,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_intruder;")
 
         self.tmpdir.cleanup()
         self.tmp = None
@@ -44,6 +45,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_intruder;")
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
@@ -428,6 +430,102 @@ class TestRoles(unittest.TestCase):
             )
             roles = cur.fetchall()
             self.assertEqual(len(roles), 0)
+
+    def test_check_roles_all_ok(self) -> None:
+        """Test check_roles when roles are created with correct permissions."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+            result = rm.check_roles(connection=conn)
+
+        self.assertTrue(result.ok, f"Expected result.ok, got roles: {result.roles}")
+        self.assertEqual(len(result.roles), 2)
+        for role_status in result.roles:
+            self.assertTrue(role_status.exists, f"Role {role_status.name} should exist")
+            self.assertTrue(role_status.ok, f"Role {role_status.name} should be ok")
+
+    def test_check_roles_missing(self) -> None:
+        """Test check_roles when roles have not been created."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            # Don't create roles
+            result = rm.check_roles(connection=conn)
+
+        self.assertFalse(result.ok)
+        for role_status in result.roles:
+            self.assertFalse(role_status.exists)
+            self.assertFalse(role_status.ok)
+
+    def test_check_roles_no_permissions(self) -> None:
+        """Test check_roles when roles exist but have no permissions."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            # Create roles without granting permissions
+            rm.create_roles(connection=conn, grant=False)
+            result = rm.check_roles(connection=conn)
+
+        self.assertFalse(result.ok, "Should not be ok without permissions")
+        for role_status in result.roles:
+            self.assertTrue(role_status.exists, f"Role {role_status.name} should exist")
+            self.assertFalse(
+                role_status.ok, f"Role {role_status.name} should not be ok without grants"
+            )
+
+    def test_check_roles_with_suffix(self) -> None:
+        """Test check_roles automatically discovers suffixed roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                create_generic=True,
+                grant=True,
+                commit=True,
+            )
+            result = rm.check_roles(connection=conn)
+
+        self.assertTrue(result.ok)
+        # Should find both generic and suffixed roles (4 total)
+        self.assertEqual(len(result.roles), 4)
+        names = {r.name for r in result.roles}
+        self.assertIn("pum_test_viewer", names)
+        self.assertIn("pum_test_user", names)
+        self.assertIn("pum_test_viewer_lausanne", names)
+        self.assertIn("pum_test_user_lausanne", names)
+
+    def test_check_roles_unknown_roles(self) -> None:
+        """Test that check_roles reports unknown roles with schema access."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            # Create an extra role not in the config and grant it access
+            cur = conn.cursor()
+            cur.execute("CREATE ROLE pum_test_intruder NOSUPERUSER;")
+            cur.execute("GRANT USAGE ON SCHEMA pum_test_data_schema_1 TO pum_test_intruder;")
+            conn.commit()
+
+            result = rm.check_roles(connection=conn)
+
+        # The expected roles should still be ok
+        self.assertTrue(all(r.ok for r in result.roles))
+        # But result.ok should be False because of the unknown role
+        self.assertFalse(result.ok)
+        unknown_names = {ur.name for ur in result.unknown_roles}
+        self.assertIn("pum_test_intruder", unknown_names)
 
 
 if __name__ == "__main__":

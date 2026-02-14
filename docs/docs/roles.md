@@ -94,11 +94,56 @@ role_manager.create_roles(
 )
 ```
 
+## Checking Roles
+
+You can audit whether the database roles match the configuration using the `check` action. This verifies:
+
+- Each expected role exists in the database.
+- Each role has the expected permissions (read/write) on the configured schemas.
+- No unknown roles have access to the configured schemas.
+
+### CLI Usage
+
+```bash
+# Check that roles match the config
+pum -p mydb role check
+```
+
+The check automatically discovers all matching roles, including both generic roles
+and any DB-specific (suffixed) variants.
+
+The output uses colored markers to indicate status:
+
+- **✓** role/permission matches the configuration
+- **✗** role is missing or permission doesn't match
+- **?** unknown role with access to a configured schema
+
+### Python API
+
+```python
+result = role_manager.check_roles(connection=conn)
+
+if result.ok:
+    print("All roles match the configuration")
+else:
+    for role_status in result.roles:
+        if not role_status.exists:
+            print(f"Missing role: {role_status.name}")
+        for sp in role_status.schema_permissions:
+            if not sp.ok:
+                print(f"  {sp.schema}: expected {sp.expected.value}, "
+                      f"has_read={sp.has_read}, has_write={sp.has_write}")
+
+    for unknown in result.unknown_roles:
+        print(f"Unknown role {unknown.name} on schemas: {unknown.schemas}")
+```
+
 ## Summary
 
 - Define roles and permissions in your config YAML under the `roles` key.
 - Use inheritance to avoid duplication and build role hierarchies.
 - Each permission specifies a type and a list of schemas.
 - The system ensures only valid roles and permissions are created and applied.
+- Use `role check` to audit whether the database matches the configuration.
 
 For more details, see the [configuration](./configuration.md) page or the [RoleManager](./api/role_manager.md) class.

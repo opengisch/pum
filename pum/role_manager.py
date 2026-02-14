@@ -1,4 +1,5 @@
 import enum
+from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 import copy
 import psycopg
@@ -463,3 +464,313 @@ class RoleManager:
             if feedback:
                 feedback.lock_cancellation()
             connection.commit()
+
+    def check_roles(
+        self,
+        connection: psycopg.Connection,
+    ) -> "RoleCheckResult":
+        """Check that the database roles match the configuration.
+
+        For each configured role, checks the generic role and automatically
+        discovers any DB-specific (suffixed) variants (e.g. ``tww_user_lausanne``,
+        ``tww_user_zurich``).  For every discovered role it verifies that the
+        expected permissions are present.  Roles that have access to configured
+        schemas but are not in the configuration are reported as unknown.
+
+        Args:
+            connection: The database connection to use.
+
+        Returns:
+            A ``RoleCheckResult`` summarising the findings.
+
+        Version Added:
+            1.5.0
+        """
+        configured_schemas = set()
+        for role in self.roles.values():
+            for perm in role.permissions():
+                if perm.schemas:
+                    configured_schemas.update(perm.schemas)
+
+        cursor = connection.cursor()
+
+        # Discover all roles matching each configured name or <name>_*
+        role_statuses: list[RoleStatus] = []
+        known_names: set[str] = set()
+        for role in self.roles.values():
+            # Find the generic role and any suffixed variants
+            cursor.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname = %s OR rolname LIKE %s ORDER BY rolname",
+                (role.name, f"{role.name}\\_%"),
+            )
+            found_names = [row[0] for row in cursor.fetchall()]
+
+            if not found_names:
+                # Role is completely missing
+                role_statuses.append(
+                    _check_single_role(connection, role.name, role, configured_schemas)
+                )
+                known_names.add(role.name)
+            else:
+                for name in found_names:
+                    role_statuses.append(
+                        _check_single_role(connection, name, role, configured_schemas)
+                    )
+                    known_names.add(name)
+
+        # Discover unknown roles with privileges on the configured schemas
+        unknown_roles = _find_unknown_roles(
+            connection,
+            configured_schemas,
+            known_names=known_names,
+        )
+
+        return RoleCheckResult(roles=role_statuses, unknown_roles=unknown_roles)
+
+
+# ---------------------------------------------------------------------------
+# Result dataclasses
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SchemaPermissionStatus:
+    """Result of checking a single schema permission for a role.
+
+    Version Added:
+        1.5.0
+    """
+
+    schema: str
+    """Name of the schema."""
+    expected: PermissionType | None
+    """Expected permission type from the configuration, or ``None``."""
+    has_read: bool = False
+    """Whether the role currently has read-level access."""
+    has_write: bool = False
+    """Whether the role currently has write-level access."""
+
+    @property
+    def ok(self) -> bool:
+        """``True`` when the actual privileges match the expected ones."""
+        if self.expected == PermissionType.READ:
+            return self.has_read
+        if self.expected == PermissionType.WRITE:
+            return self.has_write
+        # No expectation – anything is fine
+        return True
+
+
+@dataclass
+class RoleStatus:
+    """Result of checking a single role against the database.
+
+    Version Added:
+        1.5.0
+    """
+
+    name: str
+    """Role name that was checked."""
+    exists: bool
+    """Whether the role exists in the database."""
+    schema_permissions: list[SchemaPermissionStatus] = field(default_factory=list)
+    """Per-schema permission details."""
+
+    @property
+    def ok(self) -> bool:
+        """``True`` when the role exists and all permissions match."""
+        return self.exists and all(sp.ok for sp in self.schema_permissions)
+
+
+@dataclass
+class UnknownRole:
+    """A role not defined in the configuration that has privileges on a
+    configured schema.
+
+    Version Added:
+        1.5.0
+    """
+
+    name: str
+    """Role name."""
+    schemas: list[str]
+    """Schemas on which the role has privileges."""
+
+
+@dataclass
+class RoleCheckResult:
+    """Aggregated result of ``RoleManager.check_roles``.
+
+    Version Added:
+        1.5.0
+    """
+
+    roles: list[RoleStatus] = field(default_factory=list)
+    """Status of each expected role."""
+    unknown_roles: list[UnknownRole] = field(default_factory=list)
+    """Roles not in the configuration that have schema privileges."""
+
+    @property
+    def ok(self) -> bool:
+        """``True`` when every expected role is OK and there are no unknown roles."""
+        return all(r.ok for r in self.roles) and not self.unknown_roles
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _check_single_role(
+    connection: psycopg.Connection,
+    name: str,
+    role: Role,
+    configured_schemas: set[str],
+) -> RoleStatus:
+    """Check whether *name* exists and has the expected permissions."""
+    cursor = connection.cursor()
+    cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (name,))
+    exists = cursor.fetchone() is not None
+
+    if not exists:
+        # Build permission entries even though nothing can match
+        perms = []
+        for perm in role.permissions():
+            for schema in perm.schemas or []:
+                perms.append(SchemaPermissionStatus(schema=schema, expected=perm.type))
+        return RoleStatus(name=name, exists=False, schema_permissions=perms)
+
+    # Check every configured schema
+    schema_statuses: list[SchemaPermissionStatus] = []
+    for perm in role.permissions():
+        for schema in perm.schemas or []:
+            has_read = _has_read(connection, name, schema)
+            has_write = _has_write(connection, name, schema)
+            schema_statuses.append(
+                SchemaPermissionStatus(
+                    schema=schema,
+                    expected=perm.type,
+                    has_read=has_read,
+                    has_write=has_write,
+                )
+            )
+
+    return RoleStatus(name=name, exists=exists, schema_permissions=schema_statuses)
+
+
+def _has_read(connection: psycopg.Connection, role: str, schema: str) -> bool:
+    """Return ``True`` if *role* has read-level access to *schema*.
+
+    Checks USAGE on the schema plus SELECT on all tables (if any exist).
+    """
+    cursor = connection.cursor()
+    cursor.execute("SELECT has_schema_privilege(%s, %s, 'USAGE')", (role, schema))
+    row = cursor.fetchone()
+    if not row or not row[0]:
+        return False
+
+    # Check SELECT on all tables/views
+    cursor.execute(
+        """
+        SELECT c.relname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = %s AND c.relkind IN ('r', 'v', 'm')
+        LIMIT 1
+        """,
+        (schema,),
+    )
+    if cursor.fetchone() is not None:
+        cursor.execute(
+            """
+            SELECT bool_and(has_table_privilege(%s, n.nspname || '.' || c.relname, 'SELECT'))
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = %s AND c.relkind IN ('r', 'v', 'm')
+            """,
+            (role, schema),
+        )
+        row = cursor.fetchone()
+        if not row or not row[0]:
+            return False
+
+    return True
+
+
+def _has_write(connection: psycopg.Connection, role: str, schema: str) -> bool:
+    """Return ``True`` if *role* has write-level access to *schema*.
+
+    Checks CREATE on the schema plus INSERT/UPDATE/DELETE on all tables
+    (if any exist).
+    """
+    cursor = connection.cursor()
+    cursor.execute("SELECT has_schema_privilege(%s, %s, 'CREATE')", (role, schema))
+    row = cursor.fetchone()
+    if not row or not row[0]:
+        return False
+
+    cursor.execute(
+        """
+        SELECT c.relname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = %s AND c.relkind = 'r'
+        LIMIT 1
+        """,
+        (schema,),
+    )
+    if cursor.fetchone() is not None:
+        cursor.execute(
+            """
+            SELECT bool_and(
+                has_table_privilege(%s, n.nspname || '.' || c.relname, 'INSERT')
+                AND has_table_privilege(%s, n.nspname || '.' || c.relname, 'UPDATE')
+                AND has_table_privilege(%s, n.nspname || '.' || c.relname, 'DELETE')
+            )
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = %s AND c.relkind = 'r'
+            """,
+            (role, role, role, schema),
+        )
+        row = cursor.fetchone()
+        if not row or not row[0]:
+            return False
+
+    return True
+
+
+def _find_unknown_roles(
+    connection: psycopg.Connection,
+    schemas: set[str],
+    known_names: set[str],
+) -> list[UnknownRole]:
+    """Return roles not in *known_names* that have privileges on *schemas*.
+
+    Excludes PostgreSQL system roles and the current superuser.
+    """
+    if not schemas:
+        return []
+
+    cursor = connection.cursor()
+    cursor.execute(
+        """
+        SELECT DISTINCT r.rolname, n.nspname
+        FROM pg_namespace n
+        CROSS JOIN pg_roles r
+        WHERE n.nspname = ANY(%s)
+          AND has_schema_privilege(r.rolname, n.nspname, 'USAGE')
+          AND NOT r.rolsuper
+          AND r.rolname NOT LIKE 'pg_%%'
+          AND r.rolname != current_user
+        ORDER BY r.rolname, n.nspname
+        """,
+        (list(schemas),),
+    )
+
+    role_schemas: dict[str, list[str]] = {}
+    for rolname, nspname in cursor.fetchall():
+        if rolname not in known_names:
+            role_schemas.setdefault(rolname, []).append(nspname)
+
+    return [UnknownRole(name=name, schemas=schemalist) for name, schemalist in role_schemas.items()]
