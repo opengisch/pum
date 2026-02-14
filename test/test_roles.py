@@ -6,6 +6,7 @@ from pathlib import Path
 import psycopg
 
 from pum.pum_config import PumConfig
+from pum.role_manager import RoleManager
 from pum.upgrader import Upgrader
 
 
@@ -25,6 +26,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_intruder;")
             cur.execute("DROP ROLE IF EXISTS pum_test_target_user;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_login_user;")
 
         self.tmpdir.cleanup()
         self.tmp = None
@@ -48,6 +50,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_intruder;")
             cur.execute("DROP ROLE IF EXISTS pum_test_target_user;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_login_user;")
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
@@ -1012,6 +1015,105 @@ class TestRoles(unittest.TestCase):
         grantee_names = {gr.name for gr in result.grantee_roles}
         self.assertIn("pum_test_intruder", unknown_names)
         self.assertNotIn("pum_test_intruder", grantee_names)
+
+    def test_create_login_role(self) -> None:
+        """Test create_login_role creates a role with LOGIN attribute."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT rolcanlogin, rolsuper FROM pg_roles WHERE rolname = %s",
+                ("pum_test_login_user",),
+            )
+            row = cur.fetchone()
+            self.assertIsNotNone(row, "Role pum_test_login_user should exist")
+            self.assertTrue(row[0], "Role should have LOGIN")
+            self.assertFalse(row[1], "Role should not be a superuser")
+
+    def test_create_login_role_already_exists(self) -> None:
+        """Test create_login_role raises when role already exists."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+            with self.assertRaises(Exception):
+                RoleManager.create_login_role(
+                    connection=conn, name="pum_test_login_user", commit=True
+                )
+
+    def test_login_roles(self) -> None:
+        """Test login_roles returns non-superuser login roles."""
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Create a login role
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+
+            result = RoleManager.login_roles(connection=conn)
+
+        self.assertIn("pum_test_login_user", result)
+        # Should be sorted
+        self.assertEqual(result, sorted(result))
+        # Should not contain superusers or pg_* roles
+        for name in result:
+            self.assertFalse(name.startswith("pg_"), f"{name} should be excluded")
+
+    def test_login_roles_excludes_nologin(self) -> None:
+        """Test login_roles excludes roles without LOGIN."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Create configured roles (NOLOGIN by default)
+            rm.create_roles(connection=conn, grant=False, commit=True)
+
+            result = RoleManager.login_roles(connection=conn)
+
+        # Configured roles are NOLOGIN, should not appear
+        self.assertNotIn("pum_test_viewer", result)
+        self.assertNotIn("pum_test_user", result)
+
+    def test_members_of(self) -> None:
+        """Test members_of returns login members of a given role."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            rm.create_roles(connection=conn, grant=False, commit=True)
+
+            # Create a login user and grant a configured role to it
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+            rm.grant_to(connection=conn, to="pum_test_login_user", commit=True)
+
+            result = RoleManager.members_of(connection=conn, role_name="pum_test_viewer")
+
+        # pum_test_login_user was granted all roles, so it should be a member of viewer
+        self.assertIn("pum_test_login_user", result)
+        # Should be sorted
+        self.assertEqual(result, sorted(result))
+
+    def test_members_of_empty(self) -> None:
+        """Test members_of returns empty list when no members."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            rm.create_roles(connection=conn, grant=False, commit=True)
+
+            result = RoleManager.members_of(connection=conn, role_name="pum_test_viewer")
+
+        self.assertEqual(result, [])
+
+    def test_members_of_excludes_nologin(self) -> None:
+        """Test members_of only returns login roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            # pum_test_user inherits pum_test_viewer (NOLOGIN member)
+            result = RoleManager.members_of(connection=conn, role_name="pum_test_viewer")
+
+        # pum_test_user is NOLOGIN, should not appear
+        self.assertNotIn("pum_test_user", result)
 
 
 if __name__ == "__main__":

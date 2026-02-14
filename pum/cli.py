@@ -18,7 +18,7 @@ from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
-from .role_manager import RoleInventory
+from .role_manager import RoleInventory, RoleManager
 from . import SQL
 
 
@@ -237,7 +237,18 @@ def create_parser(
         "role", help="manage roles in the database", formatter_class=formatter_class
     )
     parser_role.add_argument(
-        "action", choices=["create", "grant", "revoke", "drop", "list"], help="Action to perform"
+        "action",
+        choices=[
+            "create",
+            "create-login",
+            "grant",
+            "revoke",
+            "drop",
+            "list",
+            "login-roles",
+            "members",
+        ],
+        help="Action to perform",
     )
     parser_role.add_argument(
         "--suffix",
@@ -264,6 +275,12 @@ def create_parser(
         type=str,
         default=None,
         dest="from_role",
+    )
+    parser_role.add_argument(
+        "--name",
+        help="Name of the login role to create (used with 'create-login' action)",
+        type=str,
+        default=None,
     )
     parser_role.add_argument(
         "--include-superusers",
@@ -618,6 +635,28 @@ def cli() -> int:  # noqa: PLR0912
                         include_superusers=args.include_superusers,
                     )
                     _print_roles_inventory(result)
+                elif args.action == "create-login":
+                    if not args.name:
+                        logger.error("--name is required for the 'create-login' action.")
+                        exit_code = 1
+                    else:
+                        RoleManager.create_login_role(connection=conn, name=args.name, commit=True)
+                elif args.action == "login-roles":
+                    for name in RoleManager.login_roles(connection=conn):
+                        print(f"  {name}")
+                elif args.action == "members":
+                    if not args.roles or len(args.roles) != 1:
+                        logger.error(
+                            "--roles with exactly one role name is required for the 'members' action."
+                        )
+                        exit_code = 1
+                    else:
+                        members = RoleManager.members_of(connection=conn, role_name=args.roles[0])
+                        if members:
+                            for name in members:
+                                print(f"  {name}")
+                        else:
+                            logger.info(f"No login members found for role '{args.roles[0]}'.")
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1

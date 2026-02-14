@@ -804,6 +804,80 @@ class RoleManager:
                 feedback.lock_cancellation()
             connection.commit()
 
+    @staticmethod
+    def create_login_role(
+        connection: psycopg.Connection,
+        name: str,
+        *,
+        commit: bool = False,
+    ) -> None:
+        """Create a PostgreSQL role with the LOGIN attribute.
+
+        Args:
+            connection: The database connection.
+            name: The name of the role to create.
+            commit: Whether to commit the transaction. Defaults to False.
+
+        Version Added:
+            1.5.0
+        """
+        SqlContent("CREATE ROLE {role} LOGIN").execute(
+            connection=connection,
+            commit=commit,
+            parameters={"role": psycopg.sql.Identifier(name)},
+        )
+        logger.info(f"Login role '{name}' created.")
+
+    @staticmethod
+    def login_roles(connection: psycopg.Connection) -> list[str]:
+        """Return the names of all login roles that are not superusers.
+
+        This is useful for listing roles that can be granted membership
+        in module roles.  System roles (``pg_*``) are excluded.
+
+        Args:
+            connection: The database connection.
+
+        Returns:
+            Sorted list of login role names.
+
+        Version Added:
+            1.5.0
+        """
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT rolname FROM pg_roles "
+            "WHERE rolcanlogin AND NOT rolsuper AND rolname NOT LIKE 'pg\\_%' "
+            "ORDER BY rolname"
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+    @staticmethod
+    def members_of(connection: psycopg.Connection, role_name: str) -> list[str]:
+        """Return the login role names that are members of *role_name*.
+
+        Args:
+            connection: The database connection.
+            role_name: The group role whose members to look up.
+
+        Returns:
+            Sorted list of member login role names.
+
+        Version Added:
+            1.5.0
+        """
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT m.rolname "
+            "FROM pg_auth_members am "
+            "JOIN pg_roles r ON r.oid = am.roleid "
+            "JOIN pg_roles m ON m.oid = am.member "
+            "WHERE r.rolname = %s AND m.rolcanlogin "
+            "ORDER BY m.rolname",
+            (role_name,),
+        )
+        return [row[0] for row in cursor.fetchall()]
+
     def roles_inventory(
         self,
         connection: psycopg.Connection,
