@@ -964,6 +964,55 @@ class TestRoles(unittest.TestCase):
                 row = cur.fetchone()
                 self.assertFalse(row[0], f"{name} is a superuser but appeared in other_login_roles")
 
+    def test_roles_inventory_grantee_roles(self) -> None:
+        """Test that grantee_roles lists roles that are members of configured roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            # Create a login user and grant a configured role to it
+            cur = conn.cursor()
+            cur.execute("CREATE ROLE pum_test_target_user LOGIN NOSUPERUSER;")
+            cur.execute("GRANT pum_test_viewer TO pum_test_target_user;")
+            conn.commit()
+
+            result = rm.roles_inventory(connection=conn)
+
+        grantee_names = {gr.name for gr in result.grantee_roles}
+        self.assertIn("pum_test_target_user", grantee_names)
+        # The grantee should NOT appear in unknown_roles
+        unknown_names = {ur.name for ur in result.unknown_roles}
+        self.assertNotIn("pum_test_target_user", unknown_names)
+        # The grantee should NOT appear in other_login_roles
+        self.assertNotIn("pum_test_target_user", result.other_login_roles)
+        # Check granted_to contains the configured role
+        target = next(gr for gr in result.grantee_roles if gr.name == "pum_test_target_user")
+        self.assertIn("pum_test_viewer", target.granted_to)
+
+    def test_roles_inventory_intruder_not_grantee(self) -> None:
+        """An unknown role with direct schema access (not via grant_to) is not a grantee."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            # Create a role with direct schema access, not a member of any configured role
+            cur = conn.cursor()
+            cur.execute("CREATE ROLE pum_test_intruder NOSUPERUSER;")
+            cur.execute("GRANT USAGE ON SCHEMA pum_test_data_schema_1 TO pum_test_intruder;")
+            conn.commit()
+
+            result = rm.roles_inventory(connection=conn)
+
+        # Should be in unknown_roles, NOT in grantee_roles
+        unknown_names = {ur.name for ur in result.unknown_roles}
+        grantee_names = {gr.name for gr in result.grantee_roles}
+        self.assertIn("pum_test_intruder", unknown_names)
+        self.assertNotIn("pum_test_intruder", grantee_names)
+
 
 if __name__ == "__main__":
     unittest.main()

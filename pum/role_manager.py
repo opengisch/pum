@@ -976,9 +976,28 @@ class RoleInventory:
         return [r for r in self.roles if not r.is_unknown]
 
     @property
+    def grantee_roles(self) -> list["RoleStatus"]:
+        """Roles not in the configuration but that are members of a configured role.
+
+        These are typically login users that were granted module roles
+        via ``grant_to`` and inherit schema access through membership.
+        """
+        configured_names = {r.name for r in self.roles if not r.is_unknown}
+        return [
+            r
+            for r in self.roles
+            if r.is_unknown and any(g in configured_names for g in r.granted_to)
+        ]
+
+    @property
     def unknown_roles(self) -> list["RoleStatus"]:
-        """Roles not in the configuration that have schema access."""
-        return [r for r in self.roles if r.is_unknown]
+        """Roles not in the configuration that have schema access and are not grantees."""
+        configured_names = {r.name for r in self.roles if not r.is_unknown}
+        return [
+            r
+            for r in self.roles
+            if r.is_unknown and not any(g in configured_names for g in r.granted_to)
+        ]
 
     @property
     def missing_roles(self) -> list[str]:
@@ -1200,12 +1219,28 @@ def _find_unknown_roles(
                     has_write=has_write,
                 )
             )
+
+        # Discover memberships (which roles was this role granted?)
+        cursor.execute(
+            """
+            SELECT r.rolname
+            FROM pg_auth_members m
+            JOIN pg_roles r ON r.oid = m.roleid
+            JOIN pg_roles mr ON mr.oid = m.member
+            WHERE mr.rolname = %s
+            ORDER BY r.rolname
+            """,
+            (name,),
+        )
+        granted_to = [row[0] for row in cursor.fetchall()]
+
         results.append(
             RoleStatus(
                 name=name,
                 superuser=is_super,
                 login=can_login,
                 schema_permissions=schema_perms,
+                granted_to=granted_to,
             )
         )
 

@@ -737,6 +737,21 @@ def _print_roles_inventory(result: RoleInventory) -> None:
         for name in result.missing_roles:
             print(f"  {fail_mark} {name}  (missing)")
 
+    if result.grantee_roles:
+        print()
+        print("  \033[36mGrantee roles (members of configured roles):\033[0m")
+        for gr in result.grantee_roles:
+            schemas_str = ", ".join(gr.schemas)
+            members_str = ", ".join(gr.granted_to)
+            badges = []
+            if gr.login:
+                badges.append("\033[90m[login]\033[0m")
+            if gr.superuser:
+                badges.append("\033[31m[superuser]\033[0m")
+            badge_str = " " + " ".join(badges) if badges else ""
+            print(f"    \033[36m→\033[0m {gr.name}{badge_str}  ({schemas_str})")
+            print(f"      \033[90mmember of: {members_str}\033[0m")
+
     if result.unknown_roles:
         print()
         print("  \033[33mOther roles with schema access:\033[0m")
