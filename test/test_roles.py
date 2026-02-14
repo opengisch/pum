@@ -410,7 +410,7 @@ class TestRoles(unittest.TestCase):
         for role_status in result.configured_roles:
             self.assertFalse(role_status.is_unknown)
             # all permissions should match
-            self.assertTrue(all(sp.ok for sp in role_status.schema_permissions))
+            self.assertTrue(all(sp.satisfied for sp in role_status.schema_permissions))
 
         # pum_test_user inherits from pum_test_viewer, so it should be a member
         user_status = next(r for r in result.roles if r.name == "pum_test_user")
@@ -452,7 +452,7 @@ class TestRoles(unittest.TestCase):
             self.assertFalse(role_status.is_unknown)
             # At least one schema permission should not match
             self.assertFalse(
-                all(sp.ok for sp in role_status.schema_permissions),
+                all(sp.satisfied for sp in role_status.schema_permissions),
                 f"Role {role_status.name} should not have matching permissions",
             )
 
@@ -508,7 +508,7 @@ class TestRoles(unittest.TestCase):
         # The configured roles' permissions should all match
         for r in result.configured_roles:
             self.assertTrue(
-                all(sp.ok for sp in r.schema_permissions),
+                all(sp.satisfied for sp in r.schema_permissions),
                 f"Role {r.name} permissions should match",
             )
         # result.complete should still be True — unknown roles don't affect completeness

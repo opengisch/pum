@@ -544,7 +544,7 @@ class SchemaPermissionStatus:
     """Whether the role currently has write-level access."""
 
     @property
-    def ok(self) -> bool:
+    def satisfied(self) -> bool:
         """``True`` when the actual privileges match the expected ones."""
         if self.expected == PermissionType.READ:
             return self.has_read
@@ -566,14 +566,26 @@ class RoleStatus:
 
     name: str
     """Role name in PostgreSQL."""
-    is_unknown: bool = False
-    """``True`` when the role is not mapped to a configuration entry."""
+    role: Role | None = None
+    """Configured role this maps to, or ``None`` for unknown roles."""
+    suffix: str = ""
+    """DB-specific suffix (e.g. ``"lausanne"``), empty for generic roles."""
     schema_permissions: list[SchemaPermissionStatus] = field(default_factory=list)
     """Per-schema permission details."""
     granted_to: list[str] = field(default_factory=list)
     """Roles that this role is a member of (i.e. ``GRANT parent TO this``)."""
     superuser: bool = False
     """Whether the role is a PostgreSQL superuser."""
+
+    @property
+    def is_unknown(self) -> bool:
+        """``True`` when the role is not mapped to a configuration entry."""
+        return self.role is None
+
+    @property
+    def is_suffixed(self) -> bool:
+        """``True`` when the role is a DB-specific (suffixed) variant."""
+        return self.suffix != ""
 
     @property
     def schemas(self) -> list[str]:
@@ -607,19 +619,15 @@ class RoleCheckResult:
     @property
     def missing_roles(self) -> list[str]:
         """Configured role names for which no DB role was found."""
-        configured_names = {r.name for r in self.configured_roles}
-        return [
-            name
-            for name in self.expected_roles
-            if not any(n == name or n.startswith(f"{name}_") for n in configured_names)
-        ]
+        found = {r.role.name for r in self.configured_roles}
+        return [name for name in self.expected_roles if name not in found]
 
     @property
     def complete(self) -> bool:
         """``True`` when there are no missing roles and all configured
         roles have matching permissions."""
         return not self.missing_roles and all(
-            sp.ok for r in self.configured_roles for sp in r.schema_permissions
+            sp.satisfied for r in self.configured_roles for sp in r.schema_permissions
         )
 
 
@@ -668,6 +676,8 @@ def _check_single_role(
 
     return RoleStatus(
         name=name,
+        role=role,
+        suffix=name[len(role.name) + 1 :] if name != role.name else "",
         schema_permissions=schema_statuses,
         granted_to=granted_to,
     )
@@ -811,7 +821,6 @@ def _find_unknown_roles(
     return [
         RoleStatus(
             name=name,
-            is_unknown=True,
             superuser=info[1],
             schema_permissions=[SchemaPermissionStatus(schema=s, expected=None) for s in info[0]],
         )

@@ -127,7 +127,7 @@ else:
 
     for role_status in result.configured_roles:
         for sp in role_status.schema_permissions:
-            if not sp.ok:
+            if not sp.satisfied:
                 print(f"  {role_status.name}/{sp.schema}: expected {sp.expected.value}, "
                       f"has_read={sp.has_read}, has_write={sp.has_write}")
 

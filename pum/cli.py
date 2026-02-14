@@ -661,20 +661,16 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
     fail_mark = "\033[31m✗\033[0m"
 
     for role_status in result.configured_roles:
-        perms_ok = all(sp.ok for sp in role_status.schema_permissions)
+        perms_ok = all(sp.satisfied for sp in role_status.schema_permissions)
         mark = ok_mark if perms_ok else fail_mark
 
-        suffix = ""
-        for expected in result.expected_roles:
-            if role_status.name != expected and role_status.name.startswith(f"{expected}_"):
-                suffix = f"  \033[90m[config: {expected}]\033[0m"
-                break
-        print(f"  {mark} {role_status.name}{suffix}")
+        badge = "  \033[90m[suffixed]\033[0m" if role_status.is_suffixed else ""
+        print(f"  {mark} {role_status.name}{badge}")
         if role_status.granted_to:
             members_str = ", ".join(role_status.granted_to)
             print(f"      \033[90mmember of: {members_str}\033[0m")
         for sp in role_status.schema_permissions:
-            sp_mark = ok_mark if sp.ok else fail_mark
+            sp_mark = ok_mark if sp.satisfied else fail_mark
             actual = []
             if sp.has_read:
                 actual.append("read")
@@ -682,7 +678,7 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
                 actual.append("write")
             actual_str = ", ".join(actual) if actual else "none"
             expected_str = sp.expected.value if sp.expected else "none"
-            if sp.ok:
+            if sp.satisfied:
                 print(f"      {sp_mark} {sp.schema}  ({actual_str})")
             else:
                 print(
