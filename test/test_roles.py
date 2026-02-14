@@ -409,8 +409,6 @@ class TestRoles(unittest.TestCase):
         self.assertEqual(result.missing_roles, [])
         for role_status in result.configured_roles:
             self.assertFalse(role_status.is_unknown)
-            # config_role should match the role name for generic roles
-            self.assertEqual(role_status.config_role, role_status.name)
             # all permissions should match
             self.assertTrue(all(sp.ok for sp in role_status.schema_permissions))
 
@@ -483,14 +481,8 @@ class TestRoles(unittest.TestCase):
         self.assertIn("pum_test_viewer_lausanne", names)
         self.assertIn("pum_test_user_lausanne", names)
 
-        # config_role should map suffixed roles back to the base name
-        by_name = {r.name: r for r in result.configured_roles}
-        self.assertEqual(by_name["pum_test_viewer"].config_role, "pum_test_viewer")
-        self.assertEqual(by_name["pum_test_viewer_lausanne"].config_role, "pum_test_viewer")
-        self.assertEqual(by_name["pum_test_user"].config_role, "pum_test_user")
-        self.assertEqual(by_name["pum_test_user_lausanne"].config_role, "pum_test_user")
-
         # Generic viewer should be member of the specific viewer role
+        by_name = {r.name: r for r in result.configured_roles}
         self.assertIn("pum_test_viewer_lausanne", by_name["pum_test_viewer"].granted_to)
         # Generic user should be member of the specific user role
         self.assertIn("pum_test_user_lausanne", by_name["pum_test_user"].granted_to)

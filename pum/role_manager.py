@@ -559,8 +559,6 @@ class RoleStatus:
     """A database role discovered during ``RoleManager.check_roles``.
 
     Only roles that actually exist in PostgreSQL are represented.
-    When ``config_role`` is empty the role was not found in the
-    configuration and is considered *unknown*.
 
     Version Added:
         1.5.0
@@ -568,19 +566,14 @@ class RoleStatus:
 
     name: str
     """Role name in PostgreSQL."""
-    config_role: str = ""
-    """Name of the configured role this maps to.  Empty for unknown roles."""
+    is_unknown: bool = False
+    """``True`` when the role is not mapped to a configuration entry."""
     schema_permissions: list[SchemaPermissionStatus] = field(default_factory=list)
     """Per-schema permission details."""
     granted_to: list[str] = field(default_factory=list)
     """Roles that this role is a member of (i.e. ``GRANT parent TO this``)."""
     superuser: bool = False
     """Whether the role is a PostgreSQL superuser."""
-
-    @property
-    def is_unknown(self) -> bool:
-        """``True`` when the role is not mapped to a configuration entry."""
-        return self.config_role == ""
 
     @property
     def schemas(self) -> list[str]:
@@ -614,8 +607,12 @@ class RoleCheckResult:
     @property
     def missing_roles(self) -> list[str]:
         """Configured role names for which no DB role was found."""
-        found = {r.config_role for r in self.roles if r.config_role}
-        return [name for name in self.expected_roles if name not in found]
+        configured_names = {r.name for r in self.configured_roles}
+        return [
+            name
+            for name in self.expected_roles
+            if not any(n == name or n.startswith(f"{name}_") for n in configured_names)
+        ]
 
     @property
     def complete(self) -> bool:
@@ -671,7 +668,6 @@ def _check_single_role(
 
     return RoleStatus(
         name=name,
-        config_role=role.name,
         schema_permissions=schema_statuses,
         granted_to=granted_to,
     )
@@ -815,6 +811,7 @@ def _find_unknown_roles(
     return [
         RoleStatus(
             name=name,
+            is_unknown=True,
             superuser=info[1],
             schema_permissions=[SchemaPermissionStatus(schema=s, expected=None) for s in info[0]],
         )

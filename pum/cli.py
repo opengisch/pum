@@ -665,8 +665,10 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
         mark = ok_mark if perms_ok else fail_mark
 
         suffix = ""
-        if role_status.config_role != role_status.name:
-            suffix = f"  \033[90m[config: {role_status.config_role}]\033[0m"
+        for expected in result.expected_roles:
+            if role_status.name != expected and role_status.name.startswith(f"{expected}_"):
+                suffix = f"  \033[90m[config: {expected}]\033[0m"
+                break
         print(f"  {mark} {role_status.name}{suffix}")
         if role_status.granted_to:
             members_str = ", ".join(role_status.granted_to)
