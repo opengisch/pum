@@ -251,6 +251,12 @@ def create_parser(
         action="store_true",
         default=False,
     )
+    parser_role.add_argument(
+        "--include-superusers",
+        help="Include superusers in the unknown-roles list when checking (they are hidden by default)",
+        action="store_true",
+        default=False,
+    )
 
     # Parser for the "check" command
     parser_checker = subparsers.add_parser(
@@ -574,6 +580,7 @@ def cli() -> int:  # noqa: PLR0912
                 elif args.action == "check":
                     result = config.role_manager().check_roles(
                         connection=conn,
+                        include_superusers=args.include_superusers,
                     )
                     _print_role_check_result(result)
                     if not result.ok:
@@ -660,13 +667,17 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
     ok_mark = "\033[32m✓\033[0m"
     fail_mark = "\033[31m✗\033[0m"
 
-    for role_status in result.roles:
-        mark = ok_mark if role_status.ok else fail_mark
-        if not role_status.exists:
-            print(f"  {fail_mark} {role_status.name}  (missing)")
-            continue
+    for role_status in result.configured_roles:
+        perms_ok = all(sp.ok for sp in role_status.schema_permissions)
+        mark = ok_mark if perms_ok else fail_mark
 
-        print(f"  {mark} {role_status.name}")
+        suffix = ""
+        if role_status.config_role != role_status.name:
+            suffix = f"  \033[90m[config: {role_status.config_role}]\033[0m"
+        print(f"  {mark} {role_status.name}{suffix}")
+        if role_status.granted_to:
+            members_str = ", ".join(role_status.granted_to)
+            print(f"      \033[90mmember of: {members_str}\033[0m")
         for sp in role_status.schema_permissions:
             sp_mark = ok_mark if sp.ok else fail_mark
             actual = []
@@ -683,12 +694,18 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
                     f"      {sp_mark} {sp.schema}  (expected: {expected_str}, actual: {actual_str})"
                 )
 
+    if result.missing_roles:
+        print()
+        for name in result.missing_roles:
+            print(f"  {fail_mark} {name}  (missing)")
+
     if result.unknown_roles:
         print()
         print("  \033[33mUnknown roles with schema access:\033[0m")
         for ur in result.unknown_roles:
             schemas_str = ", ".join(ur.schemas)
-            print(f"    \033[33m?\033[0m {ur.name}  ({schemas_str})")
+            badge = " \033[31m[superuser]\033[0m" if ur.superuser else ""
+            print(f"    \033[33m?\033[0m {ur.name}{badge}  ({schemas_str})")
 
 
 if __name__ == "__main__":

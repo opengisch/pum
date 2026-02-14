@@ -118,7 +118,6 @@ nav:
       - SchemaPermissionStatus: api/schema_permission_status.md
       - SchemaMigrations: api/schema_migrations.md
       - SqlContent: api/sql_content.md
-      - UnknownRole: api/unknown_role.md
       - Upgrader: api/upgrader.md
       - Exceptions: api/exceptions.md
 

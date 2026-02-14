@@ -126,12 +126,13 @@ result = role_manager.check_roles(connection=conn)
 if result.ok:
     print("All roles match the configuration")
 else:
-    for role_status in result.roles:
-        if not role_status.exists:
-            print(f"Missing role: {role_status.name}")
+    for name in result.missing_roles:
+        print(f"Missing role: {name}")
+
+    for role_status in result.configured_roles:
         for sp in role_status.schema_permissions:
             if not sp.ok:
-                print(f"  {sp.schema}: expected {sp.expected.value}, "
+                print(f"  {role_status.name}/{sp.schema}: expected {sp.expected.value}, "
                       f"has_read={sp.has_read}, has_write={sp.has_write}")
 
     for unknown in result.unknown_roles:

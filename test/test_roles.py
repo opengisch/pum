@@ -441,10 +441,21 @@ class TestRoles(unittest.TestCase):
             result = rm.check_roles(connection=conn)
 
         self.assertTrue(result.ok, f"Expected result.ok, got roles: {result.roles}")
-        self.assertEqual(len(result.roles), 2)
-        for role_status in result.roles:
-            self.assertTrue(role_status.exists, f"Role {role_status.name} should exist")
-            self.assertTrue(role_status.ok, f"Role {role_status.name} should be ok")
+        self.assertEqual(len(result.configured_roles), 2)
+        self.assertEqual(result.missing_roles, [])
+        for role_status in result.configured_roles:
+            self.assertFalse(role_status.is_unknown)
+            # config_role should match the role name for generic roles
+            self.assertEqual(role_status.config_role, role_status.name)
+            # all permissions should match
+            self.assertTrue(all(sp.ok for sp in role_status.schema_permissions))
+
+        # pum_test_user inherits from pum_test_viewer, so it should be a member
+        user_status = next(r for r in result.roles if r.name == "pum_test_user")
+        self.assertIn("pum_test_viewer", user_status.granted_to)
+        # pum_test_viewer has no inheritance
+        viewer_status = next(r for r in result.roles if r.name == "pum_test_viewer")
+        self.assertEqual(viewer_status.granted_to, [])
 
     def test_check_roles_missing(self) -> None:
         """Test check_roles when roles have not been created."""
@@ -457,9 +468,11 @@ class TestRoles(unittest.TestCase):
             result = rm.check_roles(connection=conn)
 
         self.assertFalse(result.ok)
-        for role_status in result.roles:
-            self.assertFalse(role_status.exists)
-            self.assertFalse(role_status.ok)
+        # No DB roles match → configured_roles is empty, missing_roles has both
+        self.assertEqual(len(result.configured_roles), 0)
+        self.assertEqual(len(result.missing_roles), 2)
+        self.assertIn("pum_test_viewer", result.missing_roles)
+        self.assertIn("pum_test_user", result.missing_roles)
 
     def test_check_roles_no_permissions(self) -> None:
         """Test check_roles when roles exist but have no permissions."""
@@ -473,10 +486,13 @@ class TestRoles(unittest.TestCase):
             result = rm.check_roles(connection=conn)
 
         self.assertFalse(result.ok, "Should not be ok without permissions")
-        for role_status in result.roles:
-            self.assertTrue(role_status.exists, f"Role {role_status.name} should exist")
+        self.assertEqual(result.missing_roles, [])
+        for role_status in result.configured_roles:
+            self.assertFalse(role_status.is_unknown)
+            # At least one schema permission should not match
             self.assertFalse(
-                role_status.ok, f"Role {role_status.name} should not be ok without grants"
+                all(sp.ok for sp in role_status.schema_permissions),
+                f"Role {role_status.name} should not have matching permissions",
             )
 
     def test_check_roles_with_suffix(self) -> None:
@@ -497,12 +513,27 @@ class TestRoles(unittest.TestCase):
 
         self.assertTrue(result.ok)
         # Should find both generic and suffixed roles (4 total)
-        self.assertEqual(len(result.roles), 4)
-        names = {r.name for r in result.roles}
+        self.assertEqual(len(result.configured_roles), 4)
+        self.assertEqual(result.missing_roles, [])
+        names = {r.name for r in result.configured_roles}
         self.assertIn("pum_test_viewer", names)
         self.assertIn("pum_test_user", names)
         self.assertIn("pum_test_viewer_lausanne", names)
         self.assertIn("pum_test_user_lausanne", names)
+
+        # config_role should map suffixed roles back to the base name
+        by_name = {r.name: r for r in result.configured_roles}
+        self.assertEqual(by_name["pum_test_viewer"].config_role, "pum_test_viewer")
+        self.assertEqual(by_name["pum_test_viewer_lausanne"].config_role, "pum_test_viewer")
+        self.assertEqual(by_name["pum_test_user"].config_role, "pum_test_user")
+        self.assertEqual(by_name["pum_test_user_lausanne"].config_role, "pum_test_user")
+
+        # Generic viewer should be member of the specific viewer role
+        self.assertIn("pum_test_viewer_lausanne", by_name["pum_test_viewer"].granted_to)
+        # Generic user should be member of the specific user role
+        self.assertIn("pum_test_user_lausanne", by_name["pum_test_user"].granted_to)
+        # Generic user also inherits from generic viewer (config inheritance)
+        self.assertIn("pum_test_viewer", by_name["pum_test_user"].granted_to)
 
     def test_check_roles_unknown_roles(self) -> None:
         """Test that check_roles reports unknown roles with schema access."""
@@ -520,12 +551,43 @@ class TestRoles(unittest.TestCase):
 
             result = rm.check_roles(connection=conn)
 
-        # The expected roles should still be ok
-        self.assertTrue(all(r.ok for r in result.roles))
+        # The configured roles' permissions should all match
+        for r in result.configured_roles:
+            self.assertTrue(
+                all(sp.ok for sp in r.schema_permissions),
+                f"Role {r.name} permissions should match",
+            )
         # But result.ok should be False because of the unknown role
         self.assertFalse(result.ok)
         unknown_names = {ur.name for ur in result.unknown_roles}
         self.assertIn("pum_test_intruder", unknown_names)
+        # Superusers should not be listed by default
+        for ur in result.unknown_roles:
+            self.assertFalse(ur.superuser)
+
+    def test_check_roles_include_superusers(self) -> None:
+        """Test that include_superusers=True lists superusers as unknown roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            result_without = rm.check_roles(connection=conn)
+            result_with = rm.check_roles(connection=conn, include_superusers=True)
+
+        # With superusers included, there should be more (or equal) unknown roles
+        self.assertGreaterEqual(len(result_with.unknown_roles), len(result_without.unknown_roles))
+
+        # At least one superuser should appear (the current connection user)
+        superuser_roles = [ur for ur in result_with.unknown_roles if ur.superuser]
+        self.assertTrue(
+            len(superuser_roles) > 0, "Expected at least one superuser in unknown roles"
+        )
+
+        # Each superuser unknown role must have the superuser flag set
+        for ur in superuser_roles:
+            self.assertTrue(ur.superuser)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,6 @@ if TYPE_CHECKING:
         RoleCheckResult,
         RoleStatus,
         SchemaPermissionStatus,
-        UnknownRole,
     )
     from .schema_migrations import SchemaMigrations
     from .sql_content import SqlContent, CursorResult
@@ -62,7 +61,6 @@ __all__ = [
     "SilentFeedback",
     "SQL",
     "SqlContent",
-    "UnknownRole",
     "Upgrader",
 ]
 
@@ -91,7 +89,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "SchemaMigrations": ("pum.schema_migrations", "SchemaMigrations"),
     "SilentFeedback": ("pum.feedback", "SilentFeedback"),
     "SqlContent": ("pum.sql_content", "SqlContent"),
-    "UnknownRole": ("pum.role_manager", "UnknownRole"),
     "Upgrader": ("pum.upgrader", "Upgrader"),
 }
 
