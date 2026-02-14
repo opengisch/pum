@@ -829,7 +829,7 @@ class RoleManager:
                 commit=commit,
                 parameters={
                     "role": psycopg.sql.Identifier(name),
-                    "pwd": password,
+                    "pwd": psycopg.sql.Literal(password),
                 },
             )
         else:
