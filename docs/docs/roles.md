@@ -67,7 +67,7 @@ When you have several database instances of the same module in a single PostgreS
 For example, with a role `tww_user` and suffix `lausanne`:
 
 1. A specific role `tww_user_lausanne` is created and granted the configured permissions.
-2. The generic role `tww_user` is also created (unless `create_generic=False` / `--no-create-generic`).
+2. The generic role `tww_user` is also created.
 3. The generic role is granted membership of the specific role, so that `tww_user` inherits `tww_user_lausanne`'s permissions.
 
 This way, users assigned to `tww_user` automatically get access to the Lausanne database, and you can repeat the process for other databases (e.g. `tww_user_zurich`).
@@ -77,9 +77,6 @@ This way, users assigned to `tww_user` automatically get access to the Lausanne 
 ```bash
 # Create specific roles with suffix, plus generic roles with inheritance
 pum -p mydb role create --suffix lausanne
-
-# Create only the specific roles (no generic roles)
-pum -p mydb role create --suffix lausanne --no-create-generic
 ```
 
 ### Python API
@@ -87,8 +84,7 @@ pum -p mydb role create --suffix lausanne --no-create-generic
 ```python
 role_manager.create_roles(
     connection=conn,
-    suffix="lausanne",         # creates <role>_lausanne
-    create_generic=True,       # also create the base roles (default)
+    suffix="lausanne",         # creates <role>_lausanne + base roles
     grant=True,                # grant configured permissions
     commit=True,
 )

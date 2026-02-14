@@ -320,7 +320,6 @@ class TestRoles(unittest.TestCase):
             rm.create_roles(
                 connection=conn,
                 suffix="lausanne",
-                create_generic=True,
                 grant=True,
                 commit=True,
             )
@@ -365,7 +364,6 @@ class TestRoles(unittest.TestCase):
             rm.create_roles(
                 connection=conn,
                 suffix="lausanne",
-                create_generic=True,
                 grant=True,
                 commit=True,
             )
@@ -396,40 +394,6 @@ class TestRoles(unittest.TestCase):
                 cur.fetchone()[0],
                 "Generic viewer should have SELECT via inheritance from specific",
             )
-
-    def test_create_specific_roles_no_generic(self) -> None:
-        """Test creating specific roles without generic roles."""
-        test_dir = Path("test") / "data" / "roles"
-        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
-        rm = cfg.role_manager()
-        with psycopg.connect(f"service={self.pg_service}") as conn:
-            Upgrader(cfg).install(connection=conn)
-            rm.create_roles(
-                connection=conn,
-                suffix="lausanne",
-                create_generic=False,
-                grant=True,
-                commit=True,
-            )
-
-        with psycopg.connect(f"service={self.pg_service}") as conn:
-            cur = conn.cursor()
-
-            # Specific roles should exist
-            cur.execute(
-                "SELECT rolname FROM pg_roles WHERE rolname IN "
-                "('pum_test_viewer_lausanne', 'pum_test_user_lausanne');"
-            )
-            roles = cur.fetchall()
-            self.assertEqual(len(roles), 2)
-
-            # Generic roles should NOT exist
-            cur.execute(
-                "SELECT rolname FROM pg_roles WHERE rolname IN "
-                "('pum_test_viewer', 'pum_test_user');"
-            )
-            roles = cur.fetchall()
-            self.assertEqual(len(roles), 0)
 
     def test_check_roles_all_ok(self) -> None:
         """Test check_roles when roles are created with correct permissions."""
@@ -504,7 +468,6 @@ class TestRoles(unittest.TestCase):
             rm.create_roles(
                 connection=conn,
                 suffix="lausanne",
-                create_generic=True,
                 grant=True,
                 commit=True,
             )

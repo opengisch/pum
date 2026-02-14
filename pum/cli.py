@@ -246,12 +246,6 @@ def create_parser(
         default=None,
     )
     parser_role.add_argument(
-        "--no-create-generic",
-        help="When using --suffix, skip creating the generic (base) roles and granting inheritance",
-        action="store_true",
-        default=False,
-    )
-    parser_role.add_argument(
         "--include-superusers",
         help="Include superusers in the unknown-roles list when checking (they are hidden by default)",
         action="store_true",
@@ -567,7 +561,6 @@ def cli() -> int:  # noqa: PLR0912
                     config.role_manager().create_roles(
                         connection=conn,
                         suffix=args.suffix,
-                        create_generic=not args.no_create_generic,
                         grant=True,
                         commit=True,
                     )
