@@ -514,9 +514,6 @@ class RoleManager:
 
         Version Added:
             1.5.0
-
-        Version Changed:
-            1.5.0: Added *roles* parameter for per-role operations.
         """
         target_roles = self._resolve_roles(roles)
         for role in target_roles:
@@ -683,6 +680,125 @@ class RoleManager:
 
         role_names = ", ".join(f"{r.name}_{suffix}" if suffix else r.name for r in target_roles)
         logger.info(f"Roles dropped: {role_names}.")
+        if commit:
+            if feedback:
+                feedback.lock_cancellation()
+            connection.commit()
+
+    def grant_to(
+        self,
+        connection: psycopg.Connection,
+        *,
+        to: str,
+        roles: list[str] | None = None,
+        suffix: str | None = None,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
+    ) -> None:
+        """Grant configured roles to a database user.
+
+        Executes ``GRANT <role> TO <to>`` for each selected role, making
+        *to* a member of those roles so it inherits their permissions.
+
+        When *suffix* is provided the suffixed role names are used
+        (e.g. ``tww_viewer_lausanne``).  Otherwise the generic names are
+        used.
+
+        Args:
+            connection: The database connection to execute the SQL statements.
+            to: The target database role that will receive membership.
+            roles: Optional list of configured role names to grant.
+                When ``None`` (default), all configured roles are granted.
+            suffix: Optional suffix identifying DB-specific roles.
+            commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
+
+        Version Added:
+            1.5.0
+        """
+        target_roles = self._resolve_roles(roles)
+
+        for role in target_roles:
+            if feedback and feedback.is_cancelled():
+                raise PumException("Grant-to cancelled by user")
+
+            role_name = f"{role.name}_{suffix}" if suffix else role.name
+
+            if feedback:
+                feedback.increment_step()
+                feedback.report_progress(f"Granting {role_name} to {to}")
+
+            logger.debug(f"Granting role {role_name} to {to}.")
+            SqlContent("GRANT {role} TO {target}").execute(
+                connection=connection,
+                commit=False,
+                parameters={
+                    "role": psycopg.sql.Identifier(role_name),
+                    "target": psycopg.sql.Identifier(to),
+                },
+            )
+
+        role_names = ", ".join(f"{r.name}_{suffix}" if suffix else r.name for r in target_roles)
+        logger.info(f"Roles granted to {to}: {role_names}.")
+        if commit:
+            if feedback:
+                feedback.lock_cancellation()
+            connection.commit()
+
+    def revoke_from(
+        self,
+        connection: psycopg.Connection,
+        *,
+        from_role: str,
+        roles: list[str] | None = None,
+        suffix: str | None = None,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
+    ) -> None:
+        """Revoke configured roles from a database user.
+
+        Executes ``REVOKE <role> FROM <from_role>`` for each selected
+        role, removing *from_role*'s membership.
+
+        When *suffix* is provided the suffixed role names are used.
+        Otherwise the generic names are used.
+
+        Args:
+            connection: The database connection to execute the SQL statements.
+            from_role: The target database role to revoke membership from.
+            roles: Optional list of configured role names to revoke.
+                When ``None`` (default), all configured roles are revoked.
+            suffix: Optional suffix identifying DB-specific roles.
+            commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
+
+        Version Added:
+            1.5.0
+        """
+        target_roles = self._resolve_roles(roles)
+
+        for role in target_roles:
+            if feedback and feedback.is_cancelled():
+                raise PumException("Revoke-from cancelled by user")
+
+            role_name = f"{role.name}_{suffix}" if suffix else role.name
+
+            if feedback:
+                feedback.increment_step()
+                feedback.report_progress(f"Revoking {role_name} from {from_role}")
+
+            logger.debug(f"Revoking role {role_name} from {from_role}.")
+            SqlContent("REVOKE {role} FROM {target}").execute(
+                connection=connection,
+                commit=False,
+                parameters={
+                    "role": psycopg.sql.Identifier(role_name),
+                    "target": psycopg.sql.Identifier(from_role),
+                },
+            )
+
+        role_names = ", ".join(f"{r.name}_{suffix}" if suffix else r.name for r in target_roles)
+        logger.info(f"Roles revoked from {from_role}: {role_names}.")
         if commit:
             if feedback:
                 feedback.lock_cancellation()

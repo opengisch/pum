@@ -252,6 +252,20 @@ def create_parser(
         default=None,
     )
     parser_role.add_argument(
+        "--to",
+        help="Target database user to grant role membership to (used with 'grant' action)",
+        type=str,
+        default=None,
+        dest="to_role",
+    )
+    parser_role.add_argument(
+        "--from",
+        help="Target database user to revoke role membership from (used with 'revoke' action)",
+        type=str,
+        default=None,
+        dest="from_role",
+    )
+    parser_role.add_argument(
         "--include-superusers",
         help="Include superusers in the unknown-roles list when checking (they are hidden by default)",
         action="store_true",
@@ -571,11 +585,29 @@ def cli() -> int:  # noqa: PLR0912
                         commit=True,
                     )
                 elif args.action == "grant":
-                    config.role_manager().grant_permissions(connection=conn)
+                    if args.to_role:
+                        config.role_manager().grant_to(
+                            connection=conn,
+                            to=args.to_role,
+                            roles=args.roles,
+                            suffix=args.suffix,
+                            commit=True,
+                        )
+                    else:
+                        config.role_manager().grant_permissions(connection=conn)
                 elif args.action == "revoke":
-                    config.role_manager().revoke_permissions(
-                        connection=conn, roles=args.roles, suffix=args.suffix, commit=True
-                    )
+                    if args.from_role:
+                        config.role_manager().revoke_from(
+                            connection=conn,
+                            from_role=args.from_role,
+                            roles=args.roles,
+                            suffix=args.suffix,
+                            commit=True,
+                        )
+                    else:
+                        config.role_manager().revoke_permissions(
+                            connection=conn, roles=args.roles, suffix=args.suffix, commit=True
+                        )
                 elif args.action == "drop":
                     config.role_manager().drop_roles(
                         connection=conn, roles=args.roles, suffix=args.suffix, commit=True

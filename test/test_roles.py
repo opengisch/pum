@@ -24,6 +24,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP ROLE IF EXISTS pum_test_user_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_intruder;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_target_user;")
 
         self.tmpdir.cleanup()
         self.tmp = None
@@ -46,6 +47,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP ROLE IF EXISTS pum_test_user_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer_lausanne;")
             cur.execute("DROP ROLE IF EXISTS pum_test_intruder;")
+            cur.execute("DROP ROLE IF EXISTS pum_test_target_user;")
 
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmp = self.tmpdir.name
@@ -603,6 +605,136 @@ class TestRoles(unittest.TestCase):
             )
             self.assertFalse(
                 cur.fetchone()[0], "Generic viewer should lose inherited SELECT after revoke"
+            )
+
+    def test_grant_to(self) -> None:
+        """Test granting configured roles to a target database user."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            cur = conn.cursor()
+            # Create a target user
+            cur.execute("CREATE ROLE pum_test_target_user LOGIN;")
+            conn.commit()
+
+            # Target user should NOT have SELECT yet
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_target_user', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(cur.fetchone()[0])
+
+            # Grant only the viewer role to the target user
+            rm.grant_to(
+                connection=conn,
+                to="pum_test_target_user",
+                roles=["pum_test_viewer"],
+                commit=True,
+            )
+
+            # Target user should now have SELECT via membership
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_target_user', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Target user should inherit SELECT from viewer")
+
+            # Target user should NOT have INSERT (not granted user role)
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_target_user', "
+                "'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertFalse(
+                cur.fetchone()[0], "Target user should NOT have INSERT (only viewer granted)"
+            )
+
+    def test_grant_to_with_suffix(self) -> None:
+        """Test granting a suffixed role to a target database user."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(connection=conn, suffix="lausanne", grant=True, commit=True)
+
+            cur = conn.cursor()
+            cur.execute("CREATE ROLE pum_test_target_user LOGIN;")
+            conn.commit()
+
+            # Grant suffixed viewer to target
+            rm.grant_to(
+                connection=conn,
+                to="pum_test_target_user",
+                roles=["pum_test_viewer"],
+                suffix="lausanne",
+                commit=True,
+            )
+
+            # Target should be a member of the suffixed viewer
+            cur.execute(
+                "SELECT pg_has_role('pum_test_target_user', 'pum_test_viewer_lausanne', 'MEMBER');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Target should be member of pum_test_viewer_lausanne",
+            )
+
+            # Target should have SELECT via the suffixed viewer
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_target_user', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Target should inherit SELECT from suffixed viewer",
+            )
+
+    def test_revoke_from(self) -> None:
+        """Test revoking configured roles from a target database user."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            cur = conn.cursor()
+            cur.execute("CREATE ROLE pum_test_target_user LOGIN;")
+            conn.commit()
+
+            # Grant viewer to target
+            rm.grant_to(
+                connection=conn,
+                to="pum_test_target_user",
+                roles=["pum_test_viewer"],
+                commit=True,
+            )
+
+            # Confirm target has SELECT
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_target_user', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0])
+
+            # Revoke viewer from target
+            rm.revoke_from(
+                connection=conn,
+                from_role="pum_test_target_user",
+                roles=["pum_test_viewer"],
+                commit=True,
+            )
+
+            # Target should no longer have SELECT
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_target_user', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(
+                cur.fetchone()[0],
+                "Target should lose SELECT after revoke_from",
             )
 
     def test_check_roles_all_ok(self) -> None:
