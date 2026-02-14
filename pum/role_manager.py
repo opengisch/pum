@@ -804,28 +804,28 @@ class RoleManager:
                 feedback.lock_cancellation()
             connection.commit()
 
-    def check_roles(
+    def list_roles(
         self,
         connection: psycopg.Connection,
         *,
         include_superusers: bool = False,
-    ) -> "RoleCheckResult":
-        """Check that the database roles match the configuration.
+    ) -> "RoleList":
+        """List all database roles related to the module's configured schemas.
 
-        For each configured role, checks the generic role and automatically
-        discovers any DB-specific (suffixed) variants (e.g. ``tww_user_lausanne``,
-        ``tww_user_zurich``).  For every discovered role it verifies that the
-        expected permissions are present.  Roles that have access to configured
-        schemas but are not in the configuration are reported as unknown.
+        Returns the module's generic roles, any DB-specific (suffixed)
+        variants discovered via naming convention, and any other
+        database roles that have access to the configured schemas.
+        For every role the method reports which schemas it can read or
+        write, whether it is a superuser, and whether it can log in.
 
         Args:
             connection: The database connection to use.
             include_superusers: When ``True``, superusers are included in
-                the unknown-roles list.  Defaults to ``False`` because
-                superusers implicitly have access to everything.
+                the results.  Defaults to ``False`` because superusers
+                implicitly have access to everything.
 
         Returns:
-            A ``RoleCheckResult`` summarising the findings.
+            A ``RoleList`` containing the discovered roles.
 
         Version Added:
             1.5.0
@@ -850,7 +850,7 @@ class RoleManager:
             found_names = [row[0] for row in cursor.fetchall()]
 
             for name in found_names:
-                role_statuses.append(_check_single_role(connection, name, role, configured_schemas))
+                role_statuses.append(_build_role_status(connection, name, role, configured_schemas))
                 known_names.add(name)
 
         # Discover unknown roles with privileges on the configured schemas
@@ -861,9 +861,14 @@ class RoleManager:
             include_superusers=include_superusers,
         )
 
-        return RoleCheckResult(
+        # Discover login roles that have no access to the configured schemas
+        all_known = known_names | {r.name for r in unknown_roles}
+        other_login = _find_other_login_roles(connection, configured_schemas, all_known)
+
+        return RoleList(
             roles=role_statuses + unknown_roles,
             expected_roles=list(self.roles.keys()),
+            other_login_roles=other_login,
         )
 
 
@@ -942,17 +947,28 @@ class RoleStatus:
 
 
 @dataclass
-class RoleCheckResult:
-    """Aggregated result of ``RoleManager.check_roles``.
+class RoleList:
+    """Result of ``RoleManager.list_roles``.
+
+    Contains all discovered database roles related to the module's
+    configured schemas: configured roles (generic and suffixed),
+    other roles with schema access, and the list of expected role
+    names from the configuration.
 
     Version Added:
         1.5.0
     """
 
     roles: list[RoleStatus] = field(default_factory=list)
-    """Status of every discovered role (both configured and unknown)."""
+    """All discovered roles."""
     expected_roles: list[str] = field(default_factory=list)
     """Role names from the configuration that were expected to exist."""
+    other_login_roles: list[str] = field(default_factory=list)
+    """Login roles that are not superusers and have no access to any configured schema.
+
+    Version Added:
+        1.5.0
+    """
 
     @property
     def configured_roles(self) -> list["RoleStatus"]:
@@ -961,7 +977,7 @@ class RoleCheckResult:
 
     @property
     def unknown_roles(self) -> list["RoleStatus"]:
-        """Roles not in the configuration that have schema privileges."""
+        """Roles not in the configuration that have schema access."""
         return [r for r in self.roles if r.is_unknown]
 
     @property
@@ -970,21 +986,13 @@ class RoleCheckResult:
         found = {r.role.name for r in self.configured_roles}
         return [name for name in self.expected_roles if name not in found]
 
-    @property
-    def complete(self) -> bool:
-        """``True`` when there are no missing roles and all configured
-        roles have matching permissions."""
-        return not self.missing_roles and all(
-            sp.satisfied for r in self.configured_roles for sp in r.schema_permissions
-        )
-
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
 
-def _check_single_role(
+def _build_role_status(
     connection: psycopg.Connection,
     name: str,
     role: Role,
@@ -1131,6 +1139,9 @@ def _find_unknown_roles(
 ) -> list[RoleStatus]:
     """Return roles not in *known_names* that have privileges on *schemas*.
 
+    For each unknown role, all *schemas* are checked for read/write access
+    so the caller can see which schemas it can or cannot reach.
+
     Excludes PostgreSQL built-in roles (``pg_*``).
 
     Args:
@@ -1144,43 +1155,111 @@ def _find_unknown_roles(
     if include_superusers:
         cursor.execute(
             """
-            SELECT DISTINCT r.rolname, n.nspname, r.rolsuper, r.rolcanlogin
+            SELECT DISTINCT r.rolname, r.rolsuper, r.rolcanlogin
             FROM pg_namespace n
             CROSS JOIN pg_roles r
             WHERE n.nspname = ANY(%s)
               AND (r.rolsuper OR has_schema_privilege(r.rolname, n.nspname, 'USAGE'))
               AND r.rolname NOT LIKE 'pg_%%'
-            ORDER BY r.rolname, n.nspname
+            ORDER BY r.rolname
             """,
             (list(schemas),),
         )
     else:
         cursor.execute(
             """
-            SELECT DISTINCT r.rolname, n.nspname, r.rolsuper, r.rolcanlogin
+            SELECT DISTINCT r.rolname, r.rolsuper, r.rolcanlogin
             FROM pg_namespace n
             CROSS JOIN pg_roles r
             WHERE n.nspname = ANY(%s)
               AND has_schema_privilege(r.rolname, n.nspname, 'USAGE')
               AND NOT r.rolsuper
               AND r.rolname NOT LIKE 'pg_%%'
-            ORDER BY r.rolname, n.nspname
+            ORDER BY r.rolname
             """,
             (list(schemas),),
         )
 
-    role_info: dict[str, tuple[list[str], bool, bool]] = {}
-    for rolname, nspname, is_super, can_login in cursor.fetchall():
+    role_info: dict[str, tuple[bool, bool]] = {}
+    for rolname, is_super, can_login in cursor.fetchall():
         if rolname not in known_names:
-            schemas_list, _, _ = role_info.setdefault(rolname, ([], is_super, can_login))
-            schemas_list.append(nspname)
+            role_info[rolname] = (is_super, can_login)
 
-    return [
-        RoleStatus(
-            name=name,
-            superuser=info[1],
-            login=info[2],
-            schema_permissions=[SchemaPermissionStatus(schema=s, expected=None) for s in info[0]],
+    # For each unknown role, check all configured schemas
+    results: list[RoleStatus] = []
+    for name, (is_super, can_login) in role_info.items():
+        schema_perms = []
+        for schema in sorted(schemas):
+            has_read = _has_read(connection, name, schema)
+            has_write = _has_write(connection, name, schema)
+            schema_perms.append(
+                SchemaPermissionStatus(
+                    schema=schema,
+                    expected=None,
+                    has_read=has_read,
+                    has_write=has_write,
+                )
+            )
+        results.append(
+            RoleStatus(
+                name=name,
+                superuser=is_super,
+                login=can_login,
+                schema_permissions=schema_perms,
+            )
         )
-        for name, info in role_info.items()
-    ]
+
+    return results
+
+
+def _find_other_login_roles(
+    connection: psycopg.Connection,
+    schemas: set[str],
+    known_names: set[str],
+) -> list[str]:
+    """Return login roles that are not superusers and have no access to any *schema*.
+
+    These are database roles that can authenticate but do not have USAGE
+    on any of the module's configured schemas.  Built-in PostgreSQL roles
+    (``pg_*``) are excluded.
+
+    Args:
+        connection: The database connection to use.
+        schemas: Set of configured schema names.
+        known_names: Role names already accounted for (configured + unknown
+            with schema access).  These are excluded from the result.
+
+    Returns:
+        Sorted list of role names.
+    """
+    cursor = connection.cursor()
+    cursor.execute(
+        """
+        SELECT r.rolname
+        FROM pg_roles r
+        WHERE r.rolcanlogin
+          AND NOT r.rolsuper
+          AND r.rolname NOT LIKE 'pg_%%'
+        ORDER BY r.rolname
+        """,
+    )
+    login_roles = [row[0] for row in cursor.fetchall()]
+
+    results: list[str] = []
+    for name in login_roles:
+        if name in known_names:
+            continue
+        # Check that the role has no USAGE on any configured schema
+        has_access = False
+        for schema in schemas:
+            cursor.execute(
+                "SELECT has_schema_privilege(%s, %s, 'USAGE')",
+                (name, schema),
+            )
+            if cursor.fetchone()[0]:
+                has_access = True
+                break
+        if not has_access:
+            results.append(name)
+
+    return results

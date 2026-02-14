@@ -18,7 +18,7 @@ from .upgrader import Upgrader
 from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
-from .role_manager import RoleCheckResult
+from .role_manager import RoleList
 from . import SQL
 
 
@@ -237,7 +237,7 @@ def create_parser(
         "role", help="manage roles in the database", formatter_class=formatter_class
     )
     parser_role.add_argument(
-        "action", choices=["create", "grant", "revoke", "drop", "check"], help="Action to perform"
+        "action", choices=["create", "grant", "revoke", "drop", "list"], help="Action to perform"
     )
     parser_role.add_argument(
         "--suffix",
@@ -267,7 +267,7 @@ def create_parser(
     )
     parser_role.add_argument(
         "--include-superusers",
-        help="Include superusers in the unknown-roles list when checking (they are hidden by default)",
+        help="Include superusers in the role listing (they are hidden by default)",
         action="store_true",
         default=False,
     )
@@ -612,14 +612,12 @@ def cli() -> int:  # noqa: PLR0912
                     config.role_manager().drop_roles(
                         connection=conn, roles=args.roles, suffix=args.suffix, commit=True
                     )
-                elif args.action == "check":
-                    result = config.role_manager().check_roles(
+                elif args.action == "list":
+                    result = config.role_manager().list_roles(
                         connection=conn,
                         include_superusers=args.include_superusers,
                     )
-                    _print_role_check_result(result)
-                    if not result.complete:
-                        exit_code = 1
+                    _print_role_list(result)
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1
@@ -697,8 +695,8 @@ def cli() -> int:  # noqa: PLR0912
     return exit_code
 
 
-def _print_role_check_result(result: RoleCheckResult) -> None:
-    """Print the role check result to stdout."""
+def _print_role_list(result: RoleList) -> None:
+    """Print the role listing to stdout."""
     ok_mark = "\033[32m✓\033[0m"
     fail_mark = "\033[31m✗\033[0m"
 
@@ -706,8 +704,15 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
         perms_ok = all(sp.satisfied for sp in role_status.schema_permissions)
         mark = ok_mark if perms_ok else fail_mark
 
-        badge = "  \033[90m[suffixed]\033[0m" if role_status.is_suffixed else ""
-        print(f"  {mark} {role_status.name}{badge}")
+        badges = []
+        if role_status.is_suffixed:
+            badges.append("\033[90m[suffixed]\033[0m")
+        if role_status.login:
+            badges.append("\033[90m[login]\033[0m")
+        if role_status.superuser:
+            badges.append("\033[31m[superuser]\033[0m")
+        badge_str = "  " + " ".join(badges) if badges else ""
+        print(f"  {mark} {role_status.name}{badge_str}")
         if role_status.granted_to:
             members_str = ", ".join(role_status.granted_to)
             print(f"      \033[90mmember of: {members_str}\033[0m")
@@ -734,11 +739,22 @@ def _print_role_check_result(result: RoleCheckResult) -> None:
 
     if result.unknown_roles:
         print()
-        print("  \033[33mUnknown roles with schema access:\033[0m")
+        print("  \033[33mOther roles with schema access:\033[0m")
         for ur in result.unknown_roles:
             schemas_str = ", ".join(ur.schemas)
-            badge = " \033[31m[superuser]\033[0m" if ur.superuser else ""
-            print(f"    \033[33m?\033[0m {ur.name}{badge}  ({schemas_str})")
+            badges = []
+            if ur.login:
+                badges.append("\033[90m[login]\033[0m")
+            if ur.superuser:
+                badges.append("\033[31m[superuser]\033[0m")
+            badge_str = " " + " ".join(badges) if badges else ""
+            print(f"    \033[33m?\033[0m {ur.name}{badge_str}  ({schemas_str})")
+
+    if result.other_login_roles:
+        print()
+        print("  \033[33mOther login roles (no schema access):\033[0m")
+        for name in result.other_login_roles:
+            print(f"    \033[90m- {name}\033[0m")
 
 
 if __name__ == "__main__":

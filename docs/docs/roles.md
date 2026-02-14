@@ -90,49 +90,49 @@ role_manager.create_roles(
 )
 ```
 
-## Checking Roles
+## Listing Roles
 
-You can audit whether the database roles match the configuration using the `check` action. This verifies:
+You can list all database roles related to the module's schemas using the `list` action. This shows:
 
-- Each expected role exists in the database.
-- Each role has the expected permissions (read/write) on the configured schemas.
-- No unknown roles have access to the configured schemas.
+- Each configured role (generic and DB-specific/suffixed variants).
+- Which schemas each role can read or write, and whether this matches expectations.
+- Any other (unconfigured) roles that have access to the module's schemas.
+- Whether each role is a superuser or can log in.
 
 ### CLI Usage
 
 ```bash
-# Check that roles match the config
-pum -p mydb role check
+# List roles related to the module
+pum -p mydb role list
 ```
 
-The check automatically discovers all matching roles, including both generic roles
+The listing automatically discovers all matching roles, including both generic roles
 and any DB-specific (suffixed) variants.
 
 The output uses colored markers to indicate status:
 
-- **✓** role/permission matches the configuration
-- **✗** role is missing or permission doesn't match
-- **?** unknown role with access to a configured schema
+- **✓** permission matches the configuration
+- **✗** permission doesn't match
+- **?** other role with access to a configured schema
 
 ### Python API
 
 ```python
-result = role_manager.check_roles(connection=conn)
+result = role_manager.list_roles(connection=conn)
 
-if result.complete:
-    print("All roles match the configuration")
-else:
-    for name in result.missing_roles:
-        print(f"Missing role: {name}")
+for name in result.missing_roles:
+    print(f"Missing role: {name}")
 
-    for role_status in result.configured_roles:
-        for sp in role_status.schema_permissions:
-            if not sp.satisfied:
-                print(f"  {role_status.name}/{sp.schema}: expected {sp.expected.value}, "
-                      f"has_read={sp.has_read}, has_write={sp.has_write}")
+for role_status in result.configured_roles:
+    for sp in role_status.schema_permissions:
+        if not sp.satisfied:
+            print(f"  {role_status.name}/{sp.schema}: expected {sp.expected.value}, "
+                  f"has_read={sp.has_read}, has_write={sp.has_write}")
 
-    for unknown in result.unknown_roles:
-        print(f"Unknown role {unknown.name} on schemas: {unknown.schemas}")
+for other in result.unknown_roles:
+    print(f"Other role {other.name} on schemas: {other.schemas}")
+    if other.login:
+        print("  (can log in)")
 ```
 
 ## Summary
@@ -141,6 +141,6 @@ else:
 - Use inheritance to avoid duplication and build role hierarchies.
 - Each permission specifies a type and a list of schemas.
 - The system ensures only valid roles and permissions are created and applied.
-- Use `role check` to audit whether the database matches the configuration.
+- Use `role list` to audit which roles have access to the module's schemas.
 
 For more details, see the [configuration](./configuration.md) page or the [RoleManager](./api/role_manager.md) class.
