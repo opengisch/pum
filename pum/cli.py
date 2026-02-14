@@ -567,9 +567,13 @@ def cli() -> int:  # noqa: PLR0912
                 elif args.action == "grant":
                     config.role_manager().grant_permissions(connection=conn)
                 elif args.action == "revoke":
-                    config.role_manager().revoke_permissions(connection=conn)
+                    config.role_manager().revoke_permissions(
+                        connection=conn, suffix=args.suffix, commit=True
+                    )
                 elif args.action == "drop":
-                    config.role_manager().drop_roles(connection=conn)
+                    config.role_manager().drop_roles(
+                        connection=conn, suffix=args.suffix, commit=True
+                    )
                 elif args.action == "check":
                     result = config.role_manager().check_roles(
                         connection=conn,

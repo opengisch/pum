@@ -395,6 +395,70 @@ class TestRoles(unittest.TestCase):
                 "Generic viewer should have SELECT via inheritance from specific",
             )
 
+    def test_drop_roles(self) -> None:
+        """Test dropping generic roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            # Roles should exist
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user') ORDER BY rolname;"
+            )
+            self.assertEqual(len(cur.fetchall()), 2)
+
+            rm.drop_roles(connection=conn, commit=True)
+
+            # Roles should be gone
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user');"
+            )
+            self.assertEqual(len(cur.fetchall()), 0)
+
+    def test_drop_roles_with_suffix(self) -> None:
+        """Test dropping only suffixed roles while keeping generic ones."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                grant=True,
+                commit=True,
+            )
+
+            # All 4 roles should exist
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user', "
+                "'pum_test_viewer_lausanne', 'pum_test_user_lausanne');"
+            )
+            self.assertEqual(len(cur.fetchall()), 4)
+
+            rm.drop_roles(connection=conn, suffix="lausanne", commit=True)
+
+            # Suffixed roles should be gone
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer_lausanne', 'pum_test_user_lausanne');"
+            )
+            self.assertEqual(len(cur.fetchall()), 0)
+
+            # Generic roles should still exist
+            cur.execute(
+                "SELECT rolname FROM pg_roles WHERE rolname IN "
+                "('pum_test_viewer', 'pum_test_user');"
+            )
+            self.assertEqual(len(cur.fetchall()), 2)
+
     def test_check_roles_all_ok(self) -> None:
         """Test check_roles when roles are created with correct permissions."""
         test_dir = Path("test") / "data" / "roles"

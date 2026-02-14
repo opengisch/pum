@@ -458,6 +458,157 @@ class RoleManager:
                 feedback.lock_cancellation()
             connection.commit()
 
+    def revoke_permissions(
+        self,
+        connection: psycopg.Connection,
+        *,
+        suffix: str | None = None,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
+    ) -> None:
+        """Revoke previously granted permissions from roles.
+
+        When *suffix* is provided, permissions are revoked from the
+        DB-specific (suffixed) roles only.  Otherwise they are revoked
+        from the generic roles.
+
+        Args:
+            connection: The database connection to execute the SQL statements.
+            suffix: Optional suffix identifying DB-specific roles.
+            commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
+
+        Version Added:
+            1.5.0
+        """
+        for role in self.roles.values():
+            if feedback and feedback.is_cancelled():
+                raise PumException("Permission revoke cancelled by user")
+
+            role_name = f"{role.name}_{suffix}" if suffix else role.name
+
+            if feedback:
+                feedback.increment_step()
+                feedback.report_progress(f"Revoking permissions from role: {role_name}")
+
+            for perm in role.permissions():
+                for schema in perm.schemas or []:
+                    # Check if schema exists before revoking
+                    cursor = SqlContent(
+                        "SELECT 1 FROM pg_namespace WHERE nspname = {schema}"
+                    ).execute(
+                        connection=connection,
+                        commit=False,
+                        parameters={"schema": psycopg.sql.Literal(schema)},
+                    )
+                    if not cursor._pum_results or not cursor._pum_results[0]:
+                        logger.warning(
+                            f"Schema {schema} does not exist; skipping revoke for role {role_name}."
+                        )
+                        continue
+
+                    logger.debug(
+                        f"Revoking {perm.type.value} permission on schema {schema} from role {role_name}."
+                    )
+                    if perm.type == PermissionType.READ:
+                        SqlContent("""
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE SELECT, REFERENCES, TRIGGER ON TABLES FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE SELECT ON SEQUENCES FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE EXECUTE ON FUNCTIONS FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE EXECUTE ON ROUTINES FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE USAGE ON TYPES FROM {role};
+                            REVOKE EXECUTE ON ALL ROUTINES IN SCHEMA {schema} FROM {role};
+                            REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA {schema} FROM {role};
+                            REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} FROM {role};
+                            REVOKE SELECT, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA {schema} FROM {role};
+                            REVOKE USAGE ON SCHEMA {schema} FROM {role};
+                        """).execute(
+                            connection=connection,
+                            commit=False,
+                            parameters={
+                                "schema": psycopg.sql.Identifier(schema),
+                                "role": psycopg.sql.Identifier(role_name),
+                            },
+                        )
+                    elif perm.type == PermissionType.WRITE:
+                        SqlContent("""
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TABLES FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON SEQUENCES FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON FUNCTIONS FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON ROUTINES FROM {role};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TYPES FROM {role};
+                            REVOKE ALL ON ALL ROUTINES IN SCHEMA {schema} FROM {role};
+                            REVOKE ALL ON ALL FUNCTIONS IN SCHEMA {schema} FROM {role};
+                            REVOKE ALL ON ALL SEQUENCES IN SCHEMA {schema} FROM {role};
+                            REVOKE ALL ON ALL TABLES IN SCHEMA {schema} FROM {role};
+                            REVOKE ALL ON SCHEMA {schema} FROM {role};
+                        """).execute(
+                            connection=connection,
+                            commit=False,
+                            parameters={
+                                "schema": psycopg.sql.Identifier(schema),
+                                "role": psycopg.sql.Identifier(role_name),
+                            },
+                        )
+
+        logger.info("All permissions revoked from roles.")
+        if commit:
+            if feedback:
+                feedback.lock_cancellation()
+            connection.commit()
+
+    def drop_roles(
+        self,
+        connection: psycopg.Connection,
+        *,
+        suffix: str | None = None,
+        commit: bool = False,
+        feedback: Optional["Feedback"] = None,
+    ) -> None:
+        """Drop roles from the database.
+
+        Permissions are revoked first (via ``revoke_permissions``), then roles
+        are dropped.  When *suffix* is provided only the DB-specific roles are
+        dropped; the generic roles are left untouched.  Without *suffix* only
+        the generic roles are dropped.
+
+        Args:
+            connection: The database connection to execute the SQL statements.
+            suffix: Optional suffix identifying DB-specific roles.
+            commit: Whether to commit the transaction. Defaults to False.
+            feedback: Optional feedback object for progress reporting.
+
+        Version Added:
+            1.5.0
+        """
+        # Revoke permissions first so the roles own nothing
+        self.revoke_permissions(
+            connection=connection, suffix=suffix, commit=False, feedback=feedback
+        )
+
+        for role in self.roles.values():
+            if feedback and feedback.is_cancelled():
+                raise PumException("Role drop cancelled by user")
+
+            role_name = f"{role.name}_{suffix}" if suffix else role.name
+
+            if feedback:
+                feedback.increment_step()
+                feedback.report_progress(f"Dropping role: {role_name}")
+
+            logger.debug(f"Dropping role {role_name}.")
+            SqlContent("DROP ROLE IF EXISTS {name}").execute(
+                connection=connection,
+                commit=False,
+                parameters={"name": psycopg.sql.Identifier(role_name)},
+            )
+
+        logger.info("Roles dropped.")
+        if commit:
+            if feedback:
+                feedback.lock_cancellation()
+            connection.commit()
+
     def check_roles(
         self,
         connection: psycopg.Connection,
