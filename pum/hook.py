@@ -59,8 +59,7 @@ class HookBase(abc.ABC):
         This is not committing the transaction and will be handled afterwards.
 
         Args:
-            connection: The database connection.
-            sql: The SQL statement to execute or a path to a SQL file..
+            sql: The SQL statement to execute or a path to a SQL file.
         """
         parameters_literals = SqlContent.prepare_parameters(self._parameters)
         SqlContent(sql).execute(
@@ -88,9 +87,9 @@ class HookHandler:
         """Initialize a Hook instance.
 
         Args:
-            type: The type of the hook (e.g., "pre", "post").
             file: The file path of the hook.
             code: The SQL code for the hook.
+            base_path: The base path for resolving relative file paths.
 
         """
         if file and code:

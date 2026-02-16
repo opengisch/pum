@@ -1,1 +1,1 @@
-::: pum.RoleCheckResult
+::: pum.RoleInventory

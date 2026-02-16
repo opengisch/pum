@@ -338,7 +338,7 @@ class SqlContent:
         return [format_sql(statement, parameters) for statement in sql_code]
 
     @staticmethod
-    def prepare_parameters(parameters: dict | None):
+    def prepare_parameters(parameters: dict | None) -> dict:
         """
         Prepares a dictionary of parameters for use in SQL queries by converting each value to a psycopg.sql.Literal.
 

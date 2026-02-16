@@ -35,8 +35,6 @@ class Upgrader:
         The table is created in the schema defined in the config file if it does not exist.
 
         Args:
-            connection:
-                The database connection to use for the upgrade.
             config:
                 The configuration object
             max_version:
