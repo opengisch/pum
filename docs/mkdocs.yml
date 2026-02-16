@@ -8,13 +8,13 @@ theme:
   name: "material"
   logo: assets/images/pum.png
   favicon: assets/images/favicon.ico
-  # features:
+  features:
   #   - navigation.tabs
   #   - navigation.tabs.sticky
   #   - navigation.expand
-  #   - navigation.indexes
-  #   - navigation.top
-  #   - navigation.tracking
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
   #   - pymdownx.highlight:
   #       anchor_linenums: true
   #       line_spans: __span

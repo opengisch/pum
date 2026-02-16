@@ -139,8 +139,6 @@ for name in result.other_login_roles:
     print(f"Login role with no schema access: {name}")
 ```
 
-<<<<<<< Updated upstream
-=======
 ## Login Roles
 
 PUM provides utilities to manage login roles (database users) independently of
@@ -194,7 +192,6 @@ for name in RoleManager.members_of(connection=conn, role_name="tww_viewer"):
     print(name)
 ```
 
->>>>>>> Stashed changes
 ## Summary
 
 - Define roles and permissions in your config YAML under the `roles` key.
@@ -202,9 +199,6 @@ for name in RoleManager.members_of(connection=conn, role_name="tww_viewer"):
 - Each permission specifies a type and a list of schemas.
 - The system ensures only valid roles and permissions are created and applied.
 - Use `role list` to audit which roles have access to the module's schemas.
-<<<<<<< Updated upstream
-=======
 - Use `role create-login`, `role drop-login`, `role login-roles`, and `role members` to manage login users.
->>>>>>> Stashed changes
 
 For more details, see the [configuration](./configuration.md) page or the [RoleManager](./api/role_manager.md) class.
