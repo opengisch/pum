@@ -1134,6 +1134,63 @@ class TestRoles(unittest.TestCase):
         # pum_test_user is NOLOGIN, should not appear
         self.assertNotIn("pum_test_user", result)
 
+    def test_memberships_of(self) -> None:
+        """Test memberships_of returns the roles a user is a member of."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            rm.create_roles(connection=conn, grant=False, commit=True)
+
+            # Create a login user and grant all configured roles to it
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+            rm.grant_to(connection=conn, to="pum_test_login_user", commit=True)
+
+            result = RoleManager.memberships_of(connection=conn, user_name="pum_test_login_user")
+
+        # Should be a member of both configured roles
+        self.assertIn("pum_test_viewer", result)
+        self.assertIn("pum_test_user", result)
+        # Should be sorted
+        self.assertEqual(result, sorted(result))
+
+    def test_memberships_of_empty(self) -> None:
+        """Test memberships_of returns empty list when user has no memberships."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            rm.create_roles(connection=conn, grant=False, commit=True)
+
+            # Create a login user but don't grant any roles
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+
+            result = RoleManager.memberships_of(connection=conn, user_name="pum_test_login_user")
+
+        self.assertEqual(result, [])
+
+    def test_memberships_of_partial(self) -> None:
+        """Test memberships_of when user is granted only one role."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            rm.create_roles(connection=conn, grant=False, commit=True)
+
+            # Create a login user and grant only one role
+            RoleManager.create_login_role(connection=conn, name="pum_test_login_user", commit=True)
+            rm.grant_to(
+                connection=conn,
+                to="pum_test_login_user",
+                roles=["pum_test_viewer"],
+                commit=True,
+            )
+
+            result = RoleManager.memberships_of(connection=conn, user_name="pum_test_login_user")
+
+        self.assertIn("pum_test_viewer", result)
+        self.assertNotIn("pum_test_user", result)
+
 
 if __name__ == "__main__":
     unittest.main()

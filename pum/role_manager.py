@@ -592,18 +592,9 @@ class RoleManager:
         for role in target_roles:
             role_name = f"{role.name}_{suffix}" if suffix else role.name
 
-            cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT r.rolname
-                FROM pg_auth_members m
-                JOIN pg_roles r ON r.oid = m.roleid
-                JOIN pg_roles mr ON mr.oid = m.member
-                WHERE mr.rolname = %s
-                """,
-                (role_name,),
-            )
-            for (parent_role,) in cursor.fetchall():
+            for parent_role in RoleManager.memberships_of(
+                connection=connection, user_name=role_name
+            ):
                 logger.debug(f"Revoking membership: REVOKE {parent_role} FROM {role_name}")
                 SqlContent("REVOKE {parent} FROM {member}").execute(
                     connection=connection,
@@ -901,7 +892,7 @@ class RoleManager:
             Sorted list of member login role names.
 
         Version Added:
-            1.5.0
+            1.5.4
         """
         with connection.transaction():
             cursor = connection.cursor()
@@ -913,6 +904,37 @@ class RoleManager:
                 "WHERE r.rolname = %s AND m.rolcanlogin "
                 "ORDER BY m.rolname",
                 (role_name,),
+            )
+            return [row[0] for row in cursor.fetchall()]
+
+    @staticmethod
+    def memberships_of(connection: psycopg.Connection, user_name: str) -> list[str]:
+        """Return the role names that *user_name* is a member of.
+
+        This is the inverse of :meth:`members_of`: instead of asking
+        "who belongs to this role?", it asks "which roles does this user
+        belong to?".
+
+        Args:
+            connection: The database connection.
+            user_name: The login role whose memberships to look up.
+
+        Returns:
+            Sorted list of role names the user is a member of.
+
+        Version Added:
+            1.5.0
+        """
+        with connection.transaction():
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT r.rolname "
+                "FROM pg_auth_members am "
+                "JOIN pg_roles r ON r.oid = am.roleid "
+                "JOIN pg_roles m ON m.oid = am.member "
+                "WHERE m.rolname = %s "
+                "ORDER BY r.rolname",
+                (user_name,),
             )
             return [row[0] for row in cursor.fetchall()]
 
@@ -1144,18 +1166,7 @@ def _build_role_status(
     can_login = bool(row and row[0])
 
     # Discover role memberships (GRANT <parent> TO <name>)
-    cursor.execute(
-        """
-        SELECT r.rolname
-        FROM pg_auth_members m
-        JOIN pg_roles r ON r.oid = m.roleid
-        JOIN pg_roles mr ON mr.oid = m.member
-        WHERE mr.rolname = %s
-        ORDER BY r.rolname
-        """,
-        (name,),
-    )
-    granted_to = [row[0] for row in cursor.fetchall()]
+    granted_to = RoleManager.memberships_of(connection=connection, user_name=name)
 
     # Check every configured schema
     schema_statuses: list[SchemaPermissionStatus] = []
@@ -1336,18 +1347,7 @@ def _find_unknown_roles(
             )
 
         # Discover memberships (which roles was this role granted?)
-        cursor.execute(
-            """
-            SELECT r.rolname
-            FROM pg_auth_members m
-            JOIN pg_roles r ON r.oid = m.roleid
-            JOIN pg_roles mr ON mr.oid = m.member
-            WHERE mr.rolname = %s
-            ORDER BY r.rolname
-            """,
-            (name,),
-        )
-        granted_to = [row[0] for row in cursor.fetchall()]
+        granted_to = RoleManager.memberships_of(connection=connection, user_name=name)
 
         results.append(
             RoleStatus(
