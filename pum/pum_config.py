@@ -25,66 +25,72 @@ if TYPE_CHECKING:
     from .changelog import Changelog
 
 
-try:
-    PUM_VERSION = packaging.version.Version(importlib.metadata.version("pum"))
-except importlib.metadata.PackageNotFoundError:
-    # Fallback: try to read from pum-*.dist-info/METADATA
-    dist_info_dirs = glob.glob(os.path.join(os.path.dirname(__file__), "..", "pum-*.dist-info"))
-    versions = []
-    for dist_info in dist_info_dirs:
-        metadata_path = os.path.join(dist_info, "METADATA")
-        if os.path.isfile(metadata_path):
-            with open(metadata_path) as f:
-                for line in f:
-                    if line.startswith("Version:"):
-                        version = line.split(":", 1)[1].strip()
-                        versions.append(version)
-                        break
-    if versions:
-        # Pick the highest version
-        PUM_VERSION = max(packaging.version.Version(v) for v in versions)
-    else:
-        # Fallback: try to get version from git (for development from source)
-        try:
-            git_dir = Path(__file__).parent.parent / ".git"
-            if git_dir.exists():
-                result = subprocess.run(
-                    ["git", "describe", "--tags", "--always", "--dirty"],
-                    cwd=Path(__file__).parent.parent,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    git_version = result.stdout.strip()
-                    # Clean up git version to be PEP 440 compatible
-                    # e.g., "0.9.2-10-g1234567" -> "0.9.2.post10"
-                    # e.g., "0.9.2" -> "0.9.2"
-                    # e.g., "1234567" (no tags) -> "0.0.0+1234567"
-                    if "-" in git_version:
-                        parts = git_version.split("-")
-                        if len(parts) >= 3 and parts[0][0].isdigit():
-                            # Tagged version with commits after: "0.9.2-10-g1234567"
-                            base_version = parts[0]
-                            commits_after = parts[1]
-                            PUM_VERSION = packaging.version.Version(
-                                f"{base_version}.post{commits_after}"
-                            )
-                        else:
-                            # Untagged: just use the commit hash
-                            PUM_VERSION = packaging.version.Version(f"0.0.0+{parts[0]}")
-                    elif git_version[0].isdigit():
-                        # Clean tag version
-                        PUM_VERSION = packaging.version.Version(git_version)
+# Determine PUM version.
+# Priority: bundled dist-info (sibling directory) > importlib.metadata > git > 0.0.0
+# The bundled dist-info is checked first to ensure the reported version always matches
+# the code actually being executed, even if a different pum version is installed system-wide.
+PUM_VERSION = None
+
+# 1. Try to read from bundled pum-*.dist-info/METADATA (next to this package)
+dist_info_dirs = glob.glob(os.path.join(os.path.dirname(__file__), "..", "pum-*.dist-info"))
+_bundled_versions = []
+for dist_info in dist_info_dirs:
+    metadata_path = os.path.join(dist_info, "METADATA")
+    if os.path.isfile(metadata_path):
+        with open(metadata_path) as f:
+            for line in f:
+                if line.startswith("Version:"):
+                    version = line.split(":", 1)[1].strip()
+                    _bundled_versions.append(version)
+                    break
+if _bundled_versions:
+    PUM_VERSION = max(packaging.version.Version(v) for v in _bundled_versions)
+
+# 2. Fall back to git describe (development from source)
+if PUM_VERSION is None:
+    try:
+        git_dir = Path(__file__).parent.parent / ".git"
+        if git_dir.exists():
+            result = subprocess.run(
+                ["git", "describe", "--tags", "--always", "--dirty"],
+                cwd=Path(__file__).parent.parent,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                git_version = result.stdout.strip()
+                # Clean up git version to be PEP 440 compatible
+                # e.g., "0.9.2-10-g1234567" -> "0.9.2.post10"
+                # e.g., "0.9.2" -> "0.9.2"
+                # e.g., "1234567" (no tags) -> "0.0.0+1234567"
+                if "-" in git_version:
+                    parts = git_version.split("-")
+                    if len(parts) >= 3 and parts[0][0].isdigit():
+                        base_version = parts[0]
+                        commits_after = parts[1]
+                        PUM_VERSION = packaging.version.Version(
+                            f"{base_version}.post{commits_after}"
+                        )
                     else:
-                        # Just a commit hash (no tags)
-                        PUM_VERSION = packaging.version.Version(f"0.0.0+{git_version}")
+                        PUM_VERSION = packaging.version.Version(f"0.0.0+{parts[0]}")
+                elif git_version[0].isdigit():
+                    PUM_VERSION = packaging.version.Version(git_version)
                 else:
-                    PUM_VERSION = packaging.version.Version("0.0.0")
-            else:
-                PUM_VERSION = packaging.version.Version("0.0.0")
-        except Exception:
-            PUM_VERSION = packaging.version.Version("0.0.0")
+                    PUM_VERSION = packaging.version.Version(f"0.0.0+{git_version}")
+    except Exception:
+        pass
+
+# 3. Fall back to importlib.metadata (installed package)
+if PUM_VERSION is None:
+    try:
+        PUM_VERSION = packaging.version.Version(importlib.metadata.version("pum"))
+    except importlib.metadata.PackageNotFoundError:
+        pass
+
+# 4. Ultimate fallback
+if PUM_VERSION is None:
+    PUM_VERSION = packaging.version.Version("0.0.0")
 
 
 logger = logging.getLogger(__name__)
