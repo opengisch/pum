@@ -1,6 +1,8 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+import packaging.version
 from packaging.version import parse as parse_version
 
 from pum.pum_config import PumConfig
@@ -141,6 +143,7 @@ class TestConfig(unittest.TestCase):
                 pum={"module": "test_parameters"},
             )
 
+    @patch("pum.pum_config.PUM_VERSION", packaging.version.Version("1.0.0"))
     def test_minimum_version(self) -> None:
         if os.environ.get("CI") and platform.system().lower().startswith("win"):
             self.skipTest("Skipped on Windows in CI")
