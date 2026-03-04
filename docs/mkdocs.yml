@@ -83,12 +83,14 @@ nav:
 
   - Tools:
       - Checker: tools/checker.md
+      - Database: tools/database.md
       - Dumper: tools/dumper.md
   - CLI:
       - Overview: cli.md
       - app: cli/app.md
       - baseline: cli/baseline.md
       - check: cli/check.md
+      - db: cli/db.md
       - dump: cli/dump.md
       - info: cli/info.md
       - install: cli/install.md
@@ -98,6 +100,7 @@ nav:
       - upgrade: cli/upgrade.md
   - API:
       - Changelog: api/changelog.md
+      - Database: api/database.md
       - Dumper: api/dumper.md
       - DumpFormat: api/dump_format.md
       - Feedback: api/feedback.md

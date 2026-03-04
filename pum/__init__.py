@@ -17,6 +17,7 @@ if not logging.getLogger().handlers:
 if TYPE_CHECKING:
     from .changelog import Changelog
     from .checker import Checker
+    from .database import create_database, drop_database
     from .dependency_handler import DependencyHandler
     from .dumper import Dumper, DumpFormat
     from .feedback import Feedback, LogFeedback, SilentFeedback
@@ -39,8 +40,10 @@ if TYPE_CHECKING:
 __all__ = [
     "Checker",
     "Changelog",
+    "create_database",
     "CursorResult",
     "DependencyHandler",
+    "drop_database",
     "Dumper",
     "DumpFormat",
     "Feedback",
@@ -68,8 +71,10 @@ __all__ = [
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Checker": ("pum.checker", "Checker"),
     "Changelog": ("pum.changelog", "Changelog"),
+    "create_database": ("pum.database", "create_database"),
     "CursorResult": ("pum.sql_content", "CursorResult"),
     "DependencyHandler": ("pum.dependency_handler", "DependencyHandler"),
+    "drop_database": ("pum.database", "drop_database"),
     "Dumper": ("pum.dumper", "Dumper"),
     "DumpFormat": ("pum.dumper", "DumpFormat"),
     "HookBase": ("pum.hook", "HookBase"),
