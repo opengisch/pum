@@ -9,6 +9,7 @@ from pathlib import Path
 import psycopg
 
 from .checker import Checker
+from .database import create_database, drop_database
 from .report_generator import ReportGenerator
 from .pum_config import PumConfig
 from .connection import format_connection_string
@@ -405,6 +406,33 @@ def create_parser(
         dest="force",
     )
 
+    # Parser for the "db" command
+    parser_db = subparsers.add_parser(
+        "db",
+        help="Manage databases (create, drop)",
+        formatter_class=formatter_class,
+    )
+    parser_db.add_argument(
+        "action",
+        choices=["create", "drop"],
+        help="Action to perform: create (create a new database), drop (drop an existing database)",
+    )
+    parser_db.add_argument(
+        "dbname",
+        help="Name of the database to create or drop",
+    )
+    parser_db.add_argument(
+        "--template",
+        help="Template database to use when creating (for duplicating an existing database)",
+        type=str,
+        default=None,
+    )
+    parser_db.add_argument(
+        "--force",
+        help="Skip confirmation prompt for drop action",
+        action="store_true",
+    )
+
     # Parser for the "app" command
     parser_app = subparsers.add_parser(
         "app",
@@ -454,6 +482,34 @@ def cli() -> int:  # noqa: PLR0912
     if not args.command:
         parser.print_help()
         parser.exit()
+
+    # Handle db command separately (doesn't need config file or existing db connection)
+    if args.command == "db":
+        connection_params = {"service": args.pg_connection, "dbname": "postgres"}
+        if args.action == "create":
+            try:
+                create_database(connection_params, args.dbname, template=args.template)
+                logger.info(f"Database '{args.dbname}' created successfully.")
+            except Exception as e:
+                logger.error(f"Failed to create database: {e}")
+                return 1
+        elif args.action == "drop":
+            # Confirmation prompt unless --force is used
+            if not args.force:
+                logger.warning(
+                    f"⚠️  WARNING: This will permanently delete the database '{args.dbname}' and all its data!"
+                )
+                response = input("Are you sure you want to proceed? (yes/no): ").strip().lower()
+                if response not in ("yes", "y"):
+                    logger.info("Drop cancelled.")
+                    return 0
+            try:
+                drop_database(connection_params, args.dbname)
+                logger.info(f"Database '{args.dbname}' dropped successfully.")
+            except Exception as e:
+                logger.error(f"Failed to drop database: {e}")
+                return 1
+        return 0
 
     # Handle check command separately (doesn't need db connection)
     if args.command == "check":
