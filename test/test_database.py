@@ -4,7 +4,7 @@ import unittest
 
 import psycopg
 
-from pum.database import create_database, drop_database
+from pum.database import configure_database_connect_access, create_database, drop_database
 
 
 class TestDatabase(unittest.TestCase):
@@ -17,17 +17,26 @@ class TestDatabase(unittest.TestCase):
         self.test_db = "test_database_create_drop"
         self.test_db_template = "test_database_template"
         self.test_db_from_template = "test_database_from_template"
+        self.allowed_role = "test_database_connect_allowed"
+        self.blocked_role = "test_database_connect_blocked"
+        self.intruder_role = "test_database_connect_intruder"
 
         # Ensure test databases don't exist
         self._cleanup_db(self.test_db)
         self._cleanup_db(self.test_db_template)
         self._cleanup_db(self.test_db_from_template)
+        self._cleanup_role(self.allowed_role)
+        self._cleanup_role(self.blocked_role)
+        self._cleanup_role(self.intruder_role)
 
     def tearDown(self):
         """Clean up test fixtures."""
         self._cleanup_db(self.test_db)
         self._cleanup_db(self.test_db_template)
         self._cleanup_db(self.test_db_from_template)
+        self._cleanup_role(self.allowed_role)
+        self._cleanup_role(self.blocked_role)
+        self._cleanup_role(self.intruder_role)
 
     def _cleanup_db(self, dbname: str):
         """Drop a database if it exists."""
@@ -46,6 +55,17 @@ class TestDatabase(unittest.TestCase):
                     cur.execute(f"DROP DATABASE IF EXISTS {dbname}")
         except psycopg.OperationalError:
             # If we can't connect, that's fine - test database might not exist
+            pass
+
+    def _cleanup_role(self, role_name: str):
+        """Drop a role if it exists."""
+        try:
+            with psycopg.connect(
+                f"service={self.pg_service} dbname=postgres", autocommit=True
+            ) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"DROP ROLE IF EXISTS {role_name}")
+        except psycopg.OperationalError:
             pass
 
     def test_create_database(self):
@@ -181,6 +201,72 @@ class TestDatabase(unittest.TestCase):
         # Looking at database.py, it doesn't use IF EXISTS, so this will raise an error
         with self.assertRaises(psycopg.errors.InvalidCatalogName):
             drop_database(connection_params, "nonexistent_database_123456")
+
+    def test_configure_database_connect_access(self):
+        """Test configuring CONNECT access on an existing database."""
+        connection_params = {"service": self.pg_service, "dbname": "postgres"}
+
+        create_database(connection_params, self.test_db)
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres", autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"CREATE ROLE {self.allowed_role}")
+                cur.execute(f"CREATE ROLE {self.blocked_role}")
+
+        configure_database_connect_access(
+            connection_params,
+            self.test_db,
+            grant_roles=[self.allowed_role],
+            revoke_public=True,
+        )
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT has_database_privilege(%s, %s, 'CONNECT')",
+                    [self.allowed_role, self.test_db],
+                )
+                self.assertTrue(cur.fetchone()[0])
+
+                cur.execute(
+                    "SELECT has_database_privilege(%s, %s, 'CONNECT')",
+                    [self.blocked_role, self.test_db],
+                )
+                self.assertFalse(cur.fetchone()[0])
+
+    def test_configure_database_connect_access_revokes_explicit_role(self):
+        """Test revoking explicit CONNECT grants from selected roles."""
+        connection_params = {"service": self.pg_service, "dbname": "postgres"}
+
+        create_database(connection_params, self.test_db)
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres", autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"CREATE ROLE {self.allowed_role}")
+                cur.execute(f"CREATE ROLE {self.intruder_role}")
+                cur.execute(f"GRANT CONNECT ON DATABASE {self.test_db} TO {self.intruder_role}")
+
+        configure_database_connect_access(
+            connection_params,
+            self.test_db,
+            revoke_roles=[self.intruder_role],
+            grant_roles=[self.allowed_role],
+            revoke_public=True,
+        )
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT has_database_privilege(%s, %s, 'CONNECT')",
+                    [self.intruder_role, self.test_db],
+                )
+                self.assertFalse(cur.fetchone()[0])
+
+                cur.execute(
+                    "SELECT has_database_privilege(%s, %s, 'CONNECT')",
+                    [self.allowed_role, self.test_db],
+                )
+                self.assertTrue(cur.fetchone()[0])
 
 
 if __name__ == "__main__":
