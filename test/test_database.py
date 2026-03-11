@@ -268,6 +268,58 @@ class TestDatabase(unittest.TestCase):
                 )
                 self.assertTrue(cur.fetchone()[0])
 
+    def test_db2_only_role_cannot_connect_to_db1(self):
+        """Test CONNECT isolation across databases for a DB-specific role."""
+        connection_params = {"service": self.pg_service, "dbname": "postgres"}
+        db1 = "test_database_connect_db1"
+        db2 = "test_database_connect_db2"
+        db2_role = "test_database_connect_db2_user"
+
+        self._cleanup_db(db1)
+        self._cleanup_db(db2)
+        self._cleanup_role(db2_role)
+
+        try:
+            create_database(connection_params, db1)
+            create_database(connection_params, db2)
+
+            with psycopg.connect(
+                f"service={self.pg_service} dbname=postgres", autocommit=True
+            ) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"CREATE ROLE {db2_role}")
+
+            configure_database_connect_access(
+                connection_params,
+                db1,
+                grant_roles=[],
+                revoke_public=True,
+            )
+            configure_database_connect_access(
+                connection_params,
+                db2,
+                grant_roles=[db2_role],
+                revoke_public=True,
+            )
+
+            with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT has_database_privilege(%s, %s, 'CONNECT')",
+                        [db2_role, db1],
+                    )
+                    self.assertFalse(cur.fetchone()[0])
+
+                    cur.execute(
+                        "SELECT has_database_privilege(%s, %s, 'CONNECT')",
+                        [db2_role, db2],
+                    )
+                    self.assertTrue(cur.fetchone()[0])
+        finally:
+            self._cleanup_db(db1)
+            self._cleanup_db(db2)
+            self._cleanup_role(db2_role)
+
 
 if __name__ == "__main__":
     unittest.main()
