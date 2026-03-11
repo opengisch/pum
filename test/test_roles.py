@@ -497,7 +497,7 @@ class TestRoles(unittest.TestCase):
             self.assertIsNotNone(cur.fetchone(), "pum_test_viewer should still exist")
 
     def test_drop_single_generic_role_with_inherited_memberships(self) -> None:
-        """Test dropping a generic role that inherits rights through memberships."""
+        """Test dropping a generic role when specific roles are isolated."""
         test_dir = Path("test") / "data" / "roles"
         cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
         rm = cfg.role_manager()
@@ -510,9 +510,9 @@ class TestRoles(unittest.TestCase):
             self.assertTrue(cur.fetchone()[0], "pum_test_user should inherit from pum_test_viewer")
 
             cur.execute("SELECT pg_has_role('pum_test_user', 'pum_test_user_lausanne', 'MEMBER');")
-            self.assertTrue(
+            self.assertFalse(
                 cur.fetchone()[0],
-                "pum_test_user should inherit from pum_test_user_lausanne",
+                "pum_test_user should NOT inherit from pum_test_user_lausanne",
             )
 
             rm.drop_roles(connection=conn, roles=["pum_test_user"], commit=True)
@@ -933,6 +933,27 @@ class TestRoles(unittest.TestCase):
         self.assertNotIn("pum_test_user_lausanne", by_name["pum_test_user"].granted_to)
         # Generic user also inherits from generic viewer (config inheritance)
         self.assertIn("pum_test_viewer", by_name["pum_test_user"].granted_to)
+
+        # Generic roles are intentionally not granted schema permissions under
+        # role isolation — their schema_permissions should all have expected=None
+        # (satisfied regardless of actual grants).
+        for generic in ("pum_test_viewer", "pum_test_user"):
+            for sp in by_name[generic].schema_permissions:
+                self.assertIsNone(
+                    sp.expected,
+                    f"{generic} generic role should have expected=None for {sp.schema}",
+                )
+                self.assertTrue(
+                    sp.satisfied,
+                    f"{generic} generic role schema permission for {sp.schema} should be satisfied",
+                )
+        # Suffixed roles should still have their expected permissions set
+        for suffixed in ("pum_test_viewer_lausanne", "pum_test_user_lausanne"):
+            for sp in by_name[suffixed].schema_permissions:
+                self.assertIsNotNone(
+                    sp.expected,
+                    f"{suffixed} suffixed role should have expected permission for {sp.schema}",
+                )
 
     def test_roles_inventory_unknown_roles(self) -> None:
         """Test that roles_inventory reports other roles with schema access."""
