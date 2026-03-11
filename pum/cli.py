@@ -545,7 +545,7 @@ def cli() -> int:  # noqa: PLR0912
                     args.dbname,
                     grant_roles=args.grant_connect,
                     revoke_roles=args.revoke_connect,
-                    revoke_public=not args.keep_public,
+                    public=False if not args.keep_public else None,
                 )
                 logger.info(f"CONNECT access for database '{args.dbname}' updated successfully.")
             except Exception as e:

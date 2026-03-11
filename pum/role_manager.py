@@ -1003,9 +1003,21 @@ class RoleManager:
                 )
                 found_names = [row[0] for row in cursor.fetchall()]
 
+                has_suffixed = any(n != role.name for n in found_names)
+
                 for name in found_names:
+                    # When suffixed variants exist, the generic role is
+                    # intentionally created without schema grants (role
+                    # isolation).  Skip permission expectations for it.
+                    check_permissions = not (has_suffixed and name == role.name)
                     role_statuses.append(
-                        _build_role_status(connection, name, role, configured_schemas)
+                        _build_role_status(
+                            connection,
+                            name,
+                            role,
+                            configured_schemas,
+                            check_permissions=check_permissions,
+                        )
                     )
                     known_names.add(name)
 
@@ -1172,8 +1184,17 @@ def _build_role_status(
     name: str,
     role: Role,
     configured_schemas: set[str],
+    *,
+    check_permissions: bool = True,
 ) -> RoleStatus:
-    """Build a ``RoleStatus`` for a role known to exist in the database."""
+    """Build a ``RoleStatus`` for a role known to exist in the database.
+
+    When *check_permissions* is ``False`` the schema permission entries
+    are still created but with ``expected=None`` so they never show as
+    mismatched.  This is used for generic roles when suffixed variants
+    exist (role isolation: the generic role is intentionally not granted
+    schema permissions).
+    """
     cursor = connection.cursor()
 
     # Fetch role attributes
@@ -1196,7 +1217,7 @@ def _build_role_status(
             schema_statuses.append(
                 SchemaPermissionStatus(
                     schema=schema,
-                    expected=perm.type,
+                    expected=perm.type if check_permissions else None,
                     has_read=has_read,
                     has_write=has_write,
                 )

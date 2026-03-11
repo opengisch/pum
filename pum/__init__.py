@@ -23,6 +23,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Changelog": (".changelog", "Changelog"),
     "configure_database_connect_access": (".database", "configure_database_connect_access"),
     "create_database": (".database", "create_database"),
+    "get_database_connect_access": (".database", "get_database_connect_access"),
     "CursorResult": (".sql_content", "CursorResult"),
     "DependencyHandler": (".dependency_handler", "DependencyHandler"),
     "drop_database": (".database", "drop_database"),

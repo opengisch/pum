@@ -4,7 +4,12 @@ import unittest
 
 import psycopg
 
-from pum.database import configure_database_connect_access, create_database, drop_database
+from pum.database import (
+    configure_database_connect_access,
+    create_database,
+    drop_database,
+    get_database_connect_access,
+)
 
 
 class TestDatabase(unittest.TestCase):
@@ -217,7 +222,7 @@ class TestDatabase(unittest.TestCase):
             connection_params,
             self.test_db,
             grant_roles=[self.allowed_role],
-            revoke_public=True,
+            public=False,
         )
 
         with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
@@ -251,7 +256,7 @@ class TestDatabase(unittest.TestCase):
             self.test_db,
             revoke_roles=[self.intruder_role],
             grant_roles=[self.allowed_role],
-            revoke_public=True,
+            public=False,
         )
 
         with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
@@ -293,13 +298,13 @@ class TestDatabase(unittest.TestCase):
                 connection_params,
                 db1,
                 grant_roles=[],
-                revoke_public=True,
+                public=False,
             )
             configure_database_connect_access(
                 connection_params,
                 db2,
                 grant_roles=[db2_role],
-                revoke_public=True,
+                public=False,
             )
 
             with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
@@ -318,6 +323,45 @@ class TestDatabase(unittest.TestCase):
         finally:
             self._cleanup_db(db1)
             self._cleanup_db(db2)
+
+    def test_get_database_connect_access_default(self):
+        """Test get_database_connect_access on a freshly created database (default ACL)."""
+        connection_params = {"service": self.pg_service, "dbname": "postgres"}
+        create_database(connection_params, self.test_db)
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
+            public_has_connect, roles = get_database_connect_access(conn, self.test_db)
+
+        self.assertTrue(public_has_connect)
+        self.assertEqual(roles, [])
+
+    def test_get_database_connect_access_after_revoke_public(self):
+        """Test get_database_connect_access reflects revoked PUBLIC and explicit grants."""
+        connection_params = {"service": self.pg_service, "dbname": "postgres"}
+        create_database(connection_params, self.test_db)
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres", autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"CREATE ROLE {self.allowed_role}")
+
+        configure_database_connect_access(
+            connection_params,
+            self.test_db,
+            grant_roles=[self.allowed_role],
+            public=False,
+        )
+
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
+            public_has_connect, roles = get_database_connect_access(conn, self.test_db)
+
+        self.assertFalse(public_has_connect)
+        self.assertIn(self.allowed_role, roles)
+
+    def test_get_database_connect_access_nonexistent_database(self):
+        """Test get_database_connect_access raises ValueError for unknown database."""
+        with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
+            with self.assertRaises(ValueError):
+                get_database_connect_access(conn, "nonexistent_database_xyz_123")
             self._cleanup_role(db2_role)
 
 
