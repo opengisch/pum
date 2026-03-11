@@ -1,6 +1,7 @@
 """Database management utilities (CREATE / DROP)."""
 
 import logging
+from collections.abc import Iterable
 
 import psycopg
 import psycopg.sql
@@ -71,5 +72,66 @@ def drop_database(connection_params: dict, database_name: str) -> None:
             cur.execute(
                 psycopg.sql.SQL("DROP DATABASE {}").format(psycopg.sql.Identifier(database_name))
             )
+    finally:
+        conn.close()
+
+
+def configure_database_connect_access(
+    connection_params: dict,
+    database_name: str,
+    *,
+    grant_roles: Iterable[str] | None = None,
+    revoke_roles: Iterable[str] | None = None,
+    revoke_public: bool = True,
+) -> None:
+    """Configure CONNECT privileges on an existing PostgreSQL database.
+
+    This function is intended for already-existing databases where CONNECT
+    access needs to be tightened after initial setup.
+
+    Parameters
+    ----------
+    connection_params:
+        Keyword arguments forwarded to :func:`psycopg.connect`
+        (must connect as a role allowed to alter database privileges).
+    database_name:
+        Name of the target database whose CONNECT privileges are managed.
+    grant_roles:
+        Roles to grant CONNECT on the target database.
+    revoke_roles:
+        Roles to revoke CONNECT from on the target database.
+    revoke_public:
+        Whether to revoke CONNECT from PUBLIC first. Defaults to True.
+    """
+    conn = psycopg.connect(**connection_params)
+    try:
+        conn.autocommit = True
+        db_ident = psycopg.sql.Identifier(database_name)
+        with conn.cursor() as cur:
+            if revoke_public:
+                logger.info("Revoking CONNECT on database '%s' from PUBLIC…", database_name)
+                cur.execute(
+                    psycopg.sql.SQL("REVOKE CONNECT ON DATABASE {} FROM PUBLIC").format(db_ident)
+                )
+
+            for role in revoke_roles or []:
+                logger.info(
+                    "Revoking CONNECT on database '%s' from role '%s'…", database_name, role
+                )
+                cur.execute(
+                    psycopg.sql.SQL("REVOKE CONNECT ON DATABASE {} FROM {}").format(
+                        db_ident,
+                        psycopg.sql.Identifier(role),
+                    )
+                )
+
+            for role in grant_roles or []:
+                logger.info("Granting CONNECT on database '%s' to role '%s'…", database_name, role)
+                cur.execute(
+                    psycopg.sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                        db_ident,
+                        psycopg.sql.Identifier(role),
+                    )
+                )
     finally:
         conn.close()
