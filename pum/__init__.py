@@ -21,6 +21,7 @@ if not logging.getLogger().handlers:
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Checker": (".checker", "Checker"),
     "Changelog": (".changelog", "Changelog"),
+    "configure_database_connect_access": (".database", "configure_database_connect_access"),
     "create_database": (".database", "create_database"),
     "CursorResult": (".sql_content", "CursorResult"),
     "DependencyHandler": (".dependency_handler", "DependencyHandler"),
