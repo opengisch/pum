@@ -68,33 +68,36 @@ __all__ = [
 ]
 
 
+# Use relative imports so that when pum is bundled inside another package
+# (e.g. oqtopus.libs.pum), the lazy imports resolve from the same package tree
+# rather than picking up a different pum installed elsewhere on sys.path.
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
-    "Checker": ("pum.checker", "Checker"),
-    "Changelog": ("pum.changelog", "Changelog"),
-    "create_database": ("pum.database", "create_database"),
-    "CursorResult": ("pum.sql_content", "CursorResult"),
-    "DependencyHandler": ("pum.dependency_handler", "DependencyHandler"),
-    "drop_database": ("pum.database", "drop_database"),
-    "Dumper": ("pum.dumper", "Dumper"),
-    "DumpFormat": ("pum.dumper", "DumpFormat"),
-    "HookBase": ("pum.hook", "HookBase"),
-    "Feedback": ("pum.feedback", "Feedback"),
-    "HookHandler": ("pum.hook", "HookHandler"),
-    "LogFeedback": ("pum.feedback", "LogFeedback"),
-    "ParameterDefinition": ("pum.parameter", "ParameterDefinition"),
-    "ParameterType": ("pum.parameter", "ParameterType"),
-    "Permission": ("pum.role_manager", "Permission"),
-    "PermissionType": ("pum.role_manager", "PermissionType"),
-    "PumConfig": ("pum.pum_config", "PumConfig"),
-    "Role": ("pum.role_manager", "Role"),
-    "RoleInventory": ("pum.role_manager", "RoleInventory"),
-    "RoleManager": ("pum.role_manager", "RoleManager"),
-    "RoleStatus": ("pum.role_manager", "RoleStatus"),
-    "SchemaPermissionStatus": ("pum.role_manager", "SchemaPermissionStatus"),
-    "SchemaMigrations": ("pum.schema_migrations", "SchemaMigrations"),
-    "SilentFeedback": ("pum.feedback", "SilentFeedback"),
-    "SqlContent": ("pum.sql_content", "SqlContent"),
-    "Upgrader": ("pum.upgrader", "Upgrader"),
+    "Checker": (".checker", "Checker"),
+    "Changelog": (".changelog", "Changelog"),
+    "create_database": (".database", "create_database"),
+    "CursorResult": (".sql_content", "CursorResult"),
+    "DependencyHandler": (".dependency_handler", "DependencyHandler"),
+    "drop_database": (".database", "drop_database"),
+    "Dumper": (".dumper", "Dumper"),
+    "DumpFormat": (".dumper", "DumpFormat"),
+    "HookBase": (".hook", "HookBase"),
+    "Feedback": (".feedback", "Feedback"),
+    "HookHandler": (".hook", "HookHandler"),
+    "LogFeedback": (".feedback", "LogFeedback"),
+    "ParameterDefinition": (".parameter", "ParameterDefinition"),
+    "ParameterType": (".parameter", "ParameterType"),
+    "Permission": (".role_manager", "Permission"),
+    "PermissionType": (".role_manager", "PermissionType"),
+    "PumConfig": (".pum_config", "PumConfig"),
+    "Role": (".role_manager", "Role"),
+    "RoleInventory": (".role_manager", "RoleInventory"),
+    "RoleManager": (".role_manager", "RoleManager"),
+    "RoleStatus": (".role_manager", "RoleStatus"),
+    "SchemaPermissionStatus": (".role_manager", "SchemaPermissionStatus"),
+    "SchemaMigrations": (".schema_migrations", "SchemaMigrations"),
+    "SilentFeedback": (".feedback", "SilentFeedback"),
+    "SqlContent": (".sql_content", "SqlContent"),
+    "Upgrader": (".upgrader", "Upgrader"),
 }
 
 
@@ -102,7 +105,7 @@ def __getattr__(name: str) -> Any:
     if name not in _LAZY_IMPORTS:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     module_name, symbol_name = _LAZY_IMPORTS[name]
-    module = importlib.import_module(module_name)
+    module = importlib.import_module(module_name, package=__package__)
     value = getattr(module, symbol_name)
     globals()[name] = value
     return value
