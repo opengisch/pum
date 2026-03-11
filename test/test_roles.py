@@ -352,14 +352,20 @@ class TestRoles(unittest.TestCase):
             roles = cur.fetchall()
             self.assertEqual(len(roles), 2)
 
-            # Verify generic role inherits from specific role
+            # Generic and specific roles should be isolated (no membership)
             cur.execute(
                 "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
             )
-            self.assertTrue(cur.fetchone()[0], "Generic viewer should be member of specific viewer")
+            self.assertFalse(
+                cur.fetchone()[0],
+                "Generic viewer should NOT be member of specific viewer",
+            )
 
             cur.execute("SELECT pg_has_role('pum_test_user', 'pum_test_user_lausanne', 'MEMBER');")
-            self.assertTrue(cur.fetchone()[0], "Generic user should be member of specific user")
+            self.assertFalse(
+                cur.fetchone()[0],
+                "Generic user should NOT be member of specific user",
+            )
 
     def test_create_specific_roles_with_permissions(self) -> None:
         """Test that permissions are granted to specific roles."""
@@ -392,14 +398,14 @@ class TestRoles(unittest.TestCase):
             )
             self.assertTrue(cur.fetchone()[0], "Specific user should have INSERT")
 
-            # Generic viewer should inherit permissions from specific viewer
+            # Generic viewer should NOT inherit permissions from specific viewer
             cur.execute(
                 "SELECT has_table_privilege('pum_test_viewer', "
                 "'pum_test_data_schema_1.some_table_1', 'SELECT');"
             )
-            self.assertTrue(
+            self.assertFalse(
                 cur.fetchone()[0],
-                "Generic viewer should have SELECT via inheritance from specific",
+                "Generic viewer should NOT have SELECT via specific role",
             )
 
     def test_drop_roles(self) -> None:
@@ -644,28 +650,34 @@ class TestRoles(unittest.TestCase):
 
             cur = conn.cursor()
 
-            # Generic viewer should be a member of the specific viewer (inheritance)
-            cur.execute(
-                "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
-            )
-            self.assertTrue(cur.fetchone()[0], "Generic viewer should be member of specific viewer")
-
-            # Generic viewer should have inherited SELECT via the membership
-            cur.execute(
-                "SELECT has_table_privilege('pum_test_viewer', "
-                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
-            )
-            self.assertTrue(cur.fetchone()[0], "Generic viewer should have inherited SELECT")
-
-            # Revoke permissions (including memberships) from the generic roles
-            rm.revoke_permissions(connection=conn, commit=True)
-
-            # Membership should be revoked
+            # Generic viewer should not be a member of the specific viewer
             cur.execute(
                 "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
             )
             self.assertFalse(
-                cur.fetchone()[0], "Membership should be revoked after revoke_permissions"
+                cur.fetchone()[0],
+                "Generic viewer should NOT be member of specific viewer",
+            )
+
+            # Generic viewer should not have SELECT through specific role membership
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(
+                cur.fetchone()[0],
+                "Generic viewer should NOT have inherited SELECT",
+            )
+
+            # Revoke permissions (including memberships) from the generic roles
+            rm.revoke_permissions(connection=conn, commit=True)
+
+            # Membership should still be absent
+            cur.execute(
+                "SELECT pg_has_role('pum_test_viewer', 'pum_test_viewer_lausanne', 'MEMBER');"
+            )
+            self.assertFalse(
+                cur.fetchone()[0], "Membership should remain absent after revoke_permissions"
             )
 
             # Generic viewer should no longer have SELECT (inherited privilege gone)
@@ -916,11 +928,9 @@ class TestRoles(unittest.TestCase):
         self.assertIn("pum_test_viewer_lausanne", names)
         self.assertIn("pum_test_user_lausanne", names)
 
-        # Generic viewer should be member of the specific viewer role
         by_name = {r.name: r for r in result.configured_roles}
-        self.assertIn("pum_test_viewer_lausanne", by_name["pum_test_viewer"].granted_to)
-        # Generic user should be member of the specific user role
-        self.assertIn("pum_test_user_lausanne", by_name["pum_test_user"].granted_to)
+        self.assertNotIn("pum_test_viewer_lausanne", by_name["pum_test_viewer"].granted_to)
+        self.assertNotIn("pum_test_user_lausanne", by_name["pum_test_user"].granted_to)
         # Generic user also inherits from generic viewer (config inheritance)
         self.assertIn("pum_test_viewer", by_name["pum_test_user"].granted_to)
 

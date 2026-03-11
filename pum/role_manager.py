@@ -361,9 +361,9 @@ class RoleManager:
 
         When *suffix* is provided, DB-specific roles are created by appending
         the suffix to each configured role name (e.g. ``tww_user_lausanne``
-        for suffix ``lausanne``). The generic (base) roles are also created
-        and granted membership of the specific roles, so that the generic role
-        inherits the specific one's permissions.
+        for suffix ``lausanne``). The generic (base) roles are also created,
+        but no membership is granted between generic and DB-specific roles.
+        This keeps DB-specific permissions isolated.
 
         When *suffix* is ``None`` (default), only the generic roles defined in
         the configuration are created.
@@ -372,7 +372,7 @@ class RoleManager:
             connection: The database connection to execute the SQL statements.
             suffix: Optional suffix to append to role names for DB-specific
                 roles. When provided, both the suffixed and generic roles are
-                created, and inheritance is granted.
+                created, without cross-membership between them.
             grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
@@ -412,16 +412,6 @@ class RoleManager:
                     feedback.increment_step()
                     feedback.report_progress(f"Creating generic role: {role.name}")
                 role.create(connection=connection, commit=False, grant=False, feedback=feedback)
-
-                logger.debug(f"Granting specific role {specific_name} to generic role {role.name}.")
-                SqlContent("GRANT {specific} TO {generic}").execute(
-                    connection=connection,
-                    commit=False,
-                    parameters={
-                        "specific": psycopg.sql.Identifier(specific_name),
-                        "generic": psycopg.sql.Identifier(role.name),
-                    },
-                )
         else:
             for role in roles_list:
                 if feedback and feedback.is_cancelled():
