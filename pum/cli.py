@@ -9,7 +9,7 @@ from pathlib import Path
 import psycopg
 
 from .checker import Checker
-from .database import create_database, drop_database
+from .database import configure_database_connect_access, create_database, drop_database
 from .report_generator import ReportGenerator
 from .pum_config import PumConfig
 from .connection import format_connection_string
@@ -409,13 +409,13 @@ def create_parser(
     # Parser for the "db" command
     parser_db = subparsers.add_parser(
         "db",
-        help="Manage databases (create, drop)",
+        help="Manage databases (create, drop, access)",
         formatter_class=formatter_class,
     )
     parser_db.add_argument(
         "action",
-        choices=["create", "drop"],
-        help="Action to perform: create (create a new database), drop (drop an existing database)",
+        choices=["create", "drop", "access"],
+        help="Action to perform: create (new DB), drop (existing DB), access (configure CONNECT privileges)",
     )
     parser_db.add_argument(
         "dbname",
@@ -431,6 +431,24 @@ def create_parser(
         "--force",
         help="Skip confirmation prompt for drop action",
         action="store_true",
+    )
+    parser_db.add_argument(
+        "--grant-connect",
+        help="Role names to grant CONNECT on the target database",
+        nargs="+",
+        default=None,
+    )
+    parser_db.add_argument(
+        "--revoke-connect",
+        help="Role names to explicitly revoke CONNECT from on the target database",
+        nargs="+",
+        default=None,
+    )
+    parser_db.add_argument(
+        "--keep-public",
+        help="Do not revoke CONNECT from PUBLIC before applying role grants/revokes",
+        action="store_true",
+        default=False,
     )
 
     # Parser for the "app" command
@@ -508,6 +526,25 @@ def cli() -> int:  # noqa: PLR0912
                 logger.info(f"Database '{args.dbname}' dropped successfully.")
             except Exception as e:
                 logger.error(f"Failed to drop database: {e}")
+                return 1
+        elif args.action == "access":
+            if not args.grant_connect and not args.revoke_connect and args.keep_public:
+                logger.error(
+                    "No access changes requested: provide --grant-connect and/or --revoke-connect, "
+                    "or omit --keep-public to revoke PUBLIC."
+                )
+                return 1
+            try:
+                configure_database_connect_access(
+                    connection_params,
+                    args.dbname,
+                    grant_roles=args.grant_connect,
+                    revoke_roles=args.revoke_connect,
+                    revoke_public=not args.keep_public,
+                )
+                logger.info(f"CONNECT access for database '{args.dbname}' updated successfully.")
+            except Exception as e:
+                logger.error(f"Failed to update database access: {e}")
                 return 1
         return 0
 
