@@ -17,6 +17,7 @@ class TestRoles(unittest.TestCase):
         """Clean up the test environment."""
         with psycopg.connect(f"service={self.pg_service}") as conn:
             cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS public.pum_test_force_owned_table CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
@@ -41,6 +42,7 @@ class TestRoles(unittest.TestCase):
 
         with psycopg.connect(f"service={self.pg_service}") as conn:
             cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS public.pum_test_force_owned_table CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
@@ -488,6 +490,36 @@ class TestRoles(unittest.TestCase):
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_viewer';")
             self.assertIsNotNone(cur.fetchone(), "pum_test_viewer should still exist")
 
+    def test_drop_single_generic_role_with_inherited_memberships(self) -> None:
+        """Test dropping a generic role that inherits rights through memberships."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(connection=conn, suffix="lausanne", grant=True, commit=True)
+
+            cur = conn.cursor()
+            cur.execute("SELECT pg_has_role('pum_test_user', 'pum_test_viewer', 'MEMBER');")
+            self.assertTrue(cur.fetchone()[0], "pum_test_user should inherit from pum_test_viewer")
+
+            cur.execute("SELECT pg_has_role('pum_test_user', 'pum_test_user_lausanne', 'MEMBER');")
+            self.assertTrue(
+                cur.fetchone()[0],
+                "pum_test_user should inherit from pum_test_user_lausanne",
+            )
+
+            rm.drop_roles(connection=conn, roles=["pum_test_user"], commit=True)
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_user';")
+            self.assertIsNone(cur.fetchone(), "pum_test_user should be dropped")
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_viewer';")
+            self.assertIsNotNone(cur.fetchone(), "pum_test_viewer should still exist")
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_user_lausanne';")
+            self.assertIsNotNone(cur.fetchone(), "pum_test_user_lausanne should still exist")
+
     def test_drop_single_role_with_suffix(self) -> None:
         """Test dropping a single suffixed role while keeping the other."""
         test_dir = Path("test") / "data" / "roles"
@@ -520,6 +552,41 @@ class TestRoles(unittest.TestCase):
                 "('pum_test_viewer', 'pum_test_user', 'pum_test_user_lausanne');"
             )
             self.assertEqual(len(cur.fetchall()), 3)
+
+    def test_drop_role_with_force_removes_owned_dependencies(self) -> None:
+        """Test force dropping a role that still owns extra database objects."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn, roles=True, grant=True)
+
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE public.pum_test_force_owned_table (id INT PRIMARY KEY);")
+            cur.execute("ALTER TABLE public.pum_test_force_owned_table OWNER TO pum_test_user;")
+            conn.commit()
+
+            with self.assertRaises(psycopg.Error):
+                rm.drop_roles(connection=conn, roles=["pum_test_user"], commit=True)
+
+            conn.rollback()
+
+            rm.drop_roles(connection=conn, roles=["pum_test_user"], force=True, commit=True)
+
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'pum_test_user';")
+            self.assertIsNone(cur.fetchone(), "pum_test_user should be dropped with force=True")
+
+            cur.execute(
+                "SELECT tableowner FROM pg_tables "
+                "WHERE schemaname = 'public' AND tablename = 'pum_test_force_owned_table';"
+            )
+            row = cur.fetchone()
+            self.assertIsNotNone(row, "Owned table should still exist after reassignment")
+            self.assertNotEqual(
+                row[0],
+                "pum_test_user",
+                "Owned table should be reassigned away from pum_test_user",
+            )
 
     def test_revoke_single_role(self) -> None:
         """Test revoking permissions from a single role by name."""

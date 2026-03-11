@@ -285,6 +285,11 @@ def create_parser(
         default=None,
     )
     parser_role.add_argument(
+        "--force",
+        help="Force role drops by reassigning and dropping owned objects before DROP ROLE (used with 'drop' action)",
+        action="store_true",
+    )
+    parser_role.add_argument(
         "--include-superusers",
         help="Include superusers in the role listing (they are hidden by default)",
         action="store_true",
@@ -684,7 +689,11 @@ def cli() -> int:  # noqa: PLR0912
                         )
                 elif args.action == "drop":
                     config.role_manager().drop_roles(
-                        connection=conn, roles=args.roles, suffix=args.suffix, commit=True
+                        connection=conn,
+                        roles=args.roles,
+                        suffix=args.suffix,
+                        force=args.force,
+                        commit=True,
                     )
                 elif args.action == "list":
                     result = config.role_manager().roles_inventory(
