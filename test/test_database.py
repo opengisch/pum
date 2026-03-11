@@ -362,7 +362,6 @@ class TestDatabase(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service} dbname=postgres") as conn:
             with self.assertRaises(ValueError):
                 get_database_connect_access(conn, "nonexistent_database_xyz_123")
-            self._cleanup_role(db2_role)
 
 
 if __name__ == "__main__":
