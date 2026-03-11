@@ -19,5 +19,5 @@ valid pum commands
 - `restore`: restore a Postgres database from a dump file
 - `baseline`: Create upgrade information table and set baseline
 - `uninstall`: Uninstall the module by executing uninstall hooks
-- `db`: Manage databases (create, drop)
+- `db`: Manage databases (create, drop, access)
 - `app`: Manage application handlers (create, drop, recreate)
