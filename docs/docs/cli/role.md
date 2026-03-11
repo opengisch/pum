@@ -1,4 +1,4 @@
-usage: pum role [-h] [--suffix SUFFIX] [--roles ROLES [ROLES ...]] [--to TO_ROLE] [--from FROM_ROLE] [--name NAME] [--include-superusers]
+usage: pum role [-h] [--suffix SUFFIX] [--roles ROLES [ROLES ...]] [--to TO_ROLE] [--from FROM_ROLE] [--name NAME] [--force] [--include-superusers]
 {create,create-login,drop,drop-login,grant,revoke,list,login-roles,members}
 ### positional arguments:
 {create,create-login,drop,drop-login,grant,revoke,list,login-roles,members}
@@ -10,4 +10,5 @@ Action to perform
 - `--to TO_ROLE`: Target database user to grant role membership to (used with 'grant' action)
 - `--from FROM_ROLE`: Target database user to revoke role membership from (used with 'revoke' action)
 - `--name NAME`: Name of the login role (used with 'create-login' and 'drop-login' actions)
+- `--force`: Force role drops by reassigning and dropping owned objects before DROP ROLE (used with 'drop' action)
 - `--include-superusers`: Include superusers in the role listing (they are hidden by default)
