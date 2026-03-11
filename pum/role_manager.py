@@ -226,6 +226,15 @@ class Role:
         """
         return self._permissions
 
+    def all_permissions(self) -> list[Permission]:
+        """Return permissions from this role and all ancestors in the inheritance chain."""
+        perms = list(self._permissions)
+        ancestor = self.inherit
+        while ancestor is not None:
+            perms.extend(ancestor.permissions())
+            ancestor = ancestor.inherit
+        return perms
+
     def exists(self, connection: psycopg.Connection) -> bool:
         """Check if the role exists in the database.
         Args:
@@ -526,7 +535,7 @@ class RoleManager:
                 feedback.increment_step()
                 feedback.report_progress(f"Revoking permissions from role: {role_name}")
 
-            for perm in role.permissions():
+            for perm in role.all_permissions():
                 for schema in perm.schemas or []:
                     # Check if schema exists before revoking
                     cursor = SqlContent(
@@ -618,6 +627,7 @@ class RoleManager:
         *,
         roles: list[str] | None = None,
         suffix: str | None = None,
+        force: bool = False,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
     ) -> None:
@@ -631,11 +641,17 @@ class RoleManager:
         When *roles* is provided only those configured roles are acted
         on; otherwise all configured roles are affected.
 
+        When *force* is ``True``, ``REASSIGN OWNED BY … TO CURRENT_USER``
+        and ``DROP OWNED BY …`` are executed before the ``DROP ROLE`` to
+        remove any remaining dependent objects or privileges.
+
         Args:
             connection: The database connection to execute the SQL statements.
             roles: Optional list of configured role names to drop.
                 When ``None`` (default), all configured roles are dropped.
             suffix: Optional suffix identifying DB-specific roles.
+            force: When ``True``, use ``REASSIGN OWNED`` / ``DROP OWNED``
+                to remove all remaining privileges before dropping.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
 
@@ -661,6 +677,19 @@ class RoleManager:
             if feedback:
                 feedback.increment_step()
                 feedback.report_progress(f"Dropping role: {role_name}")
+
+            if force:
+                logger.debug(f"Reassigning and dropping owned objects for role {role_name}.")
+                SqlContent("REASSIGN OWNED BY {name} TO CURRENT_USER").execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={"name": psycopg.sql.Identifier(role_name)},
+                )
+                SqlContent("DROP OWNED BY {name}").execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={"name": psycopg.sql.Identifier(role_name)},
+                )
 
             logger.debug(f"Dropping role {role_name}.")
             SqlContent("DROP ROLE IF EXISTS {name}").execute(
