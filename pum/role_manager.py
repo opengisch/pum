@@ -344,6 +344,7 @@ class RoleManager:
         connection: psycopg.Connection,
         *,
         suffix: str | None = None,
+        generic: bool = True,
         grant: bool = False,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
@@ -352,24 +353,29 @@ class RoleManager:
 
         When *suffix* is provided, DB-specific roles are created by appending
         the suffix to each configured role name (e.g. ``tww_user_lausanne``
-        for suffix ``lausanne``). The generic (base) roles are also created
-        and granted membership of the specific roles, so that the generic role
-        inherits the specific one's permissions.
+        for suffix ``lausanne``).  When *generic* is also ``True`` (default),
+        the generic (base) roles are created too and granted membership of the
+        specific roles, so that the generic role inherits the specific one's
+        permissions.
 
-        When *suffix* is ``None`` (default), only the generic roles defined in
-        the configuration are created.
+        When *suffix* is ``None`` and *generic* is ``True``, only the generic
+        roles defined in the configuration are created.
 
         Args:
             connection: The database connection to execute the SQL statements.
             suffix: Optional suffix to append to role names for DB-specific
-                roles. When provided, both the suffixed and generic roles are
-                created, and inheritance is granted.
+                roles.
+            generic: Whether to create the generic (base) roles. Defaults to
+                True. When *suffix* is also given, generic roles are created
+                without direct grants and receive membership of the specific
+                roles.
             grant: Whether to grant permissions to the roles. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
 
         Version Changed:
             1.5.0: Added *suffix* parameter for DB-specific roles.
+            1.6.0: Added *generic* parameter.
         """
         roles_list = list(self.roles.values())
 
@@ -399,21 +405,24 @@ class RoleManager:
                     connection=connection, commit=False, grant=grant, feedback=feedback
                 )
 
-                if feedback:
-                    feedback.increment_step()
-                    feedback.report_progress(f"Creating generic role: {role.name}")
-                role.create(connection=connection, commit=False, grant=False, feedback=feedback)
+                if generic:
+                    if feedback:
+                        feedback.increment_step()
+                        feedback.report_progress(f"Creating generic role: {role.name}")
+                    role.create(connection=connection, commit=False, grant=False, feedback=feedback)
 
-                logger.debug(f"Granting specific role {specific_name} to generic role {role.name}.")
-                SqlContent("GRANT {specific} TO {generic}").execute(
-                    connection=connection,
-                    commit=False,
-                    parameters={
-                        "specific": psycopg.sql.Identifier(specific_name),
-                        "generic": psycopg.sql.Identifier(role.name),
-                    },
-                )
-        else:
+                    logger.debug(
+                        f"Granting specific role {specific_name} to generic role {role.name}."
+                    )
+                    SqlContent("GRANT {specific} TO {generic}").execute(
+                        connection=connection,
+                        commit=False,
+                        parameters={
+                            "specific": psycopg.sql.Identifier(specific_name),
+                            "generic": psycopg.sql.Identifier(role.name),
+                        },
+                    )
+        elif generic:
             for role in roles_list:
                 if feedback and feedback.is_cancelled():
                     raise PumException("Role creation cancelled by user")
