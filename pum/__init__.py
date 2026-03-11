@@ -1,6 +1,6 @@
 import importlib
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 # Custom SQL logging level (more verbose than DEBUG)
 # Register with: logging.addLevelName(SQL, 'SQL')
@@ -13,59 +13,6 @@ if not logging.getLogger().handlers:
         level=logging.INFO,
         format="%(message)s",
     )
-
-if TYPE_CHECKING:
-    from .changelog import Changelog
-    from .checker import Checker
-    from .database import create_database, drop_database
-    from .dependency_handler import DependencyHandler
-    from .dumper import Dumper, DumpFormat
-    from .feedback import Feedback, LogFeedback, SilentFeedback
-    from .hook import HookBase, HookHandler
-    from .parameter import ParameterDefinition, ParameterType
-    from .pum_config import PumConfig
-    from .role_manager import (
-        Permission,
-        PermissionType,
-        Role,
-        RoleManager,
-        RoleInventory,
-        RoleStatus,
-        SchemaPermissionStatus,
-    )
-    from .schema_migrations import SchemaMigrations
-    from .sql_content import SqlContent, CursorResult
-    from .upgrader import Upgrader
-
-__all__ = [
-    "Checker",
-    "Changelog",
-    "create_database",
-    "CursorResult",
-    "DependencyHandler",
-    "drop_database",
-    "Dumper",
-    "DumpFormat",
-    "Feedback",
-    "HookBase",
-    "HookHandler",
-    "LogFeedback",
-    "ParameterDefinition",
-    "ParameterType",
-    "Permission",
-    "PermissionType",
-    "PumConfig",
-    "Role",
-    "RoleInventory",
-    "RoleManager",
-    "RoleStatus",
-    "SchemaPermissionStatus",
-    "SchemaMigrations",
-    "SilentFeedback",
-    "SQL",
-    "SqlContent",
-    "Upgrader",
-]
 
 
 # Use relative imports so that when pum is bundled inside another package
@@ -99,6 +46,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "SqlContent": (".sql_content", "SqlContent"),
     "Upgrader": (".upgrader", "Upgrader"),
 }
+
+__all__ = sorted(list(_LAZY_IMPORTS.keys()) + ["SQL"])  # pyright: ignore[reportUnsupportedDunderAll]
 
 
 def __getattr__(name: str) -> Any:
