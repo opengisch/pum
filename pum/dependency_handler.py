@@ -12,6 +12,12 @@ from .exceptions import PumDependencyError
 logger = logging.getLogger(__name__)
 
 
+class _VersionMismatchError(Exception):
+    """Internal exception used to signal version mismatch within resolve()."""
+
+    pass
+
+
 class DependencyHandler:
     def __init__(
         self,
@@ -40,21 +46,27 @@ class DependencyHandler:
             PumConfigError: If the dependency is not installed or is incompatible.
         """
         try:
-            importlib.metadata.version(self.name)
-
             installed_version = packaging.version.Version(importlib.metadata.version(self.name))
             if self.minimum_version and installed_version < self.minimum_version:
-                raise PumDependencyError(
+                if not install_dependencies:
+                    raise PumDependencyError(
+                        f"Installed version of `{self.name}` ({installed_version}) is lower than the minimum required ({self.minimum_version})."
+                    )
+                raise _VersionMismatchError(
                     f"Installed version of `{self.name}` ({installed_version}) is lower than the minimum required ({self.minimum_version})."
                 )
             if self.maximum_version and installed_version > self.maximum_version:
-                raise PumDependencyError(
+                if not install_dependencies:
+                    raise PumDependencyError(
+                        f"Installed version of `{self.name}` ({installed_version}) is higher than the maximum allowed ({self.maximum_version})."
+                    )
+                raise _VersionMismatchError(
                     f"Installed version of `{self.name}` ({installed_version}) is higher than the maximum allowed ({self.maximum_version})."
                 )
 
             logger.debug(f"Dependency {self.name} is satisfied.")
 
-        except importlib.metadata.PackageNotFoundError as e:
+        except (importlib.metadata.PackageNotFoundError, _VersionMismatchError) as e:
             if not install_dependencies:
                 raise PumDependencyError(
                     f"Dependency `{self.name}` is not installed. You can activate the installation."
@@ -64,8 +76,8 @@ class DependencyHandler:
                     raise PumDependencyError(
                         f"Dependency `{self.name}` is not installed and no install path was provided."
                     )
-                logger.debug(f"Dependency {self.name} is not installed, proceeding to install.")
-                logger.warning(f"Dependency {self.name} is not installed, trying to install {e}")
+                logger.debug(f"Dependency {self.name} is not satisfied, proceeding to install.")
+                logger.warning(f"Dependency {self.name} is not satisfied, trying to install: {e}")
                 self.pip_install(install_path=install_path)
                 logger.warning(f"Dependency {self.name} is now installed in {install_path}")
 
