@@ -11,6 +11,9 @@ from .exceptions import PumDependencyError
 
 logger = logging.getLogger(__name__)
 
+# On Windows, prevent console windows from flashing when running subprocesses
+_subprocess_kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+
 
 class _VersionMismatchError(Exception):
     """Internal exception used to signal version mismatch within resolve()."""
@@ -100,7 +103,11 @@ class DependencyHandler:
         # First, ensure pip is installed in the target directory and upgrade it if needed
         try:
             pip_version_output = subprocess.run(
-                [python_cmd, "-m", "pip", "--version"], capture_output=True, text=True, check=False
+                [python_cmd, "-m", "pip", "--version"],
+                capture_output=True,
+                text=True,
+                check=False,
+                **_subprocess_kwargs,
             )
             if pip_version_output.returncode == 0:
                 # Extract pip version (format: "pip X.Y.Z from ...")
@@ -123,7 +130,11 @@ class DependencyHandler:
                         install_path,
                     ]
                     upgrade_result = subprocess.run(
-                        upgrade_cmd, capture_output=True, text=True, check=False
+                        upgrade_cmd,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        **_subprocess_kwargs,
                     )
                     if upgrade_result.returncode == 0:
                         logger.info(f"Successfully upgraded pip in {install_path}")
@@ -142,7 +153,9 @@ class DependencyHandler:
         command = [python_cmd, "-m", "pip", "install", req, "--target", install_path_str]
 
         try:
-            output = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+            output = subprocess.run(
+                command, capture_output=True, text=True, check=False, env=env, **_subprocess_kwargs
+            )
             if output.returncode != 0:
                 logger.error("pip installed failed: %s", output.stderr)
                 raise PumDependencyError(output.stderr)
