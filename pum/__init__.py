@@ -1,6 +1,40 @@
 import importlib
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .changelog import Changelog as Changelog
+    from .database import (
+        configure_database_connect_access as configure_database_connect_access,
+        create_database as create_database,
+        drop_database as drop_database,
+        get_database_connect_access as get_database_connect_access,
+    )
+    from .dependency_handler import DependencyHandler as DependencyHandler
+    from .dumper import DumpFormat as DumpFormat, Dumper as Dumper
+    from .feedback import (
+        Feedback as Feedback,
+        LogFeedback as LogFeedback,
+        SilentFeedback as SilentFeedback,
+    )
+    from .hook import HookBase as HookBase, HookHandler as HookHandler
+    from .parameter import (
+        ParameterDefinition as ParameterDefinition,
+        ParameterType as ParameterType,
+    )
+    from .pum_config import PumConfig as PumConfig
+    from .role_manager import (
+        Permission as Permission,
+        PermissionType as PermissionType,
+        Role as Role,
+        RoleInventory as RoleInventory,
+        RoleManager as RoleManager,
+        RoleStatus as RoleStatus,
+        SchemaPermissionStatus as SchemaPermissionStatus,
+    )
+    from .schema_migrations import SchemaMigrations as SchemaMigrations
+    from .sql_content import CursorResult as CursorResult, SqlContent as SqlContent
+    from .upgrader import Upgrader as Upgrader
 
 # Custom SQL logging level (more verbose than DEBUG)
 # Register with: logging.addLevelName(SQL, 'SQL')
