@@ -232,6 +232,12 @@ def create_parser(
         help="Skip create app handlers during upgrade.",
         action="store_true",
     )
+    parser_upgrade.add_argument(
+        "--skip-baseline-check",
+        help="Skip verifying that each changelog at or below the baseline was individually applied. "
+        "Useful after restoring a dump and using set_baseline.",
+        action="store_true",
+    )
 
     # Role management parser
     parser_role = subparsers.add_parser(
@@ -685,6 +691,7 @@ def cli() -> int:  # noqa: PLR0912
                 force=args.force,
                 skip_drop_app=args.skip_drop_app,
                 skip_create_app=args.skip_create_app,
+                skip_baseline_check=args.skip_baseline_check,
             )
         elif args.command == "role":
             if not args.action:
