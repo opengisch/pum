@@ -380,7 +380,7 @@ class Upgrader:
                 ):
                     msg = (
                         f"Changelog version {changelog.version} is lower than or equal to the current version "
-                        f"{self.schema_migrations.current_version(connection)} but not applied. "
+                        f"{self.schema_migrations.baseline(connection)} but not applied. "
                         "This indicates a problem with the database state."
                     )
                     logger.error(msg)
