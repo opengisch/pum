@@ -705,6 +705,53 @@ class TestUpgrader(unittest.TestCase):
                 },
             )
 
+    def test_upgrade_skip_baseline_check(self) -> None:
+        """Test that upgrade with skip_baseline_check=True works after set_baseline."""
+        test_dir = Path("test") / "data" / "skip_baseline_check"
+        cfg = PumConfig(test_dir, pum={"module": "test_skip_baseline"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            # Manually create the migration table and set a baseline at 0.2.0
+            # without installing (so no individual changelog records exist).
+            sm.create(conn, commit=False)
+
+            # Apply 0.1.0 and 0.2.0 SQL manually so the schema exists for 0.3.0.
+            cur = conn.cursor()
+            cur.execute("CREATE SCHEMA IF NOT EXISTS pum_test_data;")
+            cur.execute(
+                "CREATE TABLE pum_test_data.baseline_test ("
+                "id INT PRIMARY KEY, name VARCHAR(100) NOT NULL);"
+            )
+            cur.execute("ALTER TABLE pum_test_data.baseline_test ADD COLUMN description TEXT;")
+
+            sm.set_baseline(conn, "0.2.0", commit=False)
+            conn.commit()
+
+        # Verify upgrade() fails by default (missing individual records).
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            with self.assertRaises(PumException) as ctx:
+                upgrader.upgrade(connection=conn)
+            self.assertIn("not applied", str(ctx.exception))
+
+        # Verify upgrade(skip_baseline_check=True) succeeds and applies only 0.3.0.
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.upgrade(connection=conn, skip_baseline_check=True)
+            conn.commit()
+
+            self.assertEqual(sm.baseline(conn), Version("0.3.0"))
+
+            # Confirm that the 0.3.0 column was actually applied.
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema = 'pum_test_data' AND table_name = 'baseline_test' "
+                "AND column_name = 'is_active';"
+            )
+            self.assertEqual(cur.fetchone()[0], "is_active")
+
 
 if __name__ == "__main__":
     unittest.main()

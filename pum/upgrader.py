@@ -300,6 +300,7 @@ class Upgrader:
         skip_create_app: bool = False,
         roles: bool = False,
         grant: bool = False,
+        skip_baseline_check: bool = False,
         feedback: Feedback | None = None,
     ) -> None:
         """Upgrades the given module
@@ -326,6 +327,11 @@ class Upgrader:
                 If True, roles will be created.
             grant:
                 If True, permissions will be granted to the roles.
+            skip_baseline_check:
+                If True, changelogs at or below the baseline version are simply
+                skipped without verifying that each one was individually applied.
+                This is useful after restoring a database dump and using
+                ``set_baseline`` to record the current version.
             feedback:
                 A Feedback instance to report progress and check for cancellation.
                 If None, a LogFeedback instance will be used.
@@ -373,14 +379,15 @@ class Upgrader:
 
         # First pass: determine applicable changelogs
         applicable_changelogs = []
+        baseline = self.schema_migrations.baseline(connection)
         for changelog in changelogs:
-            if changelog.version <= self.schema_migrations.baseline(connection):
-                if not changelog.is_applied(
+            if changelog.version <= baseline:
+                if not skip_baseline_check and not changelog.is_applied(
                     connection=connection, schema_migrations=self.schema_migrations
                 ):
                     msg = (
                         f"Changelog version {changelog.version} is lower than or equal to the current version "
-                        f"{self.schema_migrations.baseline(connection)} but not applied. "
+                        f"{baseline} but not applied. "
                         "This indicates a problem with the database state."
                     )
                     logger.error(msg)
