@@ -168,10 +168,10 @@ class Checker:
                 - bool: True if the tables are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = r"""SELECT table_schema, table_name
+        query = """SELECT table_schema, table_name
                 FROM information_schema.tables
                 WHERE NOT (table_schema = ANY(%s))
-                    AND table_schema NOT LIKE 'pg\_%'
+                    AND table_schema NOT LIKE 'pg\\_%%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name
                 """
@@ -193,17 +193,17 @@ class Checker:
         # First, get the list of tables that exist in BOTH databases
         # to avoid reporting columns from tables that don't exist in one DB
         if check_views:
-            table_query = r"""SELECT table_schema, table_name
+            table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE NOT (table_schema = ANY(%s))
-                            AND table_schema NOT LIKE 'pg\_%'
+                            AND table_schema NOT LIKE 'pg\\_%%'
                          ORDER BY table_schema,table_name
                          """
         else:
-            table_query = r"""SELECT table_schema, table_name
+            table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE NOT (table_schema = ANY(%s))
-                            AND table_schema NOT LIKE 'pg\_%'
+                            AND table_schema NOT LIKE 'pg\\_%%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
                          """
@@ -267,7 +267,7 @@ class Checker:
         table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE NOT (table_schema = ANY(%s))
-                            AND table_schema NOT LIKE 'pg\\_%'
+                            AND table_schema NOT LIKE 'pg\\_%%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
                          """
@@ -383,12 +383,12 @@ class Checker:
                 - bool: True if the views are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = r"""
+        query = """
         SELECT table_schema, table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
         WHERE NOT (table_schema = ANY(%s))
-        AND table_schema NOT LIKE 'pg\_%'
-        AND table_name not like 'vw_export_%'
+        AND table_schema NOT LIKE 'pg\\_%%'
+        AND table_name not like 'vw_export_%%'
         ORDER BY table_schema, table_name
         """
 
@@ -425,7 +425,7 @@ class Checker:
         table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
                          WHERE NOT (table_schema = ANY(%s))
-                            AND table_schema NOT LIKE 'pg\\_%'
+                            AND table_schema NOT LIKE 'pg\\_%%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
                          """
@@ -514,14 +514,14 @@ class Checker:
                 - bool: True if the functions are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = r"""
+        query = """
         SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
             routines.routine_definition
         FROM information_schema.routines
         LEFT JOIN information_schema.parameters
         ON routines.specific_name=parameters.specific_name
         WHERE NOT (routines.specific_schema = ANY(%s))
-            AND routines.specific_schema NOT LIKE 'pg\_%'
+            AND routines.specific_schema NOT LIKE 'pg\\_%%'
             AND routines.specific_schema <> 'information_schema'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
@@ -537,7 +537,7 @@ class Checker:
                 - bool: True if the rules are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = r"""
+        query = """
         select n.nspname as rule_schema,
         c.relname as rule_table,
         r.rulename as rule_name,
@@ -553,7 +553,7 @@ class Checker:
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
         WHERE NOT (n.nspname = ANY(%s))
-            AND n.nspname NOT LIKE 'pg\_%'
+            AND n.nspname NOT LIKE 'pg\\_%%'
         ORDER BY n.nspname, c.relname, r.rulename, rule_event
         """
 
