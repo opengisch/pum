@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        pg_major: [13]
+        pg_major: [14]
 
     runs-on: ${{ matrix.os }}
 
