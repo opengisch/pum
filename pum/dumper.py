@@ -44,7 +44,7 @@ class Dumper:
         Args:
             pg_connection: PostgreSQL service name or connection string.
                 Can be a service name (e.g., 'mydb') or a full connection string
-                (e.g., 'postgresql://user:pass@host/db' or 'host=localhost dbname=mydb').
+                (e.g., 'postgresql://user:***@host/db' or 'host=localhost dbname=mydb').
             dump_path: Path where the dump file will be saved or loaded from.
 
         """

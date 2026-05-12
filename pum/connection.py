@@ -17,8 +17,8 @@ def format_connection_string(pg_connection: str) -> str:
     Examples:
         >>> format_connection_string('myservice')
         'service=myservice'
-        >>> format_connection_string('postgresql://user:pass@localhost/db')
-        'postgresql://user:pass@localhost/db'
+        >>> format_connection_string('postgresql://user:***@localhost/db')
+        'postgresql://user:***@localhost/db'
         >>> format_connection_string('host=localhost dbname=mydb')
         'host=localhost dbname=mydb'
 

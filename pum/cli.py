@@ -76,7 +76,7 @@ class Pum:
         Args:
             pg_connection (str): PostgreSQL service name or connection string.
                 Can be a service name (e.g., 'mydb') or a full connection string
-                (e.g., 'postgresql://user:pass@host/db' or 'host=localhost dbname=mydb').
+                (e.g., 'postgresql://user:***@host/db' or 'host=localhost dbname=mydb').
             config (str | PumConfig): The configuration file path or a PumConfig object.
 
         """
@@ -117,7 +117,7 @@ def create_parser(
     parser.add_argument(
         "-p",
         "--pg-connection",
-        help="PostgreSQL service name or connection string (e.g., 'mydb' or 'postgresql://user:pass@host/db')",
+        help="PostgreSQL service name or connection string (e.g., 'mydb' or 'postgresql://user:***@host/db')",
         required=True,
     )
 

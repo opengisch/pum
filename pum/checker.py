@@ -4,6 +4,7 @@ from enum import Enum
 import re
 
 import psycopg
+from psycopg import sql
 
 from .connection import format_connection_string
 
@@ -99,7 +100,7 @@ class Checker:
         Args:
             pg_connection1: PostgreSQL service name or connection string for the first database.
                 Can be a service name (e.g., 'mydb') or a full connection string
-                (e.g., 'postgresql://user:pass@host/db' or 'host=localhost dbname=mydb').
+                (e.g., 'postgresql://user:***@host/db' or 'host=localhost dbname=mydb').
             pg_connection2: PostgreSQL service name or connection string for the second database.
             exclude_schema: List of schemas to be ignored in check.
             exclude_field_pattern: List of field patterns to be ignored in check.
@@ -116,11 +117,9 @@ class Checker:
         self.cur2 = self.conn2.cursor()
 
         self.ignore_list = ignore_list or []
-        self.exclude_schema = "('information_schema'"
+        self.exclude_schema_list = ["information_schema"]
         if exclude_schema is not None:
-            for schema in exclude_schema:
-                self.exclude_schema += f", '{schema}'"
-        self.exclude_schema += ")"
+            self.exclude_schema_list.extend(exclude_schema)
         self.exclude_field_pattern = exclude_field_pattern or []
 
     def run_checks(self) -> ComparisonReport:
@@ -169,15 +168,15 @@ class Checker:
                 - bool: True if the tables are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = rf"""SELECT table_schema, table_name
+        query = """SELECT table_schema, table_name
                 FROM information_schema.tables
-                WHERE table_schema NOT IN {self.exclude_schema}
-                    AND table_schema NOT LIKE 'pg\_%'
+                WHERE NOT (table_schema = ANY(%s))
+                    AND table_schema NOT LIKE 'pg\\_%%'
                     AND table_type NOT LIKE 'VIEW'
                 ORDER BY table_schema, table_name
                 """
 
-        return self.__check_equals(query)
+        return self.__check_equals(query, params=(self.exclude_schema_list,))
 
     def check_columns(self, check_views=True):
         """Check if the columns in all tables are equals.
@@ -194,26 +193,26 @@ class Checker:
         # First, get the list of tables that exist in BOTH databases
         # to avoid reporting columns from tables that don't exist in one DB
         if check_views:
-            table_query = rf"""SELECT table_schema, table_name
+            table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {self.exclude_schema}
-                            AND table_schema NOT LIKE 'pg\_%'
+                         WHERE NOT (table_schema = ANY(%s))
+                            AND table_schema NOT LIKE 'pg\\_%%'
                          ORDER BY table_schema,table_name
                          """
         else:
-            table_query = rf"""SELECT table_schema, table_name
+            table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {self.exclude_schema}
-                            AND table_schema NOT LIKE 'pg\_%'
+                         WHERE NOT (table_schema = ANY(%s))
+                            AND table_schema NOT LIKE 'pg\\_%%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
                          """
 
         # Get tables from both databases
-        self.cur1.execute(table_query)
+        self.cur1.execute(table_query, (self.exclude_schema_list,))
         tables1 = set(self.cur1.fetchall())
 
-        self.cur2.execute(table_query)
+        self.cur2.execute(table_query, (self.exclude_schema_list,))
         tables2 = set(self.cur2.fetchall())
 
         # Only check columns for tables that exist in both databases
@@ -223,24 +222,36 @@ class Checker:
             # No common tables, so no columns to compare
             return True, []
 
-        # Build the WHERE clause to only include common tables
-        table_conditions = " OR ".join(
+        # Build the WHERE clause to only include common tables using safe composition
+        table_conditions = sql.SQL(" OR ").join(
             [
-                f"(isc.table_schema = '{schema}' AND isc.table_name = '{table}')"
+                sql.SQL("(isc.table_schema = {} AND isc.table_name = {})").format(
+                    sql.Literal(schema), sql.Literal(table)
+                )
                 for schema, table in common_tables
             ]
         )
 
-        query = f"""
+        # Build exclude field pattern conditions
+        field_pattern_clause = sql.SQL("")
+        for pattern in self.exclude_field_pattern:
+            field_pattern_clause += sql.SQL(" AND column_name NOT LIKE {}").format(
+                sql.Literal(pattern)
+            )
+
+        query = sql.SQL("""
                 SELECT isc.table_schema, isc.table_name, column_name,
                     column_default, is_nullable, data_type,
                     character_maximum_length::text, numeric_precision::text,
                     numeric_precision_radix::text, datetime_precision::text
                 FROM information_schema.columns isc
                 WHERE ({table_conditions})
-                    {("".join([f" AND column_name NOT LIKE '{pattern}'" for pattern in self.exclude_field_pattern]))}
+                    {field_patterns}
                 ORDER BY isc.table_schema, isc.table_name, column_name
-                """
+                """).format(
+            table_conditions=table_conditions,
+            field_patterns=field_pattern_clause,
+        )
 
         return self.__check_equals(query)
 
@@ -253,18 +264,18 @@ class Checker:
                 - list: A list with the differences.
         """
         # Get tables from both databases to filter constraints
-        table_query = f"""SELECT table_schema, table_name
+        table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {self.exclude_schema}
-                            AND table_schema NOT LIKE 'pg\\_%'
+                         WHERE NOT (table_schema = ANY(%s))
+                            AND table_schema NOT LIKE 'pg\\_%%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
                          """
 
-        self.cur1.execute(table_query)
+        self.cur1.execute(table_query, (self.exclude_schema_list,))
         tables1 = set(self.cur1.fetchall())
 
-        self.cur2.execute(table_query)
+        self.cur2.execute(table_query, (self.exclude_schema_list,))
         tables2 = set(self.cur2.fetchall())
 
         # Only check constraints for tables that exist in both databases
@@ -273,24 +284,28 @@ class Checker:
         if not common_tables:
             return True, []
 
-        # Build the WHERE clause to only include common tables
-        table_conditions = " OR ".join(
+        # Build the WHERE clause to only include common tables using safe composition
+        table_conditions = sql.SQL(" OR ").join(
             [
-                f"(tc.constraint_schema = '{schema}' AND tc.table_name = '{table}')"
+                sql.SQL("(tc.constraint_schema = {} AND tc.table_name = {})").format(
+                    sql.Literal(schema), sql.Literal(table)
+                )
                 for schema, table in common_tables
             ]
         )
 
         # Build WHERE clause for CHECK constraints
-        check_table_conditions = " OR ".join(
+        check_table_conditions = sql.SQL(" OR ").join(
             [
-                f"(n.nspname = '{schema}' AND cl.relname = '{table}')"
+                sql.SQL("(n.nspname = {} AND cl.relname = {})").format(
+                    sql.Literal(schema), sql.Literal(table)
+                )
                 for schema, table in common_tables
             ]
         )
 
         # Query for KEY constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE)
-        key_query = f"""
+        key_query = sql.SQL("""
                     SELECT
                         tc.constraint_name,
                         tc.constraint_schema || '.' || tc.table_name || '.' ||
@@ -318,10 +333,10 @@ class Checker:
                     ORDER BY tc.constraint_schema, physical_full_name,
                         tc.constraint_name, foreign_table_name,
                         foreign_column_name
-                    """
+                    """).format(table_conditions=table_conditions)
 
         # Query for CHECK constraints (they don't appear in key_column_usage)
-        check_query = f"""
+        check_query = sql.SQL("""
                     SELECT
                         c.conname as constraint_name,
                         n.nspname || '.' || cl.relname as physical_full_name,
@@ -338,7 +353,7 @@ class Checker:
                     WHERE c.contype = 'c'
                         AND ({check_table_conditions})
                     ORDER BY n.nspname, cl.relname, c.conname
-                    """
+                    """).format(check_table_conditions=check_table_conditions)
 
         # Normalization function for constraint records
         def normalize_constraint_record(record_dict, col_names):
@@ -368,16 +383,16 @@ class Checker:
                 - bool: True if the views are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = rf"""
+        query = """
         SELECT table_schema, table_name, REPLACE(view_definition,'"','')
         FROM INFORMATION_SCHEMA.views
-        WHERE table_schema NOT IN {self.exclude_schema}
-        AND table_schema NOT LIKE 'pg\_%'
-        AND table_name not like 'vw_export_%'
+        WHERE NOT (table_schema = ANY(%s))
+        AND table_schema NOT LIKE 'pg\\_%%'
+        AND table_name not like 'vw_export_%%'
         ORDER BY table_schema, table_name
         """
 
-        return self.__check_equals(query)
+        return self.__check_equals(query, params=(self.exclude_schema_list,))
 
     def check_sequences(self):
         """Check if the sequences are equals.
@@ -387,16 +402,16 @@ class Checker:
                 - bool: True if the sequences are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = f"""
+        query = """
         SELECT c.relname,
                ns.nspname as schema_name
         FROM pg_class c
         JOIN pg_namespace ns ON c.relnamespace = ns.oid
         WHERE c.relkind = 'S'
-              AND ns.nspname NOT IN {self.exclude_schema}
+              AND NOT (ns.nspname = ANY(%s))
         ORDER BY c.relname"""
 
-        return self.__check_equals(query)
+        return self.__check_equals(query, params=(self.exclude_schema_list,))
 
     def check_indexes(self):
         """Check if the indexes are equals.
@@ -407,18 +422,18 @@ class Checker:
                 - list: A list with the differences.
         """
         # Get tables from both databases to filter indexes
-        table_query = f"""SELECT table_schema, table_name
+        table_query = """SELECT table_schema, table_name
                          FROM information_schema.tables
-                         WHERE table_schema NOT IN {self.exclude_schema}
-                            AND table_schema NOT LIKE 'pg\\_%'
+                         WHERE NOT (table_schema = ANY(%s))
+                            AND table_schema NOT LIKE 'pg\\_%%'
                             AND table_type NOT LIKE 'VIEW'
                          ORDER BY table_schema,table_name
                          """
 
-        self.cur1.execute(table_query)
+        self.cur1.execute(table_query, (self.exclude_schema_list,))
         tables1 = set(self.cur1.fetchall())
 
-        self.cur2.execute(table_query)
+        self.cur2.execute(table_query, (self.exclude_schema_list,))
         tables2 = set(self.cur2.fetchall())
 
         # Only check indexes for tables that exist in both databases
@@ -427,15 +442,17 @@ class Checker:
         if not common_tables:
             return True, []
 
-        # Build the WHERE clause to only include common tables
-        table_conditions = " OR ".join(
+        # Build the WHERE clause to only include common tables using safe composition
+        table_conditions = sql.SQL(" OR ").join(
             [
-                f"(ns.nspname = '{schema}' AND t.relname = '{table}')"
+                sql.SQL("(ns.nspname = {} AND t.relname = {})").format(
+                    sql.Literal(schema), sql.Literal(table)
+                )
                 for schema, table in common_tables
             ]
         )
 
-        query = rf"""
+        query = sql.SQL("""
         SELECT
             ns.nspname as schema_name,
             t.relname as table_name,
@@ -461,7 +478,7 @@ class Checker:
             t.relname,
             i.relname,
             a.attname
-        """
+        """).format(table_conditions=table_conditions)
         return self.__check_equals(query)
 
     def check_triggers(self):
@@ -472,7 +489,7 @@ class Checker:
                 - bool: True if the triggers are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = f"""
+        query = """
         WITH trigger_list AS (
             select tgname, tgisinternal from pg_trigger
             GROUP BY tgname, tgisinternal
@@ -484,10 +501,10 @@ class Checker:
             AND t.tgrelid = p.oid
             AND p.relnamespace = ns.oid
             AND NOT tl.tgisinternal
-            AND ns.nspname NOT IN {self.exclude_schema}
+            AND NOT (ns.nspname = ANY(%s))
         ORDER BY p.relname, t.tgname, pp.prosrc"""
 
-        return self.__check_equals(query)
+        return self.__check_equals(query, params=(self.exclude_schema_list,))
 
     def check_functions(self):
         """Check if the functions are equals.
@@ -497,20 +514,20 @@ class Checker:
                 - bool: True if the functions are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = rf"""
+        query = """
         SELECT routines.routine_schema, routines.routine_name, parameters.data_type,
             routines.routine_definition
         FROM information_schema.routines
         LEFT JOIN information_schema.parameters
         ON routines.specific_name=parameters.specific_name
-        WHERE routines.specific_schema NOT IN {self.exclude_schema}
-            AND routines.specific_schema NOT LIKE 'pg\_%'
+        WHERE NOT (routines.specific_schema = ANY(%s))
+            AND routines.specific_schema NOT LIKE 'pg\\_%%'
             AND routines.specific_schema <> 'information_schema'
         ORDER BY routines.routine_name, parameters.data_type,
             routines.routine_definition, parameters.ordinal_position
             """
 
-        return self.__check_equals(query)
+        return self.__check_equals(query, params=(self.exclude_schema_list,))
 
     def check_rules(self):
         """Check if the rules are equals.
@@ -520,7 +537,7 @@ class Checker:
                 - bool: True if the rules are the same, False otherwise.
                 - list: A list with the differences.
         """
-        query = rf"""
+        query = """
         select n.nspname as rule_schema,
         c.relname as rule_table,
         r.rulename as rule_name,
@@ -535,12 +552,12 @@ class Checker:
         join pg_class c on r.ev_class = c.oid
         left join pg_namespace n on n.oid = c.relnamespace
         left join pg_description d on r.oid = d.objoid
-        WHERE n.nspname NOT IN {self.exclude_schema}
-            AND n.nspname NOT LIKE 'pg\_%'
+        WHERE NOT (n.nspname = ANY(%s))
+            AND n.nspname NOT LIKE 'pg\\_%%'
         ORDER BY n.nspname, c.relname, r.rulename, rule_event
         """
 
-        return self.__check_equals(query)
+        return self.__check_equals(query, params=(self.exclude_schema_list,))
 
     @staticmethod
     def __normalize_constraint_definition(definition: str) -> str:
@@ -586,23 +603,26 @@ class Checker:
 
         return definition
 
-    def __check_equals(self, query, normalize_func=None) -> tuple[bool, list[DifferenceItem]]:
+    def __check_equals(
+        self, query, normalize_func=None, params=None
+    ) -> tuple[bool, list[DifferenceItem]]:
         """Check if the query results on the two databases are equals.
 
         Args:
             query: The SQL query to execute on both databases.
             normalize_func: Optional function to normalize specific fields in records.
                 Should accept (dict, col_names) and return normalized dict.
+            params: Optional tuple of parameters for parameterized queries.
 
         Returns:
             tuple: A tuple containing:
                 - bool: True if the results are the same, False otherwise.
                 - list[DifferenceItem]: A list of DifferenceItem objects with structured data.
         """
-        self.cur1.execute(query)
+        self.cur1.execute(query, params)
         records1 = self.cur1.fetchall()
 
-        self.cur2.execute(query)
+        self.cur2.execute(query, params)
         records2 = self.cur2.fetchall()
 
         result = True
