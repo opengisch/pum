@@ -20,6 +20,7 @@ class PermissionType(enum.Enum):
     Attributes:
         READ (str): Read permission.
         WRITE (str): Write permission.
+        ALL (str): All permissions.
 
     Version Added:
         1.3.0
@@ -27,6 +28,7 @@ class PermissionType(enum.Enum):
 
     READ = "read"
     WRITE = "write"
+    ALL = "all"
 
 
 class Permission:
@@ -89,14 +91,10 @@ class Permission:
             if self.type == PermissionType.READ:
                 SqlContent("""
                         GRANT USAGE ON SCHEMA {schema} TO {role};
-                        GRANT SELECT, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA {schema} TO {role};
+                        GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO {role};
                         GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
-                        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {schema} TO {role};
-                        GRANT EXECUTE ON ALL ROUTINES IN SCHEMA {schema} TO {role};
-                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT, REFERENCES, TRIGGER ON TABLES TO {role};
-                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON SEQUENCES TO {role};
-                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON FUNCTIONS TO {role};
-                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON ROUTINES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON TABLES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT USAGE, SELECT ON SEQUENCES TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT USAGE ON TYPES TO {role};
                            """).execute(
                     connection=connection,
@@ -110,14 +108,32 @@ class Permission:
                 self._grant_existing_types(connection, schema, role, "USAGE")
             elif self.type == PermissionType.WRITE:
                 SqlContent("""
+                        GRANT USAGE ON SCHEMA {schema} TO {role};
+                        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {schema} TO {role};
+                        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
+                        GRANT EXECUTE ON ALL ROUTINES IN SCHEMA {schema} TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT USAGE, SELECT ON SEQUENCES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT EXECUTE ON ROUTINES TO {role};
+                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT USAGE ON TYPES TO {role};
+                           """).execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
+                        "schema": psycopg.sql.Identifier(schema),
+                        "role": psycopg.sql.Identifier(role),
+                    },
+                )
+                # Grant permissions on existing types
+                self._grant_existing_types(connection, schema, role, "USAGE")
+            elif self.type == PermissionType.ALL:
+                SqlContent("""
                         GRANT ALL ON SCHEMA {schema} TO {role};
                         GRANT ALL ON ALL TABLES IN SCHEMA {schema} TO {role};
                         GRANT ALL ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
-                        GRANT ALL ON ALL FUNCTIONS IN SCHEMA {schema} TO {role};
                         GRANT ALL ON ALL ROUTINES IN SCHEMA {schema} TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON TABLES TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON SEQUENCES TO {role};
-                        ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON FUNCTIONS TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON ROUTINES TO {role};
                         ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT ALL ON TYPES TO {role};
                            """).execute(
