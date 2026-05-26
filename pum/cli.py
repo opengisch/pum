@@ -358,7 +358,7 @@ def create_parser(
         type=lambda s: DumpFormat[s.upper()],
         choices=list(DumpFormat),
         default=DumpFormat.PLAIN,
-        help=f"Dump format. Choices: {[e.name.lower() for e in DumpFormat]}. Default: plain.",
+        help=f"Dump format. Choices: {', '.join(e.name.lower() for e in DumpFormat)}. Default: plain.",
     )
     parser_dump.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"
