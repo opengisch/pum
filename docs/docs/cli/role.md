@@ -1,5 +1,7 @@
+```text
 usage: pum role [-h] [--suffix SUFFIX] [--roles ROLES [ROLES ...]] [--to TO_ROLE] [--from FROM_ROLE] [--name NAME] [--force] [--include-superusers]
 {create,create-login,drop,drop-login,grant,revoke,list,login-roles,members}
+```
 ### positional arguments:
 {create,create-login,drop,drop-login,grant,revoke,list,login-roles,members}
 Action to perform

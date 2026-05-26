@@ -1,5 +1,7 @@
+```text
 usage: pum install [-h] [-p PARAMETER PARAMETER] [--max-version MAX_VERSION] [--skip-roles] [--skip-grant] [-d DEMO_DATA] [--beta-testing] [--skip-drop-app] [--skip-create-app]
 [--allow-multiple-modules]
+```
 ### options:
 - `-h, --help`: show this help message and exit
 - `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`: Assign variable for running SQL deltas. Format is name value.

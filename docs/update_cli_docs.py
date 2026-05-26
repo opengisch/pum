@@ -39,6 +39,29 @@ def parser_to_markdown(parser: argparse.ArgumentParser) -> str:
         # Collapse any wrapping/newlines/tabs into single spaces.
         return " ".join(text.split())
 
+    # Extract the leading usage block (until blank line or section header) and
+    # render it as a fenced code block so its square brackets don't confuse
+    # Markdown parsers as reference-style links.
+    usage_lines: list[str] = []
+    body_start = 0
+    if lines and lines[0].lstrip().lower().startswith("usage:"):
+        for i, line in enumerate(lines):
+            if not line.strip():
+                body_start = i + 1
+                break
+            stripped_line = line.strip()
+            if i > 0 and stripped_line.endswith(":") and not line.startswith(" "):
+                body_start = i
+                break
+            usage_lines.append(stripped_line)
+        else:
+            body_start = len(lines)
+    if usage_lines:
+        md_lines.append("```text")
+        md_lines.extend(usage_lines)
+        md_lines.append("```")
+    lines = lines[body_start:]
+
     last_entry_index: int | None = None
     for line in lines:
         stripped = line.rstrip("\n")

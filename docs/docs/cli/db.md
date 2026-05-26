@@ -1,5 +1,7 @@
+```text
 usage: pum db [-h] [--template TEMPLATE] [--force] [--grant-connect GRANT_CONNECT [GRANT_CONNECT ...]] [--revoke-connect REVOKE_CONNECT [REVOKE_CONNECT ...]] [--keep-public]
 {create,drop,access} dbname
+```
 ### positional arguments:
 - `{create,drop,access}`: Action to perform: create (new DB), drop (existing DB), access (configure CONNECT privileges)
 - `dbname`: Name of the database to create or drop

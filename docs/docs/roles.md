@@ -201,4 +201,4 @@ for name in RoleManager.members_of(connection=conn, role_name="tww_viewer"):
 - Use `role list` to audit which roles have access to the module's schemas.
 - Use `role create-login`, `role drop-login`, `role login-roles`, and `role members` to manage login users.
 
-For more details, see the [configuration](./configuration.md) page or the [RoleManager](./api/role_manager.md) class.
+For more details, see the [configuration](./configuration/configuration.md) page or the [RoleManager](./api/role_manager.md) class.

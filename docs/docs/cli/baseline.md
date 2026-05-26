@@ -1,4 +1,6 @@
+```text
 usage: pum baseline [-h] -b BASELINE [--create-table] [--allow-multiple-modules]
+```
 ### options:
 - `-h, --help`: show this help message and exit
 - `-b BASELINE, --baseline BASELINE`: Set baseline in the format x.x.x

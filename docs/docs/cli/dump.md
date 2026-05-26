@@ -1,4 +1,6 @@
+```text
 usage: pum dump [-h] [-f {DumpFormat.CUSTOM,DumpFormat.PLAIN}] [-N EXCLUDE_SCHEMA] file
+```
 ### positional arguments:
 - `file`: The backup file
 ### options:

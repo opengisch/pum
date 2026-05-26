@@ -1,4 +1,6 @@
+```text
 usage: pum restore [-h] [-x] [-N EXCLUDE_SCHEMA] file
+```
 ### positional arguments:
 - `file`: The backup file
 ### options:

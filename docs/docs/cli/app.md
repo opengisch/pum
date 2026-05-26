@@ -1,4 +1,6 @@
+```text
 usage: pum app [-h] [-p PARAMETER PARAMETER] {create,drop,recreate}
+```
 ### positional arguments:
 - `{create,drop,recreate}`: Action to perform: create (run create_app handlers), drop (run drop_app handlers), recreate (run drop then create)
 ### options:
