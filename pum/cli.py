@@ -5,6 +5,7 @@ import importlib.metadata
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import psycopg
 
@@ -20,6 +21,7 @@ from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
 from .role_manager import RoleInventory, RoleManager
+from .text_processor import TextProcessor, TextValidationError
 from . import SQL
 
 
@@ -624,36 +626,22 @@ def cli() -> int:  # noqa: PLR0912
 
         # Build parameters dict for install and upgrade commands
         # Start with config-declared defaults, then override with CLI-provided values
+
         parameters = {}
         if args.command in ("install", "upgrade", "uninstall", "app"):
-            for param_def in config.parameters():
-                parameters[param_def.name] = param_def.default
-            for p in args.parameter or ():
-                param = config.parameter(p[0])
-                if not param:
-                    logger.error(f"Unknown parameter: {p[0]}")
-                    sys.exit(1)
-                if param.type == ParameterType.DECIMAL:
-                    parameters[p[0]] = float(p[1])
-                elif param.type == ParameterType.INTEGER:
-                    parameters[p[0]] = int(p[1])
-                elif param.type == ParameterType.BOOLEAN:
-                    parameters[p[0]] = p[1].lower() in ("true", "1", "yes")
-                elif param.type == ParameterType.TEXT:
-                    parameters[p[0]] = p[1]
-                elif param.type == ParameterType.PATH:
-                    parameters[p[0]] = p[1]
-                else:
-                    raise ValueError(f"Unsupported parameter type for {p[0]}: {param.type}")
-                if param.values and parameters[p[0]] not in param.values:
-                    logger.error(
-                        f"Parameter '{p[0]}' value '{parameters[p[0]]}' is not allowed. "
-                        f"Allowed values: {param.values}"
-                    )
-                    sys.exit(1)
-            logger.debug(f"Parameters: {parameters}")
+            try:
+                parameters = build_parameters_for_command(logger, config, args)
+            except TextValidationError as exc:
+                logger.error("%s", exc)
+                sys.exit(1)
+            except ValueError as exc:
+                logger.error("%s", exc)
+                sys.exit(1)
+
+            logger.debug("Parameters: %s", parameters)
 
         exit_code = 0
+
 
         if args.command == "info":
             run_info(connection=conn, config=config)
@@ -848,6 +836,57 @@ def cli() -> int:  # noqa: PLR0912
             exit_code = 1
 
     return exit_code
+
+
+
+def _cast_parameter_value(param, raw: str) -> Any:
+    if param.type == ParameterType.DECIMAL:
+        return float(raw)
+    if param.type == ParameterType.INTEGER:
+        return int(raw)
+    if param.type == ParameterType.BOOLEAN:
+        return raw.lower() in ("true", "1", "yes")
+    if param.type in (ParameterType.TEXT, ParameterType.PATH):
+        return raw
+
+    raise ValueError(f"Unsupported parameter type for {param.name}: {param.type}")
+
+
+def _validate_parameter_value(param, value: Any) -> None:
+    if param.values and value not in param.values:
+        raise ValueError(
+            f"Parameter '{param.name}' value '{value}' is not allowed. Allowed values: {param.values}"
+        )
+
+    if param.regex and param.type == ParameterType.TEXT and value is not None:
+        processor = TextProcessor(parameter=param)
+        processor.validate(str(value))
+
+
+def build_parameters_for_command(config, args) -> dict[str, Any]:
+    """
+    Generic parameter builder:
+      - starts with defaults from config definitions
+      - overrides with provided values
+      - enforces runtime constraints (values, regex)
+    """
+    parameters: dict[str, Any] = {}
+
+    for param_def in config.parameters():
+        parameters[param_def.name] = param_def.default
+
+    for p in args.parameter or ():
+        name, raw = p[0], p[1]
+        param = config.parameter(name)
+        if not param:
+            raise ValueError(f"Unknown parameter: {name}")
+
+        cast_value = _cast_parameter_value(param, raw)
+        _validate_parameter_value(param, cast_value)
+        parameters[name] = cast_value
+
+    return parameters
+
 
 
 def _print_roles_inventory(result: RoleInventory) -> None:
