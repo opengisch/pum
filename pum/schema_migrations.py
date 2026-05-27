@@ -1,3 +1,9 @@
+
+try:
+    from importlib.metadata import version
+except ImportError:
+    from importlib_metadata import version
+
 import json
 import logging
 import re
@@ -13,8 +19,15 @@ from .pum_config import PumConfig
 
 logger = logging.getLogger(__name__)
 
-MIGRATION_TABLE_VERSION = 2  # Current schema version
+MIGRATION_TABLE_VERSION = 3  # Current schema version
 MIGRATION_TABLE_NAME = "pum_migrations"
+
+try:
+    PUM_VERSION = packaging.version.Version(version("pum"))
+except PackageNotFoundError:
+    # fallback when running from source (not installed)
+    PUM_VERSION = packaging.version.Version("0.0.0")
+
 
 # TABLE VERSION HISTORY
 #
@@ -24,6 +37,9 @@ MIGRATION_TABLE_NAME = "pum_migrations"
 #
 # Version 2:
 #   Changed migration_table_version type to integer and set module NOT NULL (version 2025.1 => 1, module 'tww')
+#
+# Version 3:
+#   Added column pum_version to manage shift in WRITE rights
 
 
 class SchemaMigrations:
@@ -232,6 +248,7 @@ class SchemaMigrations:
             "version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
             "table": self.migration_table_identifier,
+            "pum_version": psycopg.sql.Literal(PUM_VERSION),
         }
 
         create_schema_query = None
@@ -248,12 +265,13 @@ class SchemaMigrations:
             beta_testing boolean NOT NULL DEFAULT false,
             changelog_files text[],
             parameters jsonb,
-            migration_table_version integer NOT NULL DEFAULT {version}
+            migration_table_version integer NOT NULL DEFAULT {version},
+            pum_version varying(50) NOT NULL default {pum_version}
             );
         """
         )
 
-        comment_query = psycopg.sql.SQL("COMMENT ON TABLE {table} IS 'migration_table_version: 2';")
+        comment_query = psycopg.sql.SQL("COMMENT ON TABLE {table} IS 'migration_table_version: 3';")
 
         if create_schema_query:
             SqlContent(create_schema_query).execute(connection, parameters=parameters)
@@ -368,14 +386,16 @@ INSERT INTO {table} (
     beta_testing,
     migration_table_version,
     changelog_files,
-    parameters
+    parameters,
+    pum_version
 ) VALUES (
     {module},
     {version},
     {beta_testing},
     {migration_table_version},
     {changelog_files},
-    {parameters}
+    {parameters},
+    {pum_version}
 );""")
 
         query_parameters = {
@@ -386,6 +406,7 @@ INSERT INTO {table} (
             "migration_table_version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "changelog_files": psycopg.sql.Literal(changelog_files or []),
             "parameters": psycopg.sql.Literal(json.dumps(parameters or {})),
+            "pum_version": psycopg.sql.Literal(PUM_VERSION),
         }
 
         logger.info(
@@ -479,17 +500,43 @@ INSERT INTO {table} (
                 installed_date,
                 CASE WHEN upgrade_date > installed_date THEN upgrade_date END AS upgrade_date,
                 beta_testing,
-                parameters
+                parameters,
+                pum_version
             FROM (
                 SELECT
-                    module,
-                    (SELECT version FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS version,
-                    MIN(date_installed) AS installed_date,
-                    MAX(date_installed) AS upgrade_date,
-                    (SELECT beta_testing FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS beta_testing,
-                    (SELECT parameters FROM {table} ORDER BY version DESC, date_installed DESC LIMIT 1) AS parameters
-                FROM {table}
-                GROUP BY module
+                    t.module,
+                    (
+                        SELECT t2.version
+                        FROM {table} t2
+                        WHERE t2.module = t.module
+                        ORDER BY t2.version DESC, t2.date_installed DESC
+                        LIMIT 1
+                    ) AS version,
+                    MIN(t.date_installed) AS installed_date,
+                    MAX(t.date_installed) AS upgrade_date,
+                    (
+                        SELECT t2.beta_testing
+                        FROM {table} t2
+                        WHERE t2.module = t.module
+                        ORDER BY t2.version DESC, t2.date_installed DESC
+                        LIMIT 1
+                    ) AS beta_testing,
+                    (
+                        SELECT t2.parameters
+                        FROM {table} t2
+                        WHERE t2.module = t.module
+                        ORDER BY t2.version DESC, t2.date_installed DESC
+                        LIMIT 1
+                    ) AS parameters,
+                    (
+                        SELECT COALESCE(to_jsonb(t2) ->> 'pum_version', '0.0.0')
+                        FROM {table} t2
+                        WHERE t2.module = t.module
+                        ORDER BY t2.version DESC, t2.date_installed DESC
+                        LIMIT 1
+                    ) AS pum_version
+                FROM {table} t
+                GROUP BY t.module
             ) sub
             """
         )
