@@ -15,18 +15,12 @@ import psycopg.sql
 
 from .exceptions import PumSchemaMigrationError, PumSchemaMigrationNoBaselineError
 from .sql_content import SqlContent
-from .pum_config import PumConfig
-
+from .pum_config import PumConfig,PUM_VERSION
+ 
 logger = logging.getLogger(__name__)
 
 MIGRATION_TABLE_VERSION = 3  # Current schema version
 MIGRATION_TABLE_NAME = "pum_migrations"
-
-try:
-    PUM_VERSION = packaging.version.Version(version("pum"))
-except PackageNotFoundError:
-    # fallback when running from source (not installed)
-    PUM_VERSION = packaging.version.Version("0.0.0")
 
 
 # TABLE VERSION HISTORY
