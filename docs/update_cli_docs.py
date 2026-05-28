@@ -60,9 +60,24 @@ def parser_to_markdown(parser: argparse.ArgumentParser) -> str:
         md_lines.append("```text")
         md_lines.extend(usage_lines)
         md_lines.append("```")
+        md_lines.append("")
     lines = lines[body_start:]
 
+    # Pattern for the bare argparse subcommand metavar line, e.g.
+    # "{info,install,upgrade,...}". We drop it because the same commands are
+    # immediately re-listed underneath as proper bullet entries.
+    metavar_re = re.compile(r"^\s*\{[\w,\-]+\}\s*$")
+
     last_entry_index: int | None = None
+    in_list = False
+
+    def end_list_block() -> None:
+        nonlocal in_list, last_entry_index
+        if in_list:
+            md_lines.append("")
+            in_list = False
+        last_entry_index = None
+
     for line in lines:
         stripped = line.rstrip("\n")
         if not stripped:
@@ -72,8 +87,15 @@ def parser_to_markdown(parser: argparse.ArgumentParser) -> str:
 
         # Section headers from argparse typically end with ':' and are not indented.
         if stripped.strip().endswith(":") and not stripped.startswith(" "):
+            end_list_block()
+            if md_lines and md_lines[-1] != "":
+                md_lines.append("")
             md_lines.append(f"### {stripped.strip()}")
-            last_entry_index = None
+            md_lines.append("")
+            continue
+
+        # Skip the bare subcommand metavar line under "commands:".
+        if metavar_re.match(stripped):
             continue
 
         match = entry_re.match(stripped)
@@ -82,6 +104,7 @@ def parser_to_markdown(parser: argparse.ArgumentParser) -> str:
             desc = norm(match.group("desc"))
             md_lines.append(f"- `{key}`: {desc}")
             last_entry_index = len(md_lines) - 1
+            in_list = True
             continue
 
         # Some argparse formats print the option/arg key on its own line, with the
@@ -91,20 +114,23 @@ def parser_to_markdown(parser: argparse.ArgumentParser) -> str:
             if key_only.startswith("-") and not key_only.endswith(":"):
                 md_lines.append(f"- `{key_only}`:")
                 last_entry_index = len(md_lines) - 1
+                in_list = True
                 continue
 
         # Wrapped description lines are indented, but don't start a new entry.
         if stripped.startswith(" ") and last_entry_index is not None:
             addition = norm(stripped)
-            if md_lines[last_entry_index].endswith(":"):
-                md_lines[last_entry_index] = f"{md_lines[last_entry_index]} {addition}"
-            else:
-                md_lines[last_entry_index] = f"{md_lines[last_entry_index]} {addition}"
+            md_lines[last_entry_index] = f"{md_lines[last_entry_index]} {addition}"
             continue
 
-        # Plain text paragraph.
+        # Plain text paragraph (e.g. "valid pum commands" below a section header).
+        end_list_block()
         md_lines.append(stripped.strip())
-        last_entry_index = None
+        md_lines.append("")
+
+    # Trim trailing blank lines.
+    while md_lines and md_lines[-1] == "":
+        md_lines.pop()
     return "\n".join(md_lines)
 
 
