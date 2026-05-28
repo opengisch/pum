@@ -331,6 +331,17 @@ class SchemaMigrations:
             }
             SqlContent(alter_query).execute(connection, parameters=parameters)
 
+        if table_version < 3:
+            alter_query = psycopg.sql.SQL("""
+                                          ALTER TABLE {table} ADD COLUMN pum_version integer DEFAULT {pum_version};
+                                          """)
+            parameters = {
+                "table": self.migration_table_identifier,
+                "pum_version": psycopg.sql.Literal(PUM_VERSION),
+            }
+            SqlContent(alter_query).execute(connection, parameters=parameters)
+
+
     def set_baseline(
         self,
         connection: psycopg.Connection,
