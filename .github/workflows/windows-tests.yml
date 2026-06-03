@@ -32,7 +32,7 @@ jobs:
           python-version: "3.x"
 
       - name: Start PostgreSQL ${{ matrix.pg_major }} (Windows)
-        uses: ikalnytskyi/action-setup-postgres@v7
+        uses: ikalnytskyi/action-setup-postgres@v8
         with:
           username: postgres
           password: postgres
