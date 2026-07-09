@@ -316,7 +316,7 @@ class SchemaMigrations:
         logger.info(
             f"Updating migration table {self.migration_table_identifier_str} from version {table_version} to {MIGRATION_TABLE_VERSION}."
         )
-        if table_version == 1:
+        if table_version < 2:
             alter_query = psycopg.sql.SQL("""
                                           ALTER TABLE {table} ALTER COLUMN migration_table_version ALTER TYPE integer SET DEFAULT {version} USING 1;
                                           ALTER TABLE {table} ALTER COLUMN module SET NOT NULL USING 'tww';
