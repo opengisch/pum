@@ -15,6 +15,11 @@ There are two types of migration hooks:
 - `drop`: Hooks to drop the application before applying migrations.
 - `create`: Hooks to create the application after applying migrations.
 
+!!! tip
+    If a release only changes the application (no database migration), you can publish it
+    without any SQL changelog by using an `APP_ONLY_RELEASE` marker file.
+    See [application-only releases](getting_started.md#application-only-releases).
+
 ## SQL hooks
 
 Hooks are defined as a list of files or plain SQL code to be executed. For example:

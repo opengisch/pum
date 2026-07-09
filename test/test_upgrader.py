@@ -481,6 +481,40 @@ class TestUpgrader(unittest.TestCase):
             upgrader.upgrade(connection=conn)
             self.assertEqual(sm.baseline(conn), Version("2.0.0"))
 
+    def test_install_app_only_release(self) -> None:
+        """Test the installation with an app-only release (no SQL files, APP_ONLY_RELEASE marker)."""
+        test_dir = Path("test") / "data" / "app_only_release"
+        cfg = PumConfig(test_dir, pum={"module": "test_app_only_release"})
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            self.assertFalse(sm.exists(conn))
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn)
+            self.assertTrue(sm.exists(conn))
+            self.assertEqual(sm.baseline(conn), Version("1.3.0"))
+            self.assertEqual(sm.migration_details(conn)["version"], "1.3.0")
+            self.assertEqual(sm.migration_details(conn)["changelog_files"], [])
+            self.assertEqual(sm.compare(connection=conn), 0)
+
+    def test_upgrade_app_only_release(self) -> None:
+        """Test upgrading to an app-only release (no SQL files, APP_ONLY_RELEASE marker)."""
+        test_dir = Path("test") / "data" / "app_only_release"
+        cfg = PumConfig(test_dir, pum={"module": "test_app_only_release"})
+        sm = SchemaMigrations(cfg)
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(config=cfg)
+            upgrader.install(connection=conn, max_version="1.2.3")
+            self.assertEqual(sm.baseline(conn), Version("1.2.3"))
+            self.assertEqual(sm.compare(connection=conn), -1)
+
+            upgrader.upgrade(connection=conn)
+            self.assertEqual(sm.baseline(conn), Version("1.3.0"))
+            self.assertEqual(sm.compare(connection=conn), 0)
+
+            # Upgrading again should do nothing
+            upgrader.upgrade(connection=conn)
+            self.assertEqual(sm.baseline(conn), Version("1.3.0"))
+
     def test_upgrade_blocked_when_installed_beta_testing_unless_forced(self) -> None:
         """Upgrading a beta-testing installation should be blocked unless forced."""
         test_dir = Path("test") / "data" / "multiple_changelogs"
