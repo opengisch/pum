@@ -17,6 +17,9 @@ on:
     tags:
       - "*"
 
+  release:
+    types: [published, edited, deleted]
+
   # pull_request:
   #   branches:
   #       - main
@@ -55,6 +58,11 @@ jobs:
 
     - name: Update CLI docs
       run: ./docs/update_cli_docs.py
+
+    - name: Update changelog docs
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: ./docs/update_changelog_docs.py
 
     - name: Build documentation
       run: zensical build -f docs/mkdocs.yml --strict
