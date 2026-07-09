@@ -338,6 +338,14 @@ class SchemaMigrations:
             }
             SqlContent(alter_query).execute(connection, parameters=parameters)
 
+        if table_version < MIGRATION_TABLE_VERSION:
+            comment_query = psycopg.sql.SQL(
+                f"COMMENT ON TABLE {{table}} IS 'migration_table_version: {MIGRATION_TABLE_VERSION}';"
+            )
+            SqlContent(comment_query).execute(
+                connection, parameters={"table": self.migration_table_identifier}
+            )
+
     def set_baseline(
         self,
         connection: psycopg.Connection,

@@ -9,7 +9,7 @@ import psycopg
 from pum import __version__
 from pum.pum_config import PumConfig
 from pum.exceptions import PumException
-from pum.schema_migrations import SchemaMigrations
+from pum.schema_migrations import MIGRATION_TABLE_VERSION, SchemaMigrations
 from pum.upgrader import Upgrader
 
 
@@ -308,6 +308,7 @@ class TestSchemaMigrations(unittest.TestCase):
             # Simulate a version 2 migration table (without pum_version column)
             conn.execute("ALTER TABLE public.pum_migrations DROP COLUMN pum_version;")
             conn.execute("UPDATE public.pum_migrations SET migration_table_version = 2;")
+            conn.execute("COMMENT ON TABLE public.pum_migrations IS 'migration_table_version: 2';")
 
             # Old rows have an unknown pum version, reported as 0.0.0
             summary = sm.migration_summary(conn)
@@ -318,6 +319,12 @@ class TestSchemaMigrations(unittest.TestCase):
             details = sm.migration_details(conn)
             self.assertIn("pum_version", details)
             self.assertIsNone(details["pum_version"])
+
+            # The table comment is updated to the current migration table version
+            comment = conn.execute(
+                "SELECT obj_description('public.pum_migrations'::regclass, 'pg_class');"
+            ).fetchone()[0]
+            self.assertEqual(comment, f"migration_table_version: {MIGRATION_TABLE_VERSION}")
 
             # A new baseline records the current pum version
             sm.set_baseline(connection=conn, version="1.2.4")
