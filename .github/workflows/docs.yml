@@ -74,7 +74,9 @@ jobs:
   deploy:
     needs: build-docs
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' && github.ref_type != 'tag' }}
+    # For release events, ref_type is 'tag' as well, but we do want to deploy
+    # them (the changelog page is generated from the GitHub releases).
+    if: ${{ github.event_name != 'pull_request' && (github.event_name == 'release' || github.ref_type != 'tag') }}
     environment:
       name: github-pages
     steps:
