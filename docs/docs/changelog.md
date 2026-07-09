@@ -6,9 +6,22 @@ This page lists all PUM releases with their release notes, sourced from the
 [GitHub releases](https://github.com/opengisch/pum/releases).
 
 
+## [1.8.0](https://github.com/opengisch/pum/releases/tag/1.8.0) - 2026-07-09
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+**What's Changed**
+* improve version access via API and add docs by @3nids in [#195](https://github.com/opengisch/pum/pull/195)
+* docs: generate website changelog page from GitHub releases by @3nids in [#198](https://github.com/opengisch/pum/pull/198)
+* feat: support application-only releases without changelog files by @3nids in [#199](https://github.com/opengisch/pum/pull/199)
+* feat: Log pum version in migration table by @3nids in [#200](https://github.com/opengisch/pum/pull/200)
+
+
+**Full Changelog**: [1.7.2...1.8.0](https://github.com/opengisch/pum/compare/1.7.2...1.8.0)
+
 ## [1.7.2](https://github.com/opengisch/pum/releases/tag/1.7.2) - 2026-05-12
 
-### What's Changed
+**What's Changed**
 * Bump docker/build-push-action from 6 to 7 by @dependabot[bot] in [#188](https://github.com/opengisch/pum/pull/188)
 * Bump docker/login-action from 3 to 4 by @dependabot[bot] in [#187](https://github.com/opengisch/pum/pull/187)
 * Bump actions/deploy-pages from 4 to 5 by @dependabot[bot] in [#186](https://github.com/opengisch/pum/pull/186)
@@ -25,7 +38,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.7.1) and 
 
 ## [1.7.0](https://github.com/opengisch/pum/releases/tag/1.7.0) - 2026-03-24
 
-### What's Changed
+**What's Changed**
 * Add skip_baseline_check parameter to upgrade() by @3nids in [#184](https://github.com/opengisch/pum/pull/184)
 
 
@@ -37,7 +50,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.6.3) and 
 
 ## [1.6.2](https://github.com/opengisch/pum/releases/tag/1.6.2) - 2026-03-13
 
-### What's Changed
+**What's Changed**
 * fix dependancy checking by @3nids in [#182](https://github.com/opengisch/pum/pull/182)
 
 
@@ -49,7 +62,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.6.1) and 
 
 ## [1.6.0](https://github.com/opengisch/pum/releases/tag/1.6.0) - 2026-03-04
 
-### What's Changed
+**What's Changed**
 * create/drop db by @3nids in [#177](https://github.com/opengisch/pum/pull/177)
 
 
@@ -61,7 +74,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.5.5) and 
 
 ## [1.5.4](https://github.com/opengisch/pum/releases/tag/1.5.4) - 2026-02-24
 
-### What's Changed
+**What's Changed**
 * add membership_of method by @3nids in [#173](https://github.com/opengisch/pum/pull/173)
 
 
@@ -69,7 +82,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.5.5) and 
 
 ## [1.5.3](https://github.com/opengisch/pum/releases/tag/1.5.3) - 2026-02-14
 
-### What's Changed
+**What's Changed**
 * wrap read-only methods in transactions by @3nids in [#172](https://github.com/opengisch/pum/pull/172)
 
 
@@ -85,7 +98,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.5.1) and 
 
 ## [1.5.0](https://github.com/opengisch/pum/releases/tag/1.5.0) - 2026-02-14
 
-### What's Changed
+**What's Changed**
 * implement specific roles by @3nids in [#170](https://github.com/opengisch/pum/pull/170)
 * Roles management by @3nids in [#171](https://github.com/opengisch/pum/pull/171)
 
@@ -98,7 +111,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.5.1) and 
 
 ## [1.4.2](https://github.com/opengisch/pum/releases/tag/1.4.2) - 2026-02-12
 
-### What's Changed
+**What's Changed**
 * allow to define a list of values for params by @3nids in [#169](https://github.com/opengisch/pum/pull/169)
 
 
@@ -110,7 +123,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.5.1) and 
 
 ## [1.4.0](https://github.com/opengisch/pum/releases/tag/1.4.0) - 2026-02-12
 
-### What's Changed
+**What's Changed**
 * add static method to get schema migration details by @3nids in [#164](https://github.com/opengisch/pum/pull/164)
 * prevent install in same migration schema by @3nids in [#165](https://github.com/opengisch/pum/pull/165)
 * create app-only parameters by @3nids in [#166](https://github.com/opengisch/pum/pull/166)
@@ -125,7 +138,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.3.6) and 
 
 ## [1.3.5](https://github.com/opengisch/pum/releases/tag/1.3.5) - 2026-02-05
 
-### What's Changed
+**What's Changed**
 * add a CLI entry to create/drop app by @3nids in [#161](https://github.com/opengisch/pum/pull/161)
 
 
@@ -141,7 +154,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.3.6) and 
 
 ## [1.3.2](https://github.com/opengisch/pum/releases/tag/1.3.2) - 2026-01-30
 
-### What's Changed
+**What's Changed**
 * simplify import logic by @3nids in [#160](https://github.com/opengisch/pum/pull/160)
 
 
@@ -155,7 +168,7 @@ Fix transaction issue
 
 ## [1.3.0](https://github.com/opengisch/pum/releases/tag/1.3.0) - 2026-01-29
 
-### What's Changed
+**What's Changed**
 * Add Upgrade capability by @3nids in [#149](https://github.com/opengisch/pum/pull/149)
 * rename hook to create/drop app by @3nids in [#150](https://github.com/opengisch/pum/pull/150)
 * compare schema migrations by @3nids in [#151](https://github.com/opengisch/pum/pull/151)
@@ -177,7 +190,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.2.3) and 
 
 ## [1.2.2](https://github.com/opengisch/pum/releases/tag/1.2.2) - 2025-11-25
 
-### What's Changed
+**What's Changed**
 * grant roles after installing demo data by @3nids in [#138](https://github.com/opengisch/pum/pull/138)
 
 
@@ -189,7 +202,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.2.1) and 
 
 ## [1.2.0](https://github.com/opengisch/pum/releases/tag/1.2.0) - 2025-11-18
 
-### What's Changed
+**What's Changed**
 * support multiple files for demo data by @3nids in [#135](https://github.com/opengisch/pum/pull/135)
 * Update version format validation regex to allow x.y versions by @3nids in [#136](https://github.com/opengisch/pum/pull/136)
 
@@ -198,7 +211,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.2.1) and 
 
 ## [1.1.18](https://github.com/opengisch/pum/releases/tag/1.1.18) - 2025-11-04
 
-### What's Changed
+**What's Changed**
 * fix role creation bug with multiple installs by @3nids in [#134](https://github.com/opengisch/pum/pull/134)
 
 
@@ -218,7 +231,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.1.15) and
 
 ## [1.1.14](https://github.com/opengisch/pum/releases/tag/1.1.14) - 2025-11-03
 
-### What's Changed
+**What's Changed**
 * commit after hooks in demo data by @3nids in [#133](https://github.com/opengisch/pum/pull/133)
 
 
@@ -226,7 +239,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.1.15) and
 
 ## [1.1.13](https://github.com/opengisch/pum/releases/tag/1.1.13) - 2025-08-05
 
-### What's Changed
+**What's Changed**
 * check SQLContent input type by @3nids in [#123](https://github.com/opengisch/pum/pull/123)
 * fix when sys.path is None by @3nids in [#125](https://github.com/opengisch/pum/pull/125)
 
@@ -275,17 +288,17 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.1.3) and 
 
 ## [1.1.2](https://github.com/opengisch/pum/releases/tag/1.1.2) - 2025-06-07
 
-### What's Changed
+**What's Changed**
 * fix links to TEKSI by @sjib in [#116](https://github.com/opengisch/pum/pull/116)
 
-### New Contributors
+**New Contributors**
 * @sjib made their first contribution in [#116](https://github.com/opengisch/pum/pull/116)
 
 **Full Changelog**: [1.1.1...1.1.2](https://github.com/opengisch/pum/compare/1.1.1...1.1.2)
 
 ## [1.1.1](https://github.com/opengisch/pum/releases/tag/1.1.1) - 2025-06-07
 
-### What's Changed
+**What's Changed**
 * dependency fixes by @3nids in [#115](https://github.com/opengisch/pum/pull/115)
 
 
@@ -293,7 +306,7 @@ See the [release page](https://github.com/opengisch/pum/releases/tag/1.1.3) and 
 
 ## [1.1.0](https://github.com/opengisch/pum/releases/tag/1.1.0) - 2025-06-07
 
-### What's Changed
+**What's Changed**
 * add dependency support by @3nids in [#113](https://github.com/opengisch/pum/pull/113)
 * Fallback workaround to check version when unzipped to custom location by @domi4484 in [#114](https://github.com/opengisch/pum/pull/114)
 
@@ -307,7 +320,7 @@ Please refer to the documentation for an exhaustive information: https://opengis
 
 ## [0.10.0](https://github.com/opengisch/pum/releases/tag/0.10.0) - 2022-08-12
 
-### What's Changed
+**What's Changed**
 * ⚠️ **MAJOR CHANGE** ⚠️ use file name instead of checksum to check whether a migration was run by @olivierdalang in [#81](https://github.com/opengisch/pum/pull/81)
 * fix : do not ignore trigger on views by @olivierdalang in [#100](https://github.com/opengisch/pum/pull/100)
 * make check honor --exclude-schema for indexes, constraints, sequences and triggers too by @olivierdalang in [#102](https://github.com/opengisch/pum/pull/102)

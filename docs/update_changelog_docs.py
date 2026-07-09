@@ -31,7 +31,7 @@ This page lists all PUM releases with their release notes, sourced from the
 
 PR_URL_RE = re.compile(rf"(?<!\()https://github\.com/{REPO}/pull/(\d+)")
 COMPARE_URL_RE = re.compile(rf"(?<!\()https://github\.com/{REPO}/compare/([^\s)]+)")
-HEADING_RE = re.compile(r"^(#{1,4}) ", flags=re.MULTILINE)
+HEADING_RE = re.compile(r"^#{1,4} +(.+?)\s*$", flags=re.MULTILINE)
 
 
 def fetch_releases() -> list[dict]:
@@ -62,8 +62,9 @@ def render_body(release: dict) -> str:
             f"See the [release page]({release['html_url']}) "
             f"and the [commit history](https://github.com/{REPO}/commits/{release['tag_name']})."
         )
-    # Demote headings so they nest under the version heading.
-    body = HEADING_RE.sub(r"#\1 ", body)
+    # Turn headings into bold text so only the version headings
+    # appear in the page table of contents.
+    body = HEADING_RE.sub(r"**\1**", body)
     # Shorten bare pull request and compare URLs.
     body = PR_URL_RE.sub(rf"[#\1](https://github.com/{REPO}/pull/\1)", body)
     body = COMPARE_URL_RE.sub(rf"[\1](https://github.com/{REPO}/compare/\1)", body)
