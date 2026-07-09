@@ -63,6 +63,7 @@ markdown_extensions:
 
 nav:
   - About: index.md
+  - Changelog: changelog.md
   - Getting Started: getting_started.md
   - Application: application.md
   - Parameters: parameters.md
