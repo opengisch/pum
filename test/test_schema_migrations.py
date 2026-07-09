@@ -6,6 +6,7 @@ from packaging.version import Version
 
 import psycopg
 
+from pum import __version__
 from pum.pum_config import PumConfig
 from pum.exceptions import PumException
 from pum.schema_migrations import SchemaMigrations
@@ -128,7 +129,8 @@ class TestSchemaMigrations(unittest.TestCase):
                 sm.compare(connection=conn)
 
             self.assertIn(
-                "Changelog for version 9.9.9 not found in the source", str(context.exception)
+                "Changelog for version 9.9.9 not found in the source",
+                str(context.exception),
             )
 
     def test_schemas_with_migrations(self) -> None:
@@ -226,7 +228,10 @@ class TestSchemaMigrations(unittest.TestCase):
         cfg1 = PumConfig(test_dir, pum={"module": "module_a", "migration_table_schema": "public"})
         cfg2 = PumConfig(
             test_dir,
-            pum={"module": "module_b", "migration_table_schema": "pum_custom_migrations_schema"},
+            pum={
+                "module": "module_b",
+                "migration_table_schema": "pum_custom_migrations_schema",
+            },
         )
         sm1 = SchemaMigrations(cfg1)
         sm2 = SchemaMigrations(cfg2)
@@ -286,6 +291,38 @@ class TestSchemaMigrations(unittest.TestCase):
             self.assertIsNone(summary["upgrade_date"])
             self.assertFalse(summary["beta_testing"])
             self.assertIn("SRID", summary["parameters"])
+            self.assertEqual(summary["pum_version"], __version__)
+
+            details = sm.migration_details(conn)
+            self.assertEqual(details["pum_version"], __version__)
+
+    def test_update_migration_table_schema_from_v2(self) -> None:
+        """Test upgrading a version 2 migration table adds the pum_version column."""
+        test_dir = Path("test") / "data" / "single_changelog"
+        cfg = PumConfig(test_dir, pum={"module": "test_module"})
+        sm = SchemaMigrations(cfg)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            sm.create(connection=conn)
+            sm.set_baseline(connection=conn, version="1.2.3")
+            # Simulate a version 2 migration table (without pum_version column)
+            conn.execute("ALTER TABLE public.pum_migrations DROP COLUMN pum_version;")
+            conn.execute("UPDATE public.pum_migrations SET migration_table_version = 2;")
+
+            # Old rows have an unknown pum version, reported as 0.0.0
+            summary = sm.migration_summary(conn)
+            self.assertEqual(summary["pum_version"], "0.0.0")
+
+            sm.update_migration_table_schema(conn)
+            # The column is added and NULL for pre-existing rows
+            details = sm.migration_details(conn)
+            self.assertIn("pum_version", details)
+            self.assertIsNone(details["pum_version"])
+
+            # A new baseline records the current pum version
+            sm.set_baseline(connection=conn, version="1.2.4")
+            details = sm.migration_details(conn)
+            self.assertEqual(details["pum_version"], __version__)
 
     def test_migration_summary_after_upgrade(self) -> None:
         """Test migration_summary shows upgrade_date after a second baseline."""

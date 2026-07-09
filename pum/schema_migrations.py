@@ -1,9 +1,3 @@
-
-try:
-    from importlib.metadata import version
-except ImportError:
-    from importlib_metadata import version
-
 import json
 import logging
 import re
@@ -13,15 +7,15 @@ import packaging.version
 import psycopg
 import psycopg.sql
 
+from ._version import __version__
 from .exceptions import PumSchemaMigrationError, PumSchemaMigrationNoBaselineError
+from .pum_config import PumConfig
 from .sql_content import SqlContent
-from .pum_config import PumConfig,PUM_VERSION
- 
+
 logger = logging.getLogger(__name__)
 
 MIGRATION_TABLE_VERSION = 3  # Current schema version
 MIGRATION_TABLE_NAME = "pum_migrations"
-
 
 # TABLE VERSION HISTORY
 #
@@ -33,7 +27,7 @@ MIGRATION_TABLE_NAME = "pum_migrations"
 #   Changed migration_table_version type to integer and set module NOT NULL (version 2025.1 => 1, module 'tww')
 #
 # Version 3:
-#   Added column pum_version to manage shift in WRITE rights
+#   Added column pum_version recording the pum version used to apply the migration
 
 
 class SchemaMigrations:
@@ -242,7 +236,7 @@ class SchemaMigrations:
             "version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "schema": psycopg.sql.Identifier(self.config.config.pum.migration_table_schema),
             "table": self.migration_table_identifier,
-            "pum_version": psycopg.sql.Literal(PUM_VERSION),
+            "pum_version": psycopg.sql.Literal(__version__),
         }
 
         create_schema_query = None
@@ -260,12 +254,14 @@ class SchemaMigrations:
             changelog_files text[],
             parameters jsonb,
             migration_table_version integer NOT NULL DEFAULT {version},
-            pum_version varying(50) NOT NULL default {pum_version}
+            pum_version character varying(50) NOT NULL DEFAULT {pum_version}
             );
         """
         )
 
-        comment_query = psycopg.sql.SQL("COMMENT ON TABLE {table} IS 'migration_table_version: 3';")
+        comment_query = psycopg.sql.SQL(
+            f"COMMENT ON TABLE {{table}} IS 'migration_table_version: {MIGRATION_TABLE_VERSION}';"
+        )
 
         if create_schema_query:
             SqlContent(create_schema_query).execute(connection, parameters=parameters)
@@ -332,15 +328,15 @@ class SchemaMigrations:
             SqlContent(alter_query).execute(connection, parameters=parameters)
 
         if table_version < 3:
+            # The pum version used for pre-existing rows is unknown, so the
+            # column is left NULL for them.
             alter_query = psycopg.sql.SQL("""
-                                          ALTER TABLE {table} ADD COLUMN pum_version integer DEFAULT {pum_version};
+                                          ALTER TABLE {table} ADD COLUMN IF NOT EXISTS pum_version character varying(50);
                                           """)
             parameters = {
                 "table": self.migration_table_identifier,
-                "pum_version": psycopg.sql.Literal(PUM_VERSION),
             }
             SqlContent(alter_query).execute(connection, parameters=parameters)
-
 
     def set_baseline(
         self,
@@ -411,7 +407,7 @@ INSERT INTO {table} (
             "migration_table_version": psycopg.sql.Literal(MIGRATION_TABLE_VERSION),
             "changelog_files": psycopg.sql.Literal(changelog_files or []),
             "parameters": psycopg.sql.Literal(json.dumps(parameters or {})),
-            "pum_version": psycopg.sql.Literal(PUM_VERSION),
+            "pum_version": psycopg.sql.Literal(__version__),
         }
 
         logger.info(
@@ -492,11 +488,15 @@ INSERT INTO {table} (
 
         Returns:
             dict: A dict with keys: schema, module, version, installed_date,
-                  upgrade_date (None if never upgraded), beta_testing, parameters.
+                  upgrade_date (None if never upgraded), beta_testing, parameters,
+                  pum_version (the pum version used for the latest migration,
+                  "0.0.0" if unknown).
 
         Raises:
             PumSchemaMigrationError: If the migration table does not exist or has no data.
         """
+        # to_jsonb is used for pum_version so the query also works on migration
+        # tables (version < 3) that lack the pum_version column.
         query = psycopg.sql.SQL(
             """
             SELECT
@@ -562,6 +562,7 @@ INSERT INTO {table} (
                 "upgrade_date": row[3],
                 "beta_testing": row[4],
                 "parameters": row[5],
+                "pum_version": row[6],
             }
 
     def migration_details(self, connection: psycopg.Connection, version: str | None = None) -> dict:
