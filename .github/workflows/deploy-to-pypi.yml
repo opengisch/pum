@@ -35,7 +35,7 @@ jobs:
       - name: upload release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload --repo ${{ github.repository_owner }}/${{ github.event.repository.name }} ${{ github.ref_name }} "dist/${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz"
+        run: gh release upload --clobber --repo ${{ github.repository_owner }}/${{ github.event.repository.name }} ${{ github.ref_name }} "dist/${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz"
 
       - name: Deploy to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
