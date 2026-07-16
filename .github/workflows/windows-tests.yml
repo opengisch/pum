@@ -24,7 +24,7 @@ jobs:
       PGSYSCONFDIR: .
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -32,7 +32,7 @@ jobs:
           python-version: "3.x"
 
       - name: Start PostgreSQL ${{ matrix.pg_major }} (Windows)
-        uses: ikalnytskyi/action-setup-postgres@v7
+        uses: ikalnytskyi/action-setup-postgres@v8
         with:
           username: postgres
           password: postgres

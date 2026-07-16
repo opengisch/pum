@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+APP_ONLY_RELEASE_FILE = "APP_ONLY_RELEASE"
+
 
 class Changelog:
     """This class represent a changelog directory.
@@ -52,23 +54,47 @@ class Changelog:
         files.sort()
         return files
 
+    def is_app_only(self) -> bool:
+        """Check if the changelog is an application-only release.
+        An application-only release contains no SQL migration files and is marked
+        by the presence of an ``APP_ONLY_RELEASE`` file in the version directory.
+
+        Returns:
+            bool: True if the changelog directory contains an ``APP_ONLY_RELEASE`` marker file.
+
+        Version Added:
+            1.8.0
+
+        """
+        return (Path(self.dir) / APP_ONLY_RELEASE_FILE).is_file()
+
     def validate(self, parameters: dict | None = None) -> bool:
         """Validate the changelog directory.
         This is done by checking if the directory exists and if it contains at least one SQL file.
+        A changelog without SQL files is valid only if it contains an ``APP_ONLY_RELEASE``
+        marker file, denoting an application-only release without database migrations.
 
         Args:
             parameters: The parameters to pass to the SQL files.
 
         Raises:
-            PumInvalidChangelog: If the changelog directory does not exist or does not contain any SQL files.
+            PumInvalidChangelog: If the changelog directory does not exist or does not contain
+                any SQL files (unless marked as an application-only release).
 
         """
         if not self.dir.is_dir():
             raise PumInvalidChangelog(f"Changelog directory `{self.dir}` does not exist.")
         files = self.files()
-        if not files:
+        if not files and not self.is_app_only():
             raise PumInvalidChangelog(
-                f"Changelog directory `{self.dir}` does not contain any SQL files."
+                f"Changelog directory `{self.dir}` does not contain any SQL files. "
+                f"For an application-only release without database migrations, "
+                f"add an empty `{APP_ONLY_RELEASE_FILE}` file to the directory."
+            )
+        if files and self.is_app_only():
+            raise PumInvalidChangelog(
+                f"Changelog directory `{self.dir}` contains an `{APP_ONLY_RELEASE_FILE}` "
+                f"marker file but also SQL files. Remove the marker file or the SQL files."
             )
         for file in files:
             if not file.is_file():
@@ -121,7 +147,12 @@ class Changelog:
                 The list of changelogs that were executed
 
         """
-        logger.info(f"Applying changelog version {self.version} from {self.dir}")
+        if self.is_app_only():
+            logger.info(
+                f"Recording application-only release version {self.version} from {self.dir}"
+            )
+        else:
+            logger.info(f"Applying changelog version {self.version} from {self.dir}")
 
         parameters_literals = SqlContent.prepare_parameters(parameters)
         files = self.files()

@@ -2,6 +2,8 @@ import importlib
 import logging
 from typing import TYPE_CHECKING, Any
 
+from ._version import VERSION as VERSION, __version__ as __version__
+
 if TYPE_CHECKING:
     from .changelog import Changelog as Changelog
     from .database import (
@@ -83,7 +85,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Upgrader": (".upgrader", "Upgrader"),
 }
 
-__all__ = sorted(list(_LAZY_IMPORTS.keys()) + ["SQL"])  # pyright: ignore[reportUnsupportedDunderAll]
+__all__ = sorted(list(_LAZY_IMPORTS.keys()) + ["SQL", "VERSION", "__version__"])  # pyright: ignore[reportUnsupportedDunderAll]
 
 
 def __getattr__(name: str) -> Any:

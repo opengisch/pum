@@ -1,9 +1,15 @@
+```text
 usage: pum check [-h] [-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]]
 [-N EXCLUDE_SCHEMA] [-P EXCLUDE_FIELD_PATTERN] [-o OUTPUT_FILE] [-f {text,html,json}]
 pg_connection_compared
+```
+
 ### positional arguments:
+
 - `pg_connection_compared`: PostgreSQL service name or connection string for the database to compare against
+
 ### options:
+
 - `-h, --help`: show this help message and exit
 - `-i {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...], --ignore {tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} [{tables,columns,constraints,views,sequences,indexes,triggers,functions,rules} ...]`: Elements to be ignored
 - `-N EXCLUDE_SCHEMA, --exclude-schema EXCLUDE_SCHEMA`: Schema to be ignored.

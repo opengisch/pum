@@ -1,0 +1,26 @@
+# Configuration for the auto-generated release notes
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  exclude:
+    authors:
+      - dependabot
+      - pre-commit-ci
+  categories:
+    - title: "⚠️ Breaking changes"
+      labels:
+        - breaking
+    - title: "🎉 New features"
+      labels:
+        - feature
+        - enhancement
+    - title: "🐛 Bug fixes"
+      labels:
+        - bug
+        - fix
+    - title: "📚 Documentation"
+      labels:
+        - documentation
+    - title: "🧰 Other changes"
+      labels:
+        - "*"

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import importlib.metadata
 import logging
 import sys
 from pathlib import Path
@@ -20,7 +19,7 @@ from .parameter import ParameterType
 from .schema_migrations import SchemaMigrations
 from .dumper import DumpFormat, Dumper
 from .role_manager import RoleInventory, RoleManager
-from . import SQL
+from . import SQL, __version__
 
 
 def setup_logging(verbosity: int = 0):
@@ -140,7 +139,7 @@ def create_parser(
         help="Suppress info messages, only show warnings and errors",
     )
 
-    version = importlib.metadata.version("pum")
+    version = __version__
     parser.add_argument(
         "--version",
         action="version",
@@ -358,7 +357,7 @@ def create_parser(
         type=lambda s: DumpFormat[s.upper()],
         choices=list(DumpFormat),
         default=DumpFormat.PLAIN,
-        help=f"Dump format. Choices: {[e.name.lower() for e in DumpFormat]}. Default: plain.",
+        help=f"Dump format. Choices: {', '.join(e.name.lower() for e in DumpFormat)}. Default: plain.",
     )
     parser_dump.add_argument(
         "-N", "--exclude-schema", help="Schema to be ignored.", action="append"

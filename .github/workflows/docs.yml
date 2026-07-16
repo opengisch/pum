@@ -17,6 +17,9 @@ on:
     tags:
       - "*"
 
+  release:
+    types: [published, edited, deleted]
+
   # pull_request:
   #   branches:
   #       - main
@@ -39,7 +42,7 @@ jobs:
 
     steps:
     - name: Get source code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - uses: actions/setup-python@v6
       with:
@@ -56,6 +59,11 @@ jobs:
     - name: Update CLI docs
       run: ./docs/update_cli_docs.py
 
+    - name: Update changelog docs
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: ./docs/update_changelog_docs.py
+
     - name: Build documentation
       run: zensical build -f docs/mkdocs.yml --strict
 
@@ -66,7 +74,9 @@ jobs:
   deploy:
     needs: build-docs
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' && github.ref_type != 'tag' }}
+    # For release events, ref_type is 'tag' as well, but we do want to deploy
+    # them (the changelog page is generated from the GitHub releases).
+    if: ${{ github.event_name != 'pull_request' && (github.event_name == 'release' || github.ref_type != 'tag') }}
     environment:
       name: github-pages
     steps:

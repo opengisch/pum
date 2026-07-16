@@ -63,6 +63,7 @@ markdown_extensions:
 
 nav:
   - About: index.md
+  - Changelog: changelog.md
   - Getting Started: getting_started.md
   - Application: application.md
   - Parameters: parameters.md
@@ -119,6 +120,7 @@ nav:
       - SchemaMigrations: api/schema_migrations.md
       - SqlContent: api/sql_content.md
       - Upgrader: api/upgrader.md
+      - Version: api/version.md
       - Exceptions: api/exceptions.md
 
 extra:

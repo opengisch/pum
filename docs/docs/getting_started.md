@@ -40,6 +40,21 @@ Each file contains SQL statements for a single migration step.
 
 Changelog should not try to commit.
 
+### Application-only releases
+
+A release may contain no database migration at all (e.g., only application code changed).
+In that case, create the version directory without any SQL file and add an empty marker file named `APP_ONLY_RELEASE` (this also ensures the directory is tracked in Git):
+
+```
+project/
+└── changelogs/
+    └── 1.0.2/
+        └── APP_ONLY_RELEASE
+```
+
+The version is still recorded in the migration table when installing or upgrading, but no SQL is executed.
+A version directory containing both the marker file and SQL files is invalid.
+
 ### Best Practices
 * Keep each migration atomic—one logical change per file.
 * Never modify a changelog file after it has been applied to any environment.
