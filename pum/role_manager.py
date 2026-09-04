@@ -28,7 +28,7 @@ class PermissionType(enum.Enum):
 
     READ = "read"
     WRITE = "write"
-    ALL = "all"
+    ALL = "admin"
 
 
 class Permission:
@@ -215,6 +215,7 @@ class Role:
         *,
         inherit: Optional["Role"] = None,
         description: str | None = None,
+        is_sysadmin: bool | None = False,
     ) -> None:
         """Initialize the Role class.
         Args:
@@ -222,6 +223,7 @@ class Role:
             permissions: List of permissions associated with the role.
             inherit: Optional role to inherit permissions from.
             description: Optional description of the role.
+            sysadmin: Optional bool to flag sysadmin role. Needed to SET ROLE on creation.
         """
         self.name = name
         if isinstance(permissions, list) and all(isinstance(p, dict) for p in permissions):
@@ -235,6 +237,7 @@ class Role:
             raise TypeError("Inherit must be a Role instance or None.")
         self.inherit = inherit
         self.description = description
+        self.is_sysadmin = is_sysadmin
 
     def permissions(self) -> list[Permission]:
         """
@@ -265,6 +268,34 @@ class Role:
         )
         return bool(cursor._pum_results)
 
+    def is_member(self, connection: psycopg.Connection, user: str|None) -> bool:
+        """Check if a user is member of the role.
+        Args:
+            connection: The database connection to execute the SQL statements.
+            user: Name of the user. Defaults to CURRENT_USER
+        Returns:
+            bool: True if the user is member of the role, False otherwise.
+        """
+
+        if user is None:
+            sql = "SELECT pg_has_role(CURRENT_USER, {name}, 'MEMBER')"
+            params = {
+                "name": psycopg.sql.Literal(self.name),
+            }
+        else:
+            sql = "SELECT pg_has_role({user}, {name}, 'MEMBER')"
+            params = {
+                "user": psycopg.sql.Literal(user),
+                "name": psycopg.sql.Literal(self.name),
+            }
+
+        cursor = SqlContent(sql).execute(
+            connection=connection,
+            commit=False,
+            parameters=params,
+        )
+        return cursor._pum_results[0][0]
+
     def create(
         self,
         connection: psycopg.Connection,
@@ -286,6 +317,9 @@ class Role:
 
         if self.exists(connection):
             logger.debug(f"Role {self.name} already exists, skipping creation.")
+            if self.is_sysadmin and not self.is_member(connection):
+                raise PumException("SysAdmin Role {self.name} already exists, but"
+                                   "current user is not member of it")
         else:
             logger.debug(f"Creating role {self.name}.")
             SqlContent(
@@ -310,6 +344,14 @@ class Role:
                     commit=False,
                     parameters={
                         "inherit": psycopg.sql.Identifier(self.inherit.name),
+                        "role": psycopg.sql.Identifier(self.name),
+                    },
+                )
+            if self.is_sysadmin:
+                SqlContent("GRANT {role} TO CURRENT_USER").execute(
+                    connection=connection,
+                    commit=False,
+                    parameters={
                         "role": psycopg.sql.Identifier(self.name),
                     },
                 )
@@ -530,6 +572,33 @@ class RoleManager:
         Version Added:
             1.5.0
         """
+        
+        def is_nologin_role(connection, role_name: str) -> bool:
+            """Check whether a database role is a NOLOGIN role.
+
+            Args:
+                connection: The database connection used to query role metadata.
+                role_name: The name of the role to check.
+
+            Returns:
+                ``True`` if the role is a NOLOGIN role, ``False`` otherwise.
+
+            Raises:
+                ValueError: If the specified role does not exist.
+
+            Version Added:
+                1.9.0
+            """
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT rolcanlogin FROM pg_roles WHERE rolname = %s",
+                    (role_name,),
+                )
+                result = cursor.fetchone()
+                if result is None:
+                    raise ValueError(f"Role does not exist: {role_name}")
+                return result[0] is False
+
         target_roles = self._resolve_roles(roles)
         for role in target_roles:
             if feedback and feedback.is_cancelled():
@@ -561,6 +630,7 @@ class RoleManager:
                         f"Revoking {perm.type.value} permission on schema {schema} from role {role_name}."
                     )
                     if perm.type == PermissionType.READ:
+                        # keep the permission tree from version 1.8.0 to facilitate migration
                         SqlContent("""
                             ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE SELECT, REFERENCES, TRIGGER ON TABLES FROM {role};
                             ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE SELECT ON SEQUENCES FROM {role};
@@ -581,6 +651,49 @@ class RoleManager:
                             },
                         )
                     elif perm.type == PermissionType.WRITE:
+                        if is_nologin_role(connection,role_name):
+                        # keep the permission tree from version 1.8.0 to facilitate migration
+                            SqlContent("""
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TABLES FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON SEQUENCES FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON FUNCTIONS FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON ROUTINES FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TYPES FROM {role};
+                                REVOKE ALL ON ALL ROUTINES IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON ALL FUNCTIONS IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON ALL SEQUENCES IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON ALL TABLES IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON SCHEMA {schema} FROM {role};
+                            """).execute(
+                                connection=connection,
+                                commit=False,
+                                parameters={
+                                    "schema": psycopg.sql.Identifier(schema),
+                                    "role": psycopg.sql.Identifier(role_name),
+                                },
+                            )
+                        else:
+                            # only drop the permissions granted by grant_permissions
+                            SqlContent("""
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TABLES FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON SEQUENCES FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON FUNCTIONS FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON ROUTINES FROM {role};
+                                ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TYPES FROM {role};
+                                REVOKE ALL ON ALL ROUTINES IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON ALL FUNCTIONS IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON ALL SEQUENCES IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON ALL TABLES IN SCHEMA {schema} FROM {role};
+                                REVOKE ALL ON SCHEMA {schema} FROM {role};
+                            """).execute(
+                                connection=connection,
+                                commit=False,
+                                parameters={
+                                    "schema": psycopg.sql.Identifier(schema),
+                                    "role": psycopg.sql.Identifier(role_name),
+                                },
+                            )
+                    elif perm.type == PermissionType.ALL:
                         SqlContent("""
                             ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TABLES FROM {role};
                             ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON SEQUENCES FROM {role};
