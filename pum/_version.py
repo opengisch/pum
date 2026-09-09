@@ -30,7 +30,12 @@ import packaging.version
 
 def _resolve_version() -> packaging.version.Version:
     # 1. Bundled pum-*.dist-info/METADATA (next to this package)
-    dist_info_dirs = glob.glob(os.path.join(os.path.dirname(__file__), "..", "pum-*.dist-info"))
+    # The parent is taken lexically: when the package directory is itself a symlink
+    # (a development checkout linked into a vendoring directory), a trailing ".." is
+    # resolved by the kernel against the link target, which would look for the
+    # dist-info next to the checkout instead of next to the symlink.
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    dist_info_dirs = glob.glob(os.path.join(os.path.dirname(package_dir), "pum-*.dist-info"))
     bundled_versions: list[str] = []
     for dist_info in dist_info_dirs:
         metadata_path = os.path.join(dist_info, "METADATA")
@@ -44,12 +49,15 @@ def _resolve_version() -> packaging.version.Version:
         return max(packaging.version.Version(v) for v in bundled_versions)
 
     # 2. git describe (development from source)
+    # Symlinks are resolved here: the checkout holding the .git directory is the one
+    # the code actually lives in, which may differ from the lexical parent above.
     try:
-        git_dir = Path(__file__).parent.parent / ".git"
+        source_dir = Path(__file__).resolve().parent.parent
+        git_dir = source_dir / ".git"
         if git_dir.exists():
             result = subprocess.run(
                 ["git", "describe", "--tags", "--always", "--dirty"],
-                cwd=Path(__file__).parent.parent,
+                cwd=source_dir,
                 capture_output=True,
                 text=True,
                 check=False,
