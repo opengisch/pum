@@ -1,10 +1,12 @@
 import logging
 import packaging
 import packaging.version
+import functools
 import os
 import sys
 import importlib.metadata
 import subprocess
+import sysconfig
 from pathlib import Path
 
 from .exceptions import PumDependencyError
@@ -13,6 +15,87 @@ logger = logging.getLogger(__name__)
 
 # On Windows, prevent console windows from flashing when running subprocesses
 _subprocess_kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+
+
+def _is_python_executable(path: str | Path | None) -> bool:
+    """Return whether `path` is a runnable Python interpreter."""
+    if not path:
+        return False
+    path = Path(path)
+    if not path.name.lower().startswith("python"):
+        return False
+    return path.is_file() and os.access(path, os.X_OK)
+
+
+def _runs_this_python_version(path: Path) -> bool:
+    """Return whether `path` runs and reports the version of the current interpreter."""
+    expected = f"{sys.version_info.major}.{sys.version_info.minor}"
+    try:
+        output = subprocess.run(
+            [str(path), "-c", "import sys; print('%s.%s' % sys.version_info[:2])"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+            **_subprocess_kwargs,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return output.returncode == 0 and output.stdout.strip() == expected
+
+
+@functools.cache
+def _resolve_python_command(host_executable: str) -> str:
+    """Find a Python interpreter when `host_executable` is not one.
+
+    Cached, and keyed on the host executable, because it may spawn a probe process
+    per candidate and is called once per dependency.
+    """
+    versioned = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    search_dirs: list[Path] = []
+    if host_executable:
+        # macOS application bundles ship the interpreter next to the host binary.
+        search_dirs.append(Path(host_executable).parent)
+    bindir = sysconfig.get_config_var("BINDIR")
+    if bindir:
+        # BINDIR is stale for relocated builds (vcpkg), where the interpreter sits
+        # one level up, so probe both.
+        search_dirs += [Path(bindir), Path(bindir).parent]
+    search_dirs += [Path(sys.base_prefix) / "bin", Path(sys.base_prefix)]
+
+    for directory in search_dirs:
+        for name in (versioned, "python3", "python"):
+            candidate = directory / name
+            # The candidate has to be run, not merely found: a bundled interpreter
+            # may need a wrapper to set PYTHONHOME, and a version mismatch would
+            # install the dependencies into a site-packages nothing imports.
+            if _is_python_executable(candidate) and _runs_this_python_version(candidate):
+                return str(candidate)
+
+    raise PumDependencyError(
+        f"No Python interpreter found to run pip with: `{host_executable}` is not one. "
+        "Install the module dependencies manually."
+    )
+
+
+def prefix_site_packages(prefix: str | Path) -> list[str]:
+    """Return the site-packages directories of a pip `--prefix` installation.
+
+    The first entries are what the standard scheme prescribes; the globs pick up
+    distributions that relocate it (Debian's `local/` scheme, `lib64`).
+    """
+    prefix = Path(prefix)
+    scheme = "nt" if os.name == "nt" else "posix_prefix"
+    paths = sysconfig.get_paths(scheme, vars={"base": str(prefix), "platbase": str(prefix)})
+    candidates = [paths["purelib"], paths["platlib"]]
+    candidates += [str(p) for p in sorted(prefix.glob("lib*/python*/*-packages"))]
+    candidates += [str(p) for p in sorted(prefix.glob("local/lib*/python*/*-packages"))]
+
+    directories = []
+    for candidate in candidates:
+        if candidate not in directories:
+            directories.append(candidate)
+    return directories
 
 
 class _VersionMismatchError(Exception):
@@ -85,8 +168,12 @@ class DependencyHandler:
                 logger.warning(f"Dependency {self.name} is now installed in {install_path}")
 
     def pip_install(self, install_path: str):
-        """
-        Installs given reqs with pip
+        """Install the dependency with pip under the `install_path` prefix.
+
+        `--prefix` is used rather than `--target`: pip forces `--ignore-installed`
+        for `--target`, which reinstalls the whole dependency closure and shadows
+        the packages the host application already provides.
+
         Code copied from qpip plugin
         """
 
@@ -99,14 +186,22 @@ class DependencyHandler:
             req += f"<={self.maximum_version}"
 
         python_cmd = self.python_command()
+        install_path_str = str(install_path)
 
-        # First, ensure pip is installed in the target directory and upgrade it if needed
+        # Let pip see what is already installed under the prefix, so that a cached
+        # dependency is not installed again and a locally upgraded pip is picked up.
+        env = os.environ.copy()
+        pythonpath = [*prefix_site_packages(install_path_str), env.get("PYTHONPATH", "")]
+        env["PYTHONPATH"] = os.pathsep.join(p for p in pythonpath if p)
+
+        # First, ensure pip is installed in the prefix and upgrade it if needed
         try:
             pip_version_output = subprocess.run(
                 [python_cmd, "-m", "pip", "--version"],
                 capture_output=True,
                 text=True,
                 check=False,
+                env=env,
                 **_subprocess_kwargs,
             )
             if pip_version_output.returncode == 0:
@@ -115,9 +210,9 @@ class DependencyHandler:
                 pip_version = packaging.version.Version(pip_version_str)
                 if pip_version < packaging.version.Version("22.0"):
                     logger.warning(
-                        f"pip version {pip_version} is outdated, installing newer pip to target directory..."
+                        f"pip version {pip_version} is outdated, installing newer pip to the prefix..."
                     )
-                    # Install a newer pip to the target directory first
+                    # Install a newer pip to the prefix first
                     # This will be used by subsequent installations
                     upgrade_cmd = [
                         python_cmd,
@@ -126,14 +221,15 @@ class DependencyHandler:
                         "install",
                         "--upgrade",
                         "pip>=22.0",
-                        "--target",
-                        install_path,
+                        "--prefix",
+                        install_path_str,
                     ]
                     upgrade_result = subprocess.run(
                         upgrade_cmd,
                         capture_output=True,
                         text=True,
                         check=False,
+                        env=env,
                         **_subprocess_kwargs,
                     )
                     if upgrade_result.returncode == 0:
@@ -141,16 +237,7 @@ class DependencyHandler:
         except Exception as e:
             logger.debug(f"Could not check/upgrade pip version: {e}")
 
-        # Set PYTHONPATH to include install_path so pip can find itself and other packages
-        env = os.environ.copy()
-        # Ensure install_path is a string for environment variables (Windows compatibility)
-        install_path_str = str(install_path)
-        if "PYTHONPATH" in env:
-            env["PYTHONPATH"] = f"{install_path_str}{os.pathsep}{env['PYTHONPATH']}"
-        else:
-            env["PYTHONPATH"] = install_path_str
-
-        command = [python_cmd, "-m", "pip", "install", req, "--target", install_path_str]
+        command = [python_cmd, "-m", "pip", "install", req, "--prefix", install_path_str]
 
         try:
             output = subprocess.run(
@@ -164,21 +251,19 @@ class DependencyHandler:
             raise PumDependencyError("invalid command: {}".format(" ".join(filter(None, command))))
 
     def python_command(self):
+        """Return the Python interpreter to invoke pip with.
+
+        `sys.executable` cannot be trusted: when Python is embedded in a host
+        application it points at the host binary, and executing that would start a
+        second instance of the application instead of running pip. QGIS never sets
+        `PyConfig.program_name`, so this is the case on every platform.
+        """
         # python is normally found at sys.executable, but there is an issue on windows qgis so use 'python' instead
         # https://github.com/qgis/QGIS/issues/45646
         if os.name == "nt":
             return "python"
 
-        # On macOS and Linux, if we're running inside QGIS, sys.executable points to the QGIS app
-        # Look for the python executable in the same directory as sys.executable
-        if sys.executable and "QGIS" in sys.executable:
-            python_dir = Path(sys.executable).parent
-            python_executable = python_dir / "python"
-            if python_executable.exists():
-                return str(python_executable)
-            # Try python3 as fallback
-            python3_executable = python_dir / "python3"
-            if python3_executable.exists():
-                return str(python3_executable)
+        if _is_python_executable(sys.executable):
+            return sys.executable
 
-        return sys.executable
+        return _resolve_python_command(sys.executable or "")
