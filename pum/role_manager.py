@@ -262,6 +262,10 @@ class Role:
             grant: Whether to grant permissions to the role. Defaults to False.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
+
+        Version Changed:
+            1.9.0: The membership of the inherited role is asserted even when
+                the role already exists, so a revoked membership is restored.
         """
         if feedback and feedback.is_cancelled():
             from .exceptions import PumException
@@ -288,15 +292,18 @@ class Role:
                         "description": psycopg.sql.Literal(self.description),
                     },
                 )
-            if self.inherit:
-                SqlContent("GRANT {inherit} TO {role}").execute(
-                    connection=connection,
-                    commit=False,
-                    parameters={
-                        "inherit": psycopg.sql.Identifier(self.inherit.name),
-                        "role": psycopg.sql.Identifier(self.name),
-                    },
-                )
+        # Asserted outside the creation branch: the membership may have been
+        # revoked since, and GRANT is idempotent.
+        if self.inherit:
+            SqlContent("GRANT {inherit} TO {role}").execute(
+                connection=connection,
+                commit=False,
+                parameters={
+                    "inherit": psycopg.sql.Identifier(self.inherit.name),
+                    "role": psycopg.sql.Identifier(self.name),
+                },
+            )
+
         if grant:
             for permission in self.permissions():
                 permission.grant(
@@ -363,7 +370,9 @@ class RoleManager:
         the suffix to each configured role name (e.g. ``tww_user_lausanne``
         for suffix ``lausanne``). The generic (base) roles are also created,
         but no membership is granted between generic and DB-specific roles.
-        This keeps DB-specific permissions isolated.
+        This keeps DB-specific permissions isolated. The DB-specific roles
+        mirror the inheritance of the configured roles between themselves, so
+        ``tww_user_lausanne`` is a member of ``tww_viewer_lausanne``.
 
         When *suffix* is ``None`` (default), only the generic roles defined in
         the configuration are created.
@@ -379,26 +388,33 @@ class RoleManager:
 
         Version Changed:
             1.5.0: Added *suffix* parameter for DB-specific roles.
+            1.9.0: DB-specific roles now inherit from each other, mirroring the
+                configured hierarchy. They previously received neither the
+                membership nor the permissions of the roles they inherit from.
         """
         roles_list = list(self.roles.values())
 
         if suffix:
+            # Roles are ordered so that an inherited role comes before the role
+            # inheriting it, hence its specific variant already exists here.
+            specific_roles = {}
             for role in roles_list:
                 if feedback and feedback.is_cancelled():
                     raise PumException("Role creation cancelled by user")
 
                 specific_name = f"{role.name}_{suffix}"
 
-                # Build a specific role with the suffixed name and same permissions
                 specific_role = Role(
                     name=specific_name,
                     permissions=[
                         Permission(type=p.type, schemas=p.schemas) for p in role.permissions()
                     ],
+                    inherit=specific_roles.get(role.inherit.name) if role.inherit else None,
                     description=(
                         f"{role.description} (specific to {suffix})" if role.description else None
                     ),
                 )
+                specific_roles[role.name] = specific_role
 
                 if feedback:
                     feedback.increment_step()
