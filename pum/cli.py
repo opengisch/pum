@@ -479,6 +479,15 @@ def create_parser(
         help="Assign variable for running SQL handlers. Format is name value.",
         action="append",
     )
+    parser_app.add_argument(
+        "--skip-grant", help="Skip granting permissions to roles", action="store_true"
+    )
+    parser_app.add_argument(
+        "--suffix",
+        help="Grant the permissions to the DB-specific roles with this suffix instead of the generic ones",
+        type=str,
+        default=None,
+    )
 
     return parser
 
@@ -716,7 +725,9 @@ def cli() -> int:  # noqa: PLR0912
                             commit=True,
                         )
                     else:
-                        config.role_manager().grant_permissions(connection=conn)
+                        config.role_manager().grant_permissions(
+                            connection=conn, roles=args.roles, suffix=args.suffix, commit=True
+                        )
                 elif args.action == "revoke":
                     if args.from_role:
                         config.role_manager().revoke_from(
@@ -834,9 +845,21 @@ def cli() -> int:  # noqa: PLR0912
                 if args.action == "drop":
                     upg.drop_app(connection=conn, parameters=parameters, commit=True)
                 elif args.action == "create":
-                    upg.create_app(connection=conn, parameters=parameters, commit=True)
+                    upg.create_app(
+                        connection=conn,
+                        parameters=parameters,
+                        commit=True,
+                        grant=not args.skip_grant,
+                        suffix=args.suffix,
+                    )
                 elif args.action == "recreate":
-                    upg.recreate_app(connection=conn, parameters=parameters, commit=True)
+                    upg.recreate_app(
+                        connection=conn,
+                        parameters=parameters,
+                        commit=True,
+                        grant=not args.skip_grant,
+                        suffix=args.suffix,
+                    )
                 else:
                     logger.error(f"Unknown action: {args.action}")
                     exit_code = 1

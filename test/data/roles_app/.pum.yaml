@@ -1,0 +1,25 @@
+pum:
+  module: roles_app_test
+
+roles:
+  - name: pum_test_viewer
+    description: Role for users who can view the data.
+    permissions:
+      - type: read
+        schemas:
+          - pum_test_data_schema_1
+          - pum_test_app_schema
+
+  - name: pum_test_user
+    description: Role for users who can view and edit the data.
+    inherit: pum_test_viewer
+    permissions:
+      - type: write
+        schemas:
+          - pum_test_data_schema_1
+
+application:
+  drop:
+    - code: DROP SCHEMA IF EXISTS pum_test_app_schema CASCADE;
+  create:
+    - file: app/create_app.sql

@@ -21,6 +21,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP TABLE IF EXISTS public.pum_test_force_owned_table CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_app_schema CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
@@ -46,6 +47,7 @@ class TestRoles(unittest.TestCase):
             cur.execute("DROP TABLE IF EXISTS public.pum_test_force_owned_table CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_1 CASCADE;")
             cur.execute("DROP SCHEMA IF EXISTS pum_test_data_schema_2 CASCADE;")
+            cur.execute("DROP SCHEMA IF EXISTS pum_test_app_schema CASCADE;")
             cur.execute("DROP TABLE IF EXISTS public.pum_migrations;")
             cur.execute("DROP ROLE IF EXISTS pum_test_user;")
             cur.execute("DROP ROLE IF EXISTS pum_test_viewer;")
@@ -537,6 +539,75 @@ class TestRoles(unittest.TestCase):
         with psycopg.connect(f"service={self.pg_service}") as conn:
             with self.assertRaises(PumException):
                 rm.grant_permissions(connection=conn, roles=["nope"])
+
+    def test_recreate_app_regrants_permissions(self) -> None:
+        """Test that recreating the app restores the permissions it dropped."""
+        test_dir = Path("test") / "data" / "roles_app"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(cfg)
+            upgrader.install(connection=conn, roles=True, grant=True, commit=True)
+
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_app_schema.some_view', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have SELECT after install")
+
+            upgrader.recreate_app(connection=conn, commit=True)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            cur.execute(
+                "SELECT has_schema_privilege('pum_test_viewer', 'pum_test_app_schema', 'USAGE');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have USAGE after recreate")
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_app_schema.some_view', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have SELECT after recreate")
+
+    def test_recreate_app_skip_grant(self) -> None:
+        """Test that recreating the app without granting leaves permissions behind."""
+        test_dir = Path("test") / "data" / "roles_app"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(cfg)
+            upgrader.install(connection=conn, roles=True, grant=True, commit=True)
+            upgrader.recreate_app(connection=conn, grant=False, commit=True)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_app_schema.some_view', 'SELECT');"
+            )
+            self.assertFalse(cur.fetchone()[0], "Dropping the schema discards its grants")
+
+    def test_recreate_app_regrants_suffixed_permissions(self) -> None:
+        """Test that recreating the app can restore permissions of suffixed roles."""
+        test_dir = Path("test") / "data" / "roles_app"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            upgrader = Upgrader(cfg)
+            upgrader.install(connection=conn, roles=False, grant=False, commit=True)
+            cfg.role_manager().create_roles(
+                connection=conn, suffix="lausanne", grant=True, commit=True
+            )
+
+            upgrader.recreate_app(connection=conn, suffix="lausanne", commit=True)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer_lausanne', "
+                "'pum_test_app_schema.some_view', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Suffixed viewer should have SELECT after recreate")
 
     def test_drop_roles(self) -> None:
         """Test dropping generic roles."""
