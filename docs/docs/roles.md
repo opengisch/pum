@@ -100,6 +100,37 @@ role_manager.create_roles(
 )
 ```
 
+## Granting Permissions Again
+
+Permissions can be granted again to roles that already exist, without creating
+anything. This is needed whenever the granted objects were dropped and
+recreated, typically by the [application hooks](application.md).
+
+```bash
+# Grant the configured permissions to the generic roles
+pum -p mydb role grant
+
+# ... or to the DB-specific roles
+pum -p mydb role grant --suffix lausanne
+
+# ... restricted to some of the configured roles
+pum -p mydb role grant --roles tww_viewer tww_user
+```
+
+```python
+role_manager.grant_permissions(
+    connection=conn,
+    suffix="lausanne",         # optional, targets <role>_lausanne
+    roles=["tww_viewer"],      # optional, defaults to all configured roles
+    commit=True,
+)
+```
+
+!!! note "Version 1.9.0"
+    `grant_permissions` gained the `roles` and `suffix` parameters, and
+    `pum role grant` now honours `--roles` and `--suffix` and commits its
+    changes.
+
 ## Listing Roles
 
 You can list all database roles related to the module's schemas using the `list` action. This shows:
