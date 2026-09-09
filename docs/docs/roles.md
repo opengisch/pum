@@ -67,15 +67,25 @@ When you have several database instances of the same module in a single PostgreS
 For example, with a role `tww_user` and suffix `lausanne`:
 
 1. A specific role `tww_user_lausanne` is created and granted the configured permissions.
-2. The generic role `tww_user` is also created.
-3. The generic role is granted membership of the specific role, so that `tww_user` inherits `tww_user_lausanne`'s permissions.
+2. The generic role `tww_user` is also created, without any permission.
+3. No membership is granted between the generic and the specific role, so that each database's permissions stay isolated.
 
-This way, users assigned to `tww_user` automatically get access to the Lausanne database, and you can repeat the process for other databases (e.g. `tww_user_zurich`).
+The specific roles mirror the inheritance declared in the configuration between
+themselves: if `tww_user` inherits `tww_viewer`, then `tww_user_lausanne` is
+granted membership of `tww_viewer_lausanne`.
+
+Grant the specific roles to your users to give them access to the Lausanne
+database, and repeat the process for other databases (e.g. `tww_user_zurich`).
+
+!!! warning "Version 1.9.0"
+    Before 1.9.0 the specific roles were created flat, so `tww_user_lausanne`
+    never received the permissions of `tww_viewer_lausanne`. Run
+    `pum role create --suffix <suffix>` again to repair existing databases.
 
 ### CLI Usage
 
 ```bash
-# Create specific roles with suffix, plus generic roles with inheritance
+# Create specific roles with suffix, plus the generic roles
 pum -p mydb role create --suffix lausanne
 ```
 

@@ -408,6 +408,50 @@ class TestRoles(unittest.TestCase):
                 "Generic viewer should NOT have SELECT via specific role",
             )
 
+    def test_create_specific_roles_inherit_permissions(self) -> None:
+        """Test that specific roles mirror the inheritance of the configured roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(
+                connection=conn,
+                suffix="lausanne",
+                grant=True,
+                commit=True,
+            )
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            cur.execute(
+                "SELECT pg_has_role('pum_test_user_lausanne', "
+                "'pum_test_viewer_lausanne', 'MEMBER');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Specific user should be member of specific viewer",
+            )
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user_lausanne', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Specific user should have SELECT inherited from viewer",
+            )
+
+            cur.execute(
+                "SELECT has_schema_privilege('pum_test_user_lausanne', "
+                "'pum_test_data_schema_1', 'USAGE');"
+            )
+            self.assertTrue(
+                cur.fetchone()[0],
+                "Specific user should have USAGE inherited from viewer",
+            )
+
     def test_drop_roles(self) -> None:
         """Test dropping generic roles."""
         test_dir = Path("test") / "data" / "roles"
