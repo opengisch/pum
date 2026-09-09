@@ -20,6 +20,38 @@ There are two types of migration hooks:
     without any SQL changelog by using an `APP_ONLY_RELEASE` marker file.
     See [application-only releases](getting_started.md#application-only-releases).
 
+## Permissions
+
+Dropping a schema discards the privileges granted on it, along with the default
+privileges configured for it. Since the drop hooks usually drop the whole
+application schema, the [configured permissions](roles.md) are granted again
+once the create hooks have run.
+
+```bash
+# Drop then create the application, and grant the permissions again
+pum -p mydb app recreate
+
+# ... granting the DB-specific roles instead of the generic ones
+pum -p mydb app recreate --suffix lausanne
+
+# ... or leaving the permissions alone
+pum -p mydb app recreate --skip-grant
+```
+
+```python
+upgrader.recreate_app(
+    connection=conn,
+    grant=True,                # default
+    suffix="lausanne",         # optional, targets <role>_lausanne
+    commit=True,
+)
+```
+
+!!! note "Version 1.9.0"
+    `app create` and `app recreate` grant the permissions again by default.
+    Earlier versions left the recreated schemas without any privilege, until
+    `pum role grant` was run manually.
+
 ## SQL hooks
 
 Hooks are defined as a list of files or plain SQL code to be executed. For example:
