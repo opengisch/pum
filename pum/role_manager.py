@@ -447,28 +447,48 @@ class RoleManager:
         connection: psycopg.Connection,
         commit: bool = False,
         feedback: Optional["Feedback"] = None,
+        *,
+        roles: list[str] | None = None,
+        suffix: str | None = None,
     ) -> None:
         """Grant permissions to the roles in the database.
+
+        When *suffix* is provided, permissions are granted to the
+        DB-specific (suffixed) roles only.  Otherwise they are granted
+        to the generic roles.
+
+        When *roles* is provided only those configured roles are acted
+        on; otherwise all configured roles are affected.
+
         Args:
             connection: The database connection to execute the SQL statements.
             commit: Whether to commit the transaction. Defaults to False.
             feedback: Optional feedback object for progress reporting.
+            roles: Optional list of configured role names to grant.
+                When ``None`` (default), all configured roles are granted.
+            suffix: Optional suffix identifying DB-specific roles.
+
+        Version Changed:
+            1.9.0: Added *roles* and *suffix* parameters.
         """
-        roles_list = list(self.roles.values())
+        roles_list = self._resolve_roles(roles)
+        granted_names = []
         for role in roles_list:
             if feedback and feedback.is_cancelled():
-                from .exceptions import PumException
-
                 raise PumException("Permission grant cancelled by user")
+
+            role_name = f"{role.name}_{suffix}" if suffix else role.name
+            granted_names.append(role_name)
+
             if feedback:
                 feedback.increment_step()
-                feedback.report_progress(f"Granting permissions to role: {role.name}")
+                feedback.report_progress(f"Granting permissions to role: {role_name}")
+
             for permission in role.permissions():
                 permission.grant(
-                    role=role.name, connection=connection, commit=False, feedback=feedback
+                    role=role_name, connection=connection, commit=False, feedback=feedback
                 )
-        role_names = ", ".join(r.name for r in roles_list)
-        logger.info(f"Permissions granted to roles: {role_names}.")
+        logger.info(f"Permissions granted to roles: {', '.join(granted_names)}.")
         if commit:
             if feedback:
                 feedback.lock_cancellation()

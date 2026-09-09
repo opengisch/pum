@@ -5,6 +5,7 @@ from pathlib import Path
 
 import psycopg
 
+from pum.exceptions import PumException
 from pum.pum_config import PumConfig
 from pum.role_manager import RoleManager
 from pum.upgrader import Upgrader
@@ -451,6 +452,91 @@ class TestRoles(unittest.TestCase):
                 cur.fetchone()[0],
                 "Specific user should have USAGE inherited from viewer",
             )
+
+    def test_grant_permissions_with_suffix(self) -> None:
+        """Test re-granting permissions to suffixed roles after they were lost."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(connection=conn, suffix="lausanne", grant=True, commit=True)
+
+            # Dropping the schema discards the grants it carried
+            cur = conn.cursor()
+            cur.execute("DROP SCHEMA pum_test_data_schema_1 CASCADE;")
+            cur.execute("CREATE SCHEMA pum_test_data_schema_1;")
+            cur.execute("CREATE TABLE pum_test_data_schema_1.some_table_1 (id INT PRIMARY KEY);")
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer_lausanne', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(cur.fetchone()[0], "Permissions should have been discarded")
+
+            rm.grant_permissions(connection=conn, suffix="lausanne", commit=True)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer_lausanne', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Specific viewer should have SELECT again")
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user_lausanne', "
+                "'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Specific user should have INSERT again")
+
+            # Inherited through the membership of the specific viewer
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user_lausanne', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Specific user should have SELECT again")
+
+            # The generic roles must not have been touched
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertFalse(cur.fetchone()[0], "Generic viewer should not have SELECT")
+
+    def test_grant_permissions_single_role(self) -> None:
+        """Test granting permissions to a subset of the configured roles."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            Upgrader(cfg).install(connection=conn)
+            rm.create_roles(connection=conn, commit=True)
+            rm.grant_permissions(connection=conn, roles=["pum_test_viewer"], commit=True)
+
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            cur = conn.cursor()
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_viewer', "
+                "'pum_test_data_schema_1.some_table_1', 'SELECT');"
+            )
+            self.assertTrue(cur.fetchone()[0], "Viewer should have SELECT")
+
+            cur.execute(
+                "SELECT has_table_privilege('pum_test_user', "
+                "'pum_test_data_schema_2.some_table_2', 'INSERT');"
+            )
+            self.assertFalse(cur.fetchone()[0], "User should not have been granted")
+
+    def test_grant_permissions_unknown_role(self) -> None:
+        """Test that granting an unconfigured role raises."""
+        test_dir = Path("test") / "data" / "roles"
+        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml")
+        rm = cfg.role_manager()
+        with psycopg.connect(f"service={self.pg_service}") as conn:
+            with self.assertRaises(PumException):
+                rm.grant_permissions(connection=conn, roles=["nope"])
 
     def test_drop_roles(self) -> None:
         """Test dropping generic roles."""
