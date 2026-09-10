@@ -1,5 +1,6 @@
 """Test the database management functions."""
 
+import contextlib
 import unittest
 
 import psycopg
@@ -149,10 +150,8 @@ class TestDatabase(unittest.TestCase):
                     self.assertIsNone(result)
         finally:
             # Close the active connection (it should already be terminated)
-            try:
+            with contextlib.suppress(Exception):
                 active_conn.close()
-            except Exception:
-                pass
 
     def test_create_database_from_template(self):
         """Test creating a database from a template."""

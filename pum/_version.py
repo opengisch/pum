@@ -19,9 +19,11 @@ Resolution priority (first match wins):
 
 from __future__ import annotations
 
+import contextlib
 import glob
 import importlib.metadata
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -51,12 +53,17 @@ def _resolve_version() -> packaging.version.Version:
     # 2. git describe (development from source)
     # Symlinks are resolved here: the checkout holding the .git directory is the one
     # the code actually lives in, which may differ from the lexical parent above.
-    try:
+    # Deliberately broad: version resolution runs at import time and must never
+    # raise, whatever git or the checkout throws at it.
+    with contextlib.suppress(Exception):
         source_dir = Path(__file__).resolve().parent.parent
         git_dir = source_dir / ".git"
-        if git_dir.exists():
-            result = subprocess.run(
-                ["git", "describe", "--tags", "--always", "--dirty"],
+        git_executable = shutil.which("git")
+        if git_dir.exists() and git_executable:
+            # B603: fixed argv, no shell, and the executable is resolved from PATH
+            # by shutil.which above; only ``cwd`` varies and it is never part of the command.
+            result = subprocess.run(  # nosec B603
+                [git_executable, "describe", "--tags", "--always", "--dirty"],
                 cwd=source_dir,
                 capture_output=True,
                 text=True,
@@ -76,8 +83,6 @@ def _resolve_version() -> packaging.version.Version:
                 if git_version[0].isdigit():
                     return packaging.version.Version(git_version)
                 return packaging.version.Version(f"0.0.0+{git_version}")
-    except Exception:
-        pass
 
     # 3. Installed package metadata
     try:
