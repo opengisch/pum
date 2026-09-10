@@ -13,6 +13,7 @@ from pum.dependency_handler import (
     DependencyHandler,
     _find_python_command,
     _is_python_executable,
+    _python_candidate_names,
     _runs_this_python_version,
     pip_environment,
     prefix_site_packages,
@@ -226,11 +227,14 @@ class TestPythonCommand(unittest.TestCase):
             host = macos / "QGIS"
             host.write_text("not an interpreter")
             host.chmod(0o755)
-            bundled = macos / "bin" / f"python{sys.version_info.major}.{sys.version_info.minor}"
+            # The exact name the resolver looks for first, `.exe` included.
+            bundled = macos / "bin" / _python_candidate_names()[0]
             try:
                 os.symlink(sys.executable, bundled)
             except (OSError, NotImplementedError) as e:
                 self.skipTest(f"cannot symlink an interpreter here: {e}")
+            if not _runs_this_python_version(str(bundled)):
+                self.skipTest("a symlinked interpreter does not run on this platform")
 
             with patch.object(sys, "executable", str(host)):
                 resolved = python_command()
