@@ -90,6 +90,7 @@ nav:
       - Overview: cli.md
       - app: cli/app.md
       - baseline: cli/baseline.md
+      - cache: cli/cache.md
       - check: cli/check.md
       - db: cli/db.md
       - dump: cli/dump.md
