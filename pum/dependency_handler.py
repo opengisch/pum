@@ -57,7 +57,9 @@ def _runs_this_python_version(path: str) -> bool:
     """
     expected = f"{sys.version_info.major}.{sys.version_info.minor}"
     try:
-        output = subprocess.run(
+        # B603: fixed argv, no shell; ``path`` is an interpreter candidate found
+        # next to sys.executable, not user input.
+        output = subprocess.run(  # nosec B603
             [path, "-c", "import sys; print('%s.%s' % sys.version_info[:2])"],
             capture_output=True,
             text=True,
@@ -320,7 +322,9 @@ class DependencyHandler:
 
         # pip has to be importable by that interpreter; without this check its
         # absence would surface as an opaque pip stderr from the install below.
-        probe = subprocess.run(
+        # B603: fixed argv, no shell; ``python_cmd`` is the interpreter resolved
+        # by python_command(), not user input.
+        probe = subprocess.run(  # nosec B603
             [python_cmd, "-m", "pip", "--version"],
             capture_output=True,
             text=True,
@@ -336,7 +340,9 @@ class DependencyHandler:
 
         command = [python_cmd, "-m", "pip", "install", req, "--prefix", install_path_str]
 
-        output = subprocess.run(
+        # B603: fixed argv, no shell; the only variable part is the requirement
+        # string built from the module dependency definition.
+        output = subprocess.run(  # nosec B603
             command,
             capture_output=True,
             text=True,

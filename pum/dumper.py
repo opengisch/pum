@@ -89,7 +89,11 @@ class Dumper:
         logger.debug("Running pg_dump command: %s", " ".join(command))
 
         try:
-            output = subprocess.run(command, capture_output=True, text=True, check=False)
+            # B603: fixed argv, no shell; the executable is the pg_dump path
+            # given by the caller.
+            output = subprocess.run(  # nosec B603
+                command, capture_output=True, text=True, check=False
+            )
             if output.returncode != 0:
                 logger.error("pg_dump failed: %s", output.stderr)
                 raise PgDumpFailed(output.stderr)
@@ -119,7 +123,11 @@ class Dumper:
         logger.debug("Running pg_restore command: %s", " ".join(command))
 
         try:
-            output = subprocess.run(command, capture_output=True, text=True, check=False)
+            # B603: fixed argv, no shell; the executable is the pg_restore path
+            # given by the caller.
+            output = subprocess.run(  # nosec B603
+                command, capture_output=True, text=True, check=False
+            )
             if output.returncode != 0:
                 logger.error("pg_restore failed: %s", output.stderr)
                 raise PgRestoreFailed(output.stderr)
