@@ -5,11 +5,16 @@ from unittest.mock import patch
 import packaging.version
 from packaging.version import parse as parse_version
 
-from pum.pum_config import PumConfig
+from pum.dependency_handler import DependencyHandler
+from pum.pum_config import PumConfig, _add_dependency_sys_paths
 from pum.exceptions import PumConfigError, PumException
 from pum.hook import HookHandler
+import importlib
+import importlib.metadata
 import os
 import platform
+import sys
+import tempfile
 
 
 class TestConfig(unittest.TestCase):
@@ -512,3 +517,124 @@ class TestConfig(unittest.TestCase):
         params = cfg.parameters()
         self.assertEqual(len(params), 1)
         self.assertIsNone(params[0].values)
+
+
+class TestDependencyCache(unittest.TestCase):
+    """Test the dependency cache directory and the sys.path it registers."""
+
+    def _config(self, module: str = "cache_test", cache_dir: str | None = None) -> PumConfig:
+        environment = {"PUM_CACHE_DIR": cache_dir} if cache_dir else {}
+        with patch.dict(os.environ, environment):
+            return PumConfig(
+                base_path=Path("test") / "data" / "single_changelog",
+                validate=False,
+                pum={"module": module},
+            )
+
+    def test_cache_path_is_stable_and_keyed(self) -> None:
+        """The same configuration maps to the same directory, a different one does not."""
+        with tempfile.TemporaryDirectory() as cache_dir:
+            with patch.dict(os.environ, {"PUM_CACHE_DIR": cache_dir}):
+                first = self._config()._dependency_cache_path()
+                again = self._config()._dependency_cache_path()
+                other = self._config(module="another_module")._dependency_cache_path()
+            self.assertEqual(first, again)
+            self.assertNotEqual(first, other)
+            self.assertEqual(first.parent, Path(cache_dir) / "dependencies")
+
+    def test_cache_path_stays_inside_the_cache_directory(self) -> None:
+        """A module name with separators must not escape the cache."""
+        with tempfile.TemporaryDirectory() as cache_dir:
+            with patch.dict(os.environ, {"PUM_CACHE_DIR": cache_dir}):
+                path = self._config(module="../../evil/module")._dependency_cache_path()
+            self.assertEqual(path.parent, Path(cache_dir) / "dependencies")
+            self.assertNotIn("..", path.parts)
+
+    def test_sys_paths_are_added_once(self) -> None:
+        """Repeated registration must not leak sys.path entries."""
+        before = list(sys.path)
+        self.addCleanup(sys.path.__setitem__, slice(None), before)
+        with tempfile.TemporaryDirectory() as cache_dir:
+            prefix = Path(cache_dir) / "prefix"
+            existing = prefix / "lib" / "python3" / "dist-packages"
+            existing.mkdir(parents=True)
+            _add_dependency_sys_paths(prefix)
+            self.assertIn(str(existing), sys.path)
+
+            # Called again after a fictitious install: already registered paths
+            # stay single, newly created ones are picked up.
+            fresh = prefix / "local" / "lib" / "python3" / "dist-packages"
+            fresh.mkdir(parents=True)
+            _add_dependency_sys_paths(prefix)
+            self.assertIn(str(fresh), sys.path)
+            for path in (existing, fresh):
+                self.assertEqual(sys.path.count(str(path)), 1)
+
+    def test_only_existing_directories_are_added(self) -> None:
+        """A prefix pip has not filled in yet contributes nothing importable."""
+        before = list(sys.path)
+        self.addCleanup(sys.path.__setitem__, slice(None), before)
+        with tempfile.TemporaryDirectory() as cache_dir:
+            prefix = Path(cache_dir) / "prefix"
+            prefix.mkdir()
+            _add_dependency_sys_paths(prefix)
+            self.assertEqual(sys.path, before)
+
+
+class TestDependencyInstallIsImportable(unittest.TestCase):
+    """A dependency installed on a cold cache must be usable straight away."""
+
+    DEPENDENCY = "pum-fake-dep"
+    MODULE = "pum_fake_dep"
+
+    def tearDown(self) -> None:
+        sys.modules.pop(self.MODULE, None)
+
+    def _fake_pip_install(self, install_path):
+        """Stand in for pip, installing into a scheme pip may pick but we cannot predict.
+
+        Debian's layout is used on purpose: it is neither of the two paths
+        `sysconfig` prescribes for the prefix, so it can only be found by looking
+        at the prefix again once the install is over.
+        """
+        # Real pip runs while the directories do not exist yet, and any import
+        # happening in that window caches the missing sys.path entries as dead.
+        with self.assertRaises(ImportError):
+            importlib.import_module(self.MODULE)
+
+        target = Path(install_path) / "lib" / "python3" / "dist-packages"
+        target.mkdir(parents=True, exist_ok=True)
+        (target / f"{self.MODULE}.py").write_text("VALUE = 42\n")
+        dist_info = target / f"{self.MODULE}-1.2.3.dist-info"
+        dist_info.mkdir(exist_ok=True)
+        (dist_info / "METADATA").write_text(
+            f"Metadata-Version: 2.1\nName: {self.DEPENDENCY}\nVersion: 1.2.3\n"
+        )
+
+    def test_dependency_is_importable_after_a_cold_cache_install(self) -> None:
+        """Regression: the sys.path entries have to be looked up after pip runs."""
+        self.addCleanup(sys.path.__setitem__, slice(None), list(sys.path))
+        with tempfile.TemporaryDirectory() as cache_dir:
+            with patch.dict(os.environ, {"PUM_CACHE_DIR": cache_dir}):
+                with patch.object(
+                    DependencyHandler, "pip_install", autospec=False, side_effect=None
+                ) as pip_install:
+                    pip_install.side_effect = lambda install_path: self._fake_pip_install(
+                        install_path
+                    )
+                    PumConfig(
+                        base_path=Path("test") / "data" / "single_changelog",
+                        install_dependencies=True,
+                        pum={"module": "cold_cache_test"},
+                        dependencies=[{"name": self.DEPENDENCY}],
+                    )
+                pip_install.assert_called_once()
+
+                # What a hook does: import the dependency it declared.
+                module = importlib.import_module(self.MODULE)
+                self.assertEqual(module.VALUE, 42)
+                # What resolving the next dependency does: read its metadata.
+                self.assertEqual(
+                    importlib.metadata.version(self.DEPENDENCY),
+                    "1.2.3",
+                )

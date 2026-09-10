@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import shutil
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import psycopg
 from .checker import Checker
 from .database import configure_database_connect_access, create_database, drop_database
 from .report_generator import ReportGenerator
-from .pum_config import PumConfig
+from .pum_config import PumConfig, dependency_cache_dir
 from .connection import format_connection_string
 
 from .info import run_info
@@ -117,7 +118,8 @@ def create_parser(
         "-p",
         "--pg-connection",
         help="PostgreSQL service name or connection string (e.g., 'mydb' or 'postgresql://user:***@host/db')",
-        required=True,
+        # Required for every command but `cache`, which touches no database.
+        # Enforced in `cli()` so that the error message stays argparse's own.
     )
 
     parser.add_argument(
@@ -461,6 +463,24 @@ def create_parser(
         default=False,
     )
 
+    # Parser for the "cache" command
+    parser_cache = subparsers.add_parser(
+        "cache",
+        help="Inspect or clear the cached module dependencies",
+        formatter_class=formatter_class,
+    )
+    parser_cache.add_argument(
+        "action",
+        choices=["path", "list", "clear"],
+        help="Action to perform: path (print the cache directory), "
+        "list (show the cached prefixes), clear (delete them)",
+    )
+    parser_cache.add_argument(
+        "--force",
+        help="Skip confirmation prompt for clear action",
+        action="store_true",
+    )
+
     # Parser for the "app" command
     parser_app = subparsers.add_parser(
         "app",
@@ -492,6 +512,63 @@ def create_parser(
     return parser
 
 
+# Commands that need no PostgreSQL connection at all.
+_COMMANDS_WITHOUT_DATABASE = frozenset({"cache"})
+
+
+def run_cache_command(action: str, *, force: bool = False) -> int:
+    """Inspect or clear the directory caching the module dependencies.
+
+    Args:
+        action: One of "path", "list" or "clear".
+        force: Skip the confirmation prompt of "clear".
+
+    Returns:
+        Process exit code.
+
+    """
+    logger = logging.getLogger(__name__)
+    cache_dir = dependency_cache_dir()
+
+    if action == "path":
+        print(cache_dir)
+        return 0
+
+    prefixes = sorted(p for p in cache_dir.glob("*") if p.is_dir()) if cache_dir.is_dir() else []
+
+    if action == "list":
+        if not prefixes:
+            logger.info(f"No cached dependencies in {cache_dir}.")
+            return 0
+        for prefix in prefixes:
+            size = sum(f.stat().st_size for f in prefix.rglob("*") if f.is_file())
+            print(f"{prefix.name}\t{size / 1024:.0f} KiB")
+        return 0
+
+    # clear
+    if not prefixes:
+        logger.info(f"No cached dependencies to remove in {cache_dir}.")
+        return 0
+    if not force:
+        logger.warning(
+            f"⚠️  This will delete {len(prefixes)} cached dependency prefixes in {cache_dir}. "
+            "Do not run it while a module is loaded: a prefix already imported from "
+            "would be pulled out from under the running process."
+        )
+        response = input("Are you sure you want to proceed? (yes/no): ").strip().lower()
+        if response not in ("yes", "y"):
+            logger.info("Clear cancelled.")
+            return 0
+    for prefix in prefixes:
+        try:
+            shutil.rmtree(prefix)
+        except OSError as e:
+            logger.error(f"Failed to remove {prefix}: {e}")
+            return 1
+    logger.info(f"Removed {len(prefixes)} cached dependency prefixes from {cache_dir}.")
+    return 0
+
+
 def cli() -> int:  # noqa: PLR0912
     """Run the command line interface.
 
@@ -519,6 +596,13 @@ def cli() -> int:  # noqa: PLR0912
     if not args.command:
         parser.print_help()
         parser.exit()
+
+    if args.command not in _COMMANDS_WITHOUT_DATABASE and not args.pg_connection:
+        parser.error("the following arguments are required: -p/--pg-connection")
+
+    # Handle cache command separately (needs neither a config file nor a database)
+    if args.command == "cache":
+        return run_cache_command(args.action, force=args.force)
 
     # Handle db command separately (doesn't need config file or existing db connection)
     if args.command == "db":

@@ -7,15 +7,19 @@ from pydantic import ValidationError
 import logging
 from typing import TYPE_CHECKING
 
-from .dependency_handler import DependencyHandler
+from .dependency_handler import DependencyHandler, prefix_site_packages
 from .exceptions import PumConfigError, PumException, PumHookError, PumInvalidChangelog, PumSqlError
 from .parameter import ParameterDefinition
 from .role_manager import RoleManager
 from .config_model import ConfigModel
 from .hook import HookHandler
 from ._version import VERSION as PUM_VERSION  # re-exported for backward compatibility
-import tempfile
+import hashlib
+import importlib
+import os
+import re
 import sys
+import sysconfig
 
 
 if TYPE_CHECKING:
@@ -23,6 +27,61 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def _user_cache_dir() -> Path:
+    """Return the per-user cache directory for pum.
+
+    `PUM_CACHE_DIR` overrides it, which keeps test runs and sandboxed
+    environments out of the real user cache.
+    """
+    override = os.environ.get("PUM_CACHE_DIR")
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local"
+        return Path(base) / "pum" / "Cache"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Caches" / "pum"
+    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "pum"
+
+
+def _path_safe(name: str) -> str:
+    """Reduce `name` to a single, harmless path component.
+
+    The module name comes from the configuration file, so it may hold separators
+    or `..` that would place the cache outside its directory.
+    """
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", name).strip("._-")
+    return safe or "module"
+
+
+def dependency_cache_dir() -> Path:
+    """Return the directory holding the cached dependency prefixes.
+
+    One directory per prefix, see :meth:`PumConfig._dependency_cache_path`. It is
+    never pruned automatically: removing a prefix another process has already
+    imported from would break it, so clearing is left to `pum cache clear`.
+    """
+    return _user_cache_dir() / "dependencies"
+
+
+def _add_dependency_sys_paths(prefix: str | Path) -> None:
+    """Make the dependencies installed under `prefix` importable.
+
+    Idempotent, and meant to be called again after every install: which
+    site-packages directories pip creates depends on the install scheme, so they
+    can only be discovered once they exist on disk. Entries are never removed:
+    the prefix is a cache that outlives the configuration, so an entry left
+    behind stays valid, and whatever was imported from it stays imported anyway.
+    """
+    for path in reversed(prefix_site_packages(prefix)):
+        if path not in sys.path and os.path.isdir(path):
+            sys.path.insert(0, path)
+    # A sys.path entry that did not exist when it was first searched is
+    # negatively cached in sys.path_importer_cache until the caches are
+    # invalidated; this also lets importlib.metadata see a fresh install.
+    importlib.invalidate_caches()
 
 
 def _exception_chain_text(exc: BaseException) -> str:
@@ -54,7 +113,7 @@ class PumConfig:
         Args:
             base_path: The directory where the changelogs are located.
             validate: Whether to validate the changelogs and hooks and resolve dependencies. Defaults to True.
-            install_dependencies: Whether to temporarily install dependencies.
+            install_dependencies: Whether to install missing dependencies into a cache directory.
             **kwargs: Key-value pairs representing configuration settings.
 
         Raises:
@@ -102,7 +161,7 @@ class PumConfig:
         Args:
             file_path: The path to the YAML file.
             validate: Whether to validate the changelogs and hooks.
-            install_dependencies: Whether to temporarily install dependencies.
+            install_dependencies: Whether to install missing dependencies into a cache directory.
 
         Returns:
             PumConfig: An instance of the PumConfig class.
@@ -300,26 +359,50 @@ class PumConfig:
             demo_data_files[dm.name] = dm.files or [dm.file]
         return demo_data_files
 
-    def __del__(self):
-        # Cleanup temporary directories and sys.path modifications
-        if self.dependency_path and sys.path:
-            # Remove from sys.path if present
-            sys.path = [p for p in sys.path if p != str(self.dependency_path)]
-            # Remove the directory if it exists and is a TemporaryDirectory
-            if hasattr(self, "dependency_tmp") and self.dependency_tmp:
-                self.dependency_tmp.cleanup()
+    def _dependency_cache_path(self) -> Path:
+        """Return the pip prefix caching this configuration's dependencies.
+
+        The key covers everything the installed content depends on, so a change of
+        dependency, interpreter or platform gets its own prefix. The directory is
+        kept across runs: reinstalling on every configuration load is slow, and it
+        would download the dependency again on each module switch.
+
+        Known limitation: nothing locks the prefix, and pip does not lock it
+        either, so two processes installing the same module at the same time
+        (two QGIS instances, or QGIS and the CLI) write into it concurrently.
+        The common half-written state heals itself -- without the `dist-info`
+        the dependency reads as missing and is installed again -- but the
+        inverse leaves a prefix that resolves yet fails to import. Rare enough
+        that a lock is not worth its failure modes; `pum cache clear` is the
+        way out if it ever happens.
+        """
+        key = "\n".join(
+            sorted(
+                f"{d.name}|{d.minimum_version or ''}|{d.maximum_version or ''}"
+                for d in self.config.dependencies
+            )
+            + [
+                f"python|{sys.version_info.major}.{sys.version_info.minor}",
+                f"platform|{sysconfig.get_platform()}",
+            ]
+        )
+        digest = hashlib.sha256(key.encode()).hexdigest()[:16]
+        name = _path_safe(self.config.pum.module)
+        return dependency_cache_dir() / f"{name}-{digest}"
 
     def validate(self, install_dependencies: bool = False) -> None:
         """Validate the changelogs and hooks.
 
         Args:
-            install_dependencies (bool): Whether to temporarily install dependencies.
+            install_dependencies (bool): Whether to install missing dependencies into a cache directory.
         """
 
         if install_dependencies and self.config.dependencies:
-            self.dependency_tmp = tempfile.TemporaryDirectory()
-            self.dependency_path = Path(self.dependency_tmp.name)
-            sys.path.insert(0, str(self.dependency_path))
+            self.dependency_path = self._dependency_cache_path()
+            self.dependency_path.mkdir(parents=True, exist_ok=True)
+            # Added before resolving, so that a dependency already in the cache
+            # is found and not installed again.
+            _add_dependency_sys_paths(self.dependency_path)
 
         parameter_defaults = {}
         app_only_parameter_names = set()
@@ -332,6 +415,10 @@ class PumConfig:
             DependencyHandler(**dependency.model_dump()).resolve(
                 install_dependencies=install_dependencies, install_path=self.dependency_path
             )
+            if self.dependency_path:
+                # pip has only now created the site-packages directories, and the
+                # next dependency must be able to see what this one pulled in.
+                _add_dependency_sys_paths(self.dependency_path)
 
         # Validate changelogs with only non-app_only parameters.
         # app_only parameters must not be used in changelogs (migrations),

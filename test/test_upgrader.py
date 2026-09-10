@@ -1,8 +1,12 @@
+import importlib
 import logging
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
 from packaging.version import Version
 
 import psycopg
@@ -447,13 +451,34 @@ class TestUpgrader(unittest.TestCase):
         test_dir = Path("test") / "data" / "dependencies"
         with self.assertRaises(PumDependencyError):
             PumConfig.from_yaml(test_dir / ".pum.yaml")
-        cfg = PumConfig.from_yaml(test_dir / ".pum.yaml", install_dependencies=True)
+        # An empty cache directory, so that the test exercises the cold-cache
+        # install and does not write into the developer's real cache.
+        cache_dir = tempfile.TemporaryDirectory()
+        # Cleanups run in reverse: drop the sys.path entries pointing into the
+        # cache, drop the modules loaded from it, and only then delete it.
+        self.addCleanup(cache_dir.cleanup)
+        self.addCleanup(self._forget_dependency_modules)
+        sys_path = list(sys.path)
+        self.addCleanup(sys.path.__setitem__, slice(None), sys_path)
+        with patch.dict(os.environ, {"PUM_CACHE_DIR": cache_dir.name}):
+            cfg = PumConfig.from_yaml(test_dir / ".pum.yaml", install_dependencies=True)
+
+        # The dependency must be importable right after the install, without the
+        # caller having to reload anything.
+        importlib.import_module("pirogue.utils")
+
         sm = SchemaMigrations(cfg)
         with psycopg.connect(f"service={self.pg_service}") as conn:
             self.assertFalse(sm.exists(conn))
             upgrader = Upgrader(config=cfg)
             upgrader.install(connection=conn)
             self.assertTrue(sm.exists(conn))
+
+    @staticmethod
+    def _forget_dependency_modules() -> None:
+        """Drop the modules imported from the cache, whose files are about to go."""
+        for name in [n for n in sys.modules if n == "pirogue" or n.startswith("pirogue.")]:
+            del sys.modules[name]
 
     def test_upgrade(self) -> None:
         """Test the upgrade method."""
