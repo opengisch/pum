@@ -454,13 +454,14 @@ class TestUpgrader(unittest.TestCase):
         # An empty cache directory, so that the test exercises the cold-cache
         # install and does not write into the developer's real cache.
         cache_dir = tempfile.TemporaryDirectory()
-        # Cleanups run in reverse: unregister the config's sys.path entries, drop
-        # the modules loaded from the cache, and only then delete the cache.
+        # Cleanups run in reverse: drop the sys.path entries pointing into the
+        # cache, drop the modules loaded from it, and only then delete it.
         self.addCleanup(cache_dir.cleanup)
         self.addCleanup(self._forget_dependency_modules)
+        sys_path = list(sys.path)
+        self.addCleanup(sys.path.__setitem__, slice(None), sys_path)
         with patch.dict(os.environ, {"PUM_CACHE_DIR": cache_dir.name}):
             cfg = PumConfig.from_yaml(test_dir / ".pum.yaml", install_dependencies=True)
-        self.addCleanup(cfg.__del__)
 
         # The dependency must be importable right after the install, without the
         # caller having to reload anything.

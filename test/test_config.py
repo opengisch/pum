@@ -6,7 +6,7 @@ import packaging.version
 from packaging.version import parse as parse_version
 
 from pum.dependency_handler import DependencyHandler
-from pum.pum_config import PumConfig
+from pum.pum_config import PumConfig, _add_dependency_sys_paths
 from pum.exceptions import PumConfigError, PumException
 from pum.hook import HookHandler
 import importlib
@@ -550,49 +550,35 @@ class TestDependencyCache(unittest.TestCase):
             self.assertEqual(path.parent, Path(cache_dir) / "dependencies")
             self.assertNotIn("..", path.parts)
 
-    def test_sys_paths_are_added_once_and_removed_on_delete(self) -> None:
+    def test_sys_paths_are_added_once(self) -> None:
         """Repeated registration must not leak sys.path entries."""
         before = list(sys.path)
+        self.addCleanup(sys.path.__setitem__, slice(None), before)
         with tempfile.TemporaryDirectory() as cache_dir:
-            cfg = self._config(cache_dir=cache_dir)
             prefix = Path(cache_dir) / "prefix"
-            prefix.mkdir()
-            cfg._add_dependency_sys_paths(prefix)
-            added = list(cfg._dependency_sys_paths)
-            self.assertTrue(added)
-            for path in added:
-                self.assertEqual(sys.path.count(path), 1)
+            existing = prefix / "lib" / "python3" / "dist-packages"
+            existing.mkdir(parents=True)
+            _add_dependency_sys_paths(prefix)
+            self.assertIn(str(existing), sys.path)
 
-            # Called again after a fictitious install: previously registered
-            # paths stay counted once, newly created ones are picked up.
-            fresh = prefix / "lib" / "python3" / "dist-packages"
+            # Called again after a fictitious install: already registered paths
+            # stay single, newly created ones are picked up.
+            fresh = prefix / "local" / "lib" / "python3" / "dist-packages"
             fresh.mkdir(parents=True)
-            cfg._add_dependency_sys_paths(prefix)
-            self.assertIn(str(fresh), cfg._dependency_sys_paths)
-            for path in cfg._dependency_sys_paths:
-                self.assertEqual(sys.path.count(path), 1)
+            _add_dependency_sys_paths(prefix)
+            self.assertIn(str(fresh), sys.path)
+            for path in (existing, fresh):
+                self.assertEqual(sys.path.count(str(path)), 1)
 
-            del cfg
-        self.assertEqual(sys.path, before)
-
-    def test_sys_paths_survive_while_another_config_uses_them(self) -> None:
-        """One config being collected must not unregister another's paths."""
+    def test_only_existing_directories_are_added(self) -> None:
+        """A prefix pip has not filled in yet contributes nothing importable."""
         before = list(sys.path)
+        self.addCleanup(sys.path.__setitem__, slice(None), before)
         with tempfile.TemporaryDirectory() as cache_dir:
             prefix = Path(cache_dir) / "prefix"
             prefix.mkdir()
-            first = self._config(cache_dir=cache_dir)
-            second = self._config(cache_dir=cache_dir)
-            first._add_dependency_sys_paths(prefix)
-            second._add_dependency_sys_paths(prefix)
-            shared = list(first._dependency_sys_paths)
-
-            del first
-            for path in shared:
-                self.assertIn(path, sys.path)
-
-            del second
-        self.assertEqual(sys.path, before)
+            _add_dependency_sys_paths(prefix)
+            self.assertEqual(sys.path, before)
 
 
 class TestDependencyInstallIsImportable(unittest.TestCase):
@@ -627,6 +613,7 @@ class TestDependencyInstallIsImportable(unittest.TestCase):
 
     def test_dependency_is_importable_after_a_cold_cache_install(self) -> None:
         """Regression: the sys.path entries have to be looked up after pip runs."""
+        self.addCleanup(sys.path.__setitem__, slice(None), list(sys.path))
         with tempfile.TemporaryDirectory() as cache_dir:
             with patch.dict(os.environ, {"PUM_CACHE_DIR": cache_dir}):
                 with patch.object(
@@ -635,7 +622,7 @@ class TestDependencyInstallIsImportable(unittest.TestCase):
                     pip_install.side_effect = lambda install_path: self._fake_pip_install(
                         install_path
                     )
-                    cfg = PumConfig(
+                    PumConfig(
                         base_path=Path("test") / "data" / "single_changelog",
                         install_dependencies=True,
                         pum={"module": "cold_cache_test"},
@@ -651,4 +638,3 @@ class TestDependencyInstallIsImportable(unittest.TestCase):
                     importlib.metadata.version(self.DEPENDENCY),
                     "1.2.3",
                 )
-                del cfg

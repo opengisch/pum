@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 # On Windows, prevent console windows from flashing when running subprocesses
 _subprocess_kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
 
-# Probing a candidate interpreter spawns a process. Keep the timeout short: the
-# host may be a GUI application, and a broken candidate must not freeze it.
+# Probing a candidate interpreter spawns a process. What keeps the cost down is
+# `_is_python_executable`, which rejects almost every candidate without running
+# it; the timeout only bounds the handful that survive that gate and then hang.
 _PROBE_TIMEOUT = 20
 
 _EXE_SUFFIX = ".exe" if os.name == "nt" else ""
@@ -196,11 +197,11 @@ def prefix_site_packages(prefix: str | Path) -> list[str]:
 
     # Scheme-agnostic discovery, bounded in depth: `Lib/site-packages` (2),
     # `lib/python3.12/site-packages` (3), `local/lib/python3/dist-packages` (4).
-    for depth in range(1, 5):
-        pattern = "/".join(["*"] * (depth - 1) + ["*-packages"])
-        for found in sorted(prefix.glob(pattern)):
-            if found.name in _SITE_PACKAGES_NAMES and found.is_dir():
-                candidates.append(str(found))
+    for depth in range(4):
+        for name in _SITE_PACKAGES_NAMES:
+            for found in sorted(prefix.glob("*/" * depth + name)):
+                if found.is_dir():
+                    candidates.append(str(found))
 
     directories: list[str] = []
     for candidate in candidates:
@@ -311,86 +312,38 @@ class DependencyHandler:
         `--prefix` is used rather than `--target`: pip forces `--ignore-installed`
         for `--target`, which reinstalls the whole dependency closure and shadows
         the packages the host application already provides.
-
-        Code copied from qpip plugin
         """
 
         req = self.requirement()
-        python_cmd = self.python_command()
+        python_cmd = python_command()
         install_path_str = str(install_path)
 
-        # First, ensure pip is installed in the prefix and upgrade it if needed
-        try:
-            pip_version_output = subprocess.run(
-                [python_cmd, "-m", "pip", "--version"],
-                capture_output=True,
-                text=True,
-                check=False,
-                env=pip_environment(install_path_str),
-                **_subprocess_kwargs,
+        # pip has to be importable by that interpreter; without this check its
+        # absence would surface as an opaque pip stderr from the install below.
+        probe = subprocess.run(
+            [python_cmd, "-m", "pip", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=pip_environment(install_path_str),
+            **_subprocess_kwargs,
+        )
+        if probe.returncode != 0:
+            raise PumDependencyError(
+                f"`{python_cmd} -m pip` is not available: {probe.stderr.strip()}. "
+                "Install the module dependencies manually."
             )
-            if pip_version_output.returncode != 0:
-                logger.warning(
-                    "`%s -m pip` is not available: %s",
-                    python_cmd,
-                    pip_version_output.stderr.strip(),
-                )
-            else:
-                # Extract pip version (format: "pip X.Y.Z from ...")
-                pip_version_str = pip_version_output.stdout.split()[1]
-                pip_version = packaging.version.Version(pip_version_str)
-                if pip_version < packaging.version.Version("22.0"):
-                    logger.warning(
-                        f"pip version {pip_version} is outdated, installing newer pip to the prefix..."
-                    )
-                    # Install a newer pip to the prefix first
-                    # This will be used by subsequent installations
-                    upgrade_cmd = [
-                        python_cmd,
-                        "-m",
-                        "pip",
-                        "install",
-                        "--upgrade",
-                        "pip>=22.0",
-                        "--prefix",
-                        install_path_str,
-                    ]
-                    upgrade_result = subprocess.run(
-                        upgrade_cmd,
-                        capture_output=True,
-                        text=True,
-                        check=False,
-                        env=pip_environment(install_path_str),
-                        **_subprocess_kwargs,
-                    )
-                    if upgrade_result.returncode == 0:
-                        logger.info(f"Successfully upgraded pip in {install_path}")
-        except Exception as e:
-            logger.debug(f"Could not check/upgrade pip version: {e}")
 
         command = [python_cmd, "-m", "pip", "install", req, "--prefix", install_path_str]
 
-        try:
-            output = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=False,
-                # Recomputed: the upgrade above may have created the prefix
-                # directories, and pip must see the pip it just installed there.
-                env=pip_environment(install_path_str),
-                **_subprocess_kwargs,
-            )
-            if output.returncode != 0:
-                logger.error("pip installed failed: %s", output.stderr)
-                raise PumDependencyError(output.stderr)
-        except TypeError:
-            logger.error("Invalid command: %s", " ".join(command))
-            raise PumDependencyError("invalid command: {}".format(" ".join(filter(None, command))))
-
-    def python_command(self) -> str:
-        """Return the Python interpreter to invoke pip with.
-
-        See the module-level :func:`python_command`.
-        """
-        return python_command()
+        output = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=pip_environment(install_path_str),
+            **_subprocess_kwargs,
+        )
+        if output.returncode != 0:
+            logger.error("pip install failed: %s", output.stderr)
+            raise PumDependencyError(output.stderr)
