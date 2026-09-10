@@ -17,6 +17,7 @@ from ._version import VERSION as PUM_VERSION  # re-exported for backward compati
 import hashlib
 import importlib
 import os
+import re
 import sys
 import sysconfig
 from collections import Counter
@@ -34,13 +35,30 @@ _dependency_path_users: Counter = Counter()
 
 
 def _user_cache_dir() -> Path:
-    """Return the per-user cache directory for pum."""
+    """Return the per-user cache directory for pum.
+
+    `PUM_CACHE_DIR` overrides it, which keeps test runs and sandboxed
+    environments out of the real user cache.
+    """
+    override = os.environ.get("PUM_CACHE_DIR")
+    if override:
+        return Path(override)
     if os.name == "nt":
         base = os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local"
         return Path(base) / "pum" / "Cache"
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Caches" / "pum"
     return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "pum"
+
+
+def _path_safe(name: str) -> str:
+    """Reduce `name` to a single, harmless path component.
+
+    The module name comes from the configuration file, so it may hold separators
+    or `..` that would place the cache outside its directory.
+    """
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", name).strip("._-")
+    return safe or "module"
 
 
 def _exception_chain_text(exc: BaseException) -> str:
@@ -338,26 +356,41 @@ class PumConfig:
             ]
         )
         digest = hashlib.sha256(key.encode()).hexdigest()[:16]
-        return _user_cache_dir() / "dependencies" / f"{self.config.pum.module}-{digest}"
+        name = _path_safe(self.config.pum.module)
+        return _user_cache_dir() / "dependencies" / f"{name}-{digest}"
 
     def _add_dependency_sys_paths(self, prefix: Path) -> None:
-        """Make the dependencies installed under `prefix` importable."""
-        self._dependency_sys_paths = prefix_site_packages(prefix)
-        for path in reversed(self._dependency_sys_paths):
+        """Make the dependencies installed under `prefix` importable.
+
+        Idempotent, and meant to be called again after every install: which
+        site-packages directories pip creates depends on the install scheme, so
+        they can only be discovered once they exist on disk.
+        """
+        for path in reversed(prefix_site_packages(prefix)):
+            if path in self._dependency_sys_paths:
+                continue
+            self._dependency_sys_paths.append(path)
             _dependency_path_users[path] += 1
             if path not in sys.path:
                 sys.path.insert(0, path)
-        # The directories were just created, drop any negative cache entry for them.
+        # A sys.path entry that did not exist when it was first searched is
+        # negatively cached in sys.path_importer_cache until the caches are
+        # invalidated; this also lets importlib.metadata see a fresh install.
         importlib.invalidate_caches()
 
     def __del__(self):
         # Cleanup sys.path modifications. The cache directory itself is kept.
-        for path in getattr(self, "_dependency_sys_paths", []):
-            _dependency_path_users[path] -= 1
-            if _dependency_path_users[path] <= 0:
-                del _dependency_path_users[path]
-                if sys.path:
-                    sys.path = [p for p in sys.path if p != path]
+        # Guarded: at interpreter shutdown the module globals may already be gone.
+        try:
+            for path in getattr(self, "_dependency_sys_paths", ()):
+                _dependency_path_users[path] -= 1
+                if _dependency_path_users[path] <= 0:
+                    del _dependency_path_users[path]
+                    if sys.path:
+                        sys.path = [p for p in sys.path if p != path]
+            self._dependency_sys_paths = []
+        except Exception:
+            pass
 
     def validate(self, install_dependencies: bool = False) -> None:
         """Validate the changelogs and hooks.
@@ -369,6 +402,8 @@ class PumConfig:
         if install_dependencies and self.config.dependencies:
             self.dependency_path = self._dependency_cache_path()
             self.dependency_path.mkdir(parents=True, exist_ok=True)
+            # Added before resolving, so that a dependency already in the cache
+            # is found and not installed again.
             self._add_dependency_sys_paths(self.dependency_path)
 
         parameter_defaults = {}
@@ -382,6 +417,10 @@ class PumConfig:
             DependencyHandler(**dependency.model_dump()).resolve(
                 install_dependencies=install_dependencies, install_path=self.dependency_path
             )
+            if self.dependency_path:
+                # pip has only now created the site-packages directories, and the
+                # next dependency must be able to see what this one pulled in.
+                self._add_dependency_sys_paths(self.dependency_path)
 
         # Validate changelogs with only non-app_only parameters.
         # app_only parameters must not be used in changelogs (migrations),
