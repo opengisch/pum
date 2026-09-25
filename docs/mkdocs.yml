@@ -65,6 +65,7 @@ nav:
   - About: index.md
   - Changelog: changelog.md
   - Getting Started: getting_started.md
+  - Changelogs: changelogs.md
   - Application: application.md
   - Parameters: parameters.md
   - Demo data: demo_data.md
