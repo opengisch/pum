@@ -18,7 +18,7 @@ There are two types of migration hooks:
 !!! tip
     If a release only changes the application (no database migration), you can publish it
     without any SQL changelog by using an `APP_ONLY_RELEASE` marker file.
-    See [application-only releases](getting_started.md#application-only-releases).
+    See [application-only releases](changelogs.md#application-only-releases).
 
 ## Permissions
 
