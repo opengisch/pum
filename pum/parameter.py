@@ -42,6 +42,7 @@ class ParameterDefinition:
         description: str | None = None,
         values: list | None = None,
         app_only: bool = False,
+        regex: str | None = None,
     ) -> None:
         """Initialize a ParameterDefintion instance.
 
@@ -54,6 +55,7 @@ class ParameterDefinition:
             app_only: If True, the parameter can be changed when recreating the app.
                 Standard parameters (app_only=False) must remain the same across
                 the whole application lifecycle. Defaults to False.
+            regex: regular expression used to limit text inputs
 
         Raises:
             ValueError: If type is a string and not a valid ParameterType.
@@ -74,6 +76,7 @@ class ParameterDefinition:
         self.description = description
         self.values = values
         self.app_only = app_only
+        self.regex =regex
 
     def __repr__(self) -> str:
         """Return a string representation of the ParameterDefinition instance."""
@@ -90,4 +93,5 @@ class ParameterDefinition:
             and self.description == other.description
             and self.values == other.values
             and self.app_only == other.app_only
+            and self.regex == other.regex
         )

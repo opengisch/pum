@@ -1,6 +1,7 @@
 from packaging.version import Version
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Any, Literal
+import re
 
 
 from .exceptions import PumConfigError
@@ -34,6 +35,7 @@ class ParameterDefinitionModel(PumCustomBaseModel):
     app_only: bool = Field(
         default=False, description="If True, the parameter can be adapted when recreating the app."
     )
+    regex: str | None = None
 
     @model_validator(mode="before")
     def validate_default(cls, values):
