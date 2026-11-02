@@ -1,5 +1,5 @@
 ```text
-usage: pum app [-h] [-p PARAMETER PARAMETER] {create,drop,recreate}
+usage: pum app [-h] [-p PARAMETER PARAMETER] [--skip-grant] [--suffix SUFFIX] {create,drop,recreate}
 ```
 
 ### positional arguments:
@@ -10,3 +10,5 @@ usage: pum app [-h] [-p PARAMETER PARAMETER] {create,drop,recreate}
 
 - `-h, --help`: show this help message and exit
 - `-p PARAMETER PARAMETER, --parameter PARAMETER PARAMETER`: Assign variable for running SQL handlers. Format is name value.
+- `--skip-grant`: Skip granting permissions to roles
+- `--suffix SUFFIX`: Grant the permissions to the DB-specific roles with this suffix instead of the generic ones

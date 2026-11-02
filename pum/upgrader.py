@@ -555,6 +555,8 @@ class Upgrader:
         parameters: dict | None = None,
         feedback: Feedback | None = None,
         commit: bool = False,
+        grant: bool = True,
+        suffix: str | None = None,
     ) -> None:
         """Execute create app handlers.
 
@@ -565,6 +567,13 @@ class Upgrader:
             parameters: The parameters to pass to the handlers.
             feedback: The feedback instance to report progress.
             commit: If True, commit the changes after executing handlers. Default is False.
+            grant: If True, grant permissions once the handlers have run. Default is True.
+            suffix: Optional suffix identifying the DB-specific roles to grant.
+
+        Version Changed:
+            1.9.0: Added *grant* and *suffix* parameters. Permissions are now
+                granted by default, since app handlers usually drop and
+                recreate the schemas they own, discarding their grants.
         """
         if feedback is None:
             feedback = SilentFeedback()
@@ -580,6 +589,13 @@ class Upgrader:
             feedback.report_progress(f"Executing create app handler {i}/{total}...", i, total)
             create_app_hook.execute(connection=connection, commit=False, parameters=parameters)
 
+        role_manager = self.config.role_manager()
+        if grant and role_manager.roles:
+            feedback.report_progress("Granting permissions...")
+            role_manager.grant_permissions(
+                connection=connection, suffix=suffix, commit=False, feedback=feedback
+            )
+
         if commit:
             feedback.lock_cancellation()
             feedback.report_progress("Committing changes...")
@@ -593,6 +609,8 @@ class Upgrader:
         parameters: dict | None = None,
         feedback: Feedback | None = None,
         commit: bool = False,
+        grant: bool = True,
+        suffix: str | None = None,
     ) -> None:
         """Execute drop app handlers followed by create app handlers.
 
@@ -603,6 +621,11 @@ class Upgrader:
             parameters: The parameters to pass to the handlers.
             feedback: The feedback instance to report progress.
             commit: If True, commit the changes after executing handlers. Default is False.
+            grant: If True, grant permissions once the handlers have run. Default is True.
+            suffix: Optional suffix identifying the DB-specific roles to grant.
+
+        Version Changed:
+            1.9.0: Added *grant* and *suffix* parameters.
         """
         if feedback is None:
             feedback = SilentFeedback()
@@ -617,5 +640,10 @@ class Upgrader:
 
         # Create handlers - use the commit parameter passed to this method
         self.create_app(
-            connection=connection, parameters=parameters, feedback=feedback, commit=commit
+            connection=connection,
+            parameters=parameters,
+            feedback=feedback,
+            commit=commit,
+            grant=grant,
+            suffix=suffix,
         )

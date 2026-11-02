@@ -1,5 +1,5 @@
 ```text
-usage: pum [-h] [-c CONFIG_FILE] -p PG_CONNECTION [-d DIR] [-v] [-q] [--version] {info,install,upgrade,role,check,dump,restore,baseline,uninstall,db,app} ...
+usage: pum [-h] [-c CONFIG_FILE] [-p PG_CONNECTION] [-d DIR] [-v] [-q] [--version] {info,install,upgrade,role,check,dump,restore,baseline,uninstall,db,cache,app} ...
 ```
 
 ### options:
@@ -26,4 +26,5 @@ valid pum commands
 - `baseline`: Create upgrade information table and set baseline
 - `uninstall`: Uninstall the module by executing uninstall hooks
 - `db`: Manage databases (create, drop, access)
+- `cache`: Inspect or clear the cached module dependencies
 - `app`: Manage application handlers (create, drop, recreate)
